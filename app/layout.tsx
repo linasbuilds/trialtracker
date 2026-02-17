@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-export const metadata: Metadata = {
+export const metadata = {
   title: "TrialTracker",
-  description: "Find trials fast. See dates + entry windows at a glance.",
-};
+  description: "Never miss a trial again!  Find all trial openings in one place",
+  icons: {
+    apple: '/apple-touch-icon.png',
+  },
+}
 
 export default function RootLayout({
   children,
