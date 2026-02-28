@@ -317,14 +317,7 @@ export default function TrialsPage() {
                     </>
                   ) : (
                     <span className="text-slate-400 italic">
-                      Entry dates TBD —{" "}
-                      {trial.official_link ? (
-                        <a href={trial.official_link} target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-500">
-                          View & Register for details
-                        </a>
-                      ) : (
-                        "check club site for details"
-                      )}
+                      Entry dates TBD — check club site for details
                     </span>
                   )}
                 </p>
