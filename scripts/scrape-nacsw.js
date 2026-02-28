@@ -1,5 +1,5 @@
 // scripts/scrape-nacsw.js
-// TrialTracker — NACSW Trial Scraper (v5 - clicks Apply to load results)
+// TrialTracker — NACSW Trial Scraper (v6 - correct column names)
 
 const puppeteer = require('puppeteer');
 const https = require('https');
@@ -73,6 +73,7 @@ async function extractTrials(page) {
 
       trialName = desc.split(/[-–]/)[0].trim() || null;
 
+      // Get the club website link — this is the most important thing for NACSW!
       const link = descCell.querySelector('a');
       const officialLink = link ? link.href : null;
 
@@ -84,7 +85,7 @@ async function extractTrials(page) {
 }
 
 async function main() {
-  console.log('🐾 TrialTracker — NACSW Scraper v5 Starting');
+  console.log('🐾 TrialTracker — NACSW Scraper v6 Starting');
   console.log(`📅 Run date: ${new Date().toISOString()}`);
 
   const browser = await puppeteer.launch({
@@ -109,10 +110,10 @@ async function main() {
   console.log(`📄 Page title: ${await page.title()}`);
 
   let trials = await extractTrials(page);
-  console.log(`🔍 Trials found before clicking Apply: ${trials.length}`);
+  console.log(`🔍 Trials found: ${trials.length}`);
 
   if (trials.length === 0) {
-    console.log('🖱️  Clicking Apply button to load trials...');
+    console.log('🖱️  Clicking Apply button...');
     try {
       const applyClicked = await page.evaluate(() => {
         const inputs = Array.from(document.querySelectorAll('input[type="submit"], button[type="submit"], input[value="Apply"]'));
@@ -125,12 +126,9 @@ async function main() {
       });
 
       if (applyClicked) {
-        console.log('✅ Clicked Apply — waiting for results...');
         await delay(4000);
         trials = await extractTrials(page);
-        console.log(`🔍 Trials found after clicking Apply: ${trials.length}`);
-      } else {
-        console.log('⚠️  Could not find Apply button');
+        console.log(`🔍 Trials found after Apply: ${trials.length}`);
       }
     } catch (err) {
       console.log('⚠️  Error clicking Apply:', err.message);
@@ -162,13 +160,14 @@ async function main() {
       state: t.state,
       trial_start_date: t.startDate,
       trial_end_date: null,
-      entry_opens: null,
-      entry_closes: null,
+      entry_opening_date: null,
+      entry_closing_date: null,
       official_link: t.officialLink || NACSW_URL,
       data_source: 'browse_ai',
     };
 
     console.log(`\n[${i + 1}/${futureTrials.length}] ${trial.trial_name || 'Trial'} — ${trial.trial_start_date} — ${trial.city}, ${trial.state}`);
+    console.log(`  🔗 ${trial.official_link}`);
 
     try {
       const res = await postToWebhook(trial);
