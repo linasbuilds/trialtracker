@@ -1,0 +1,28 @@
+name: Scrape NACSW Trials
+
+on:
+  schedule:
+    # Runs every Monday at 8:00 AM UTC (3:00 AM CT / 2:00 AM MT)
+    - cron: '0 8 * * 1'
+  # Allow manual trigger from GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    name: Fetch & Post NACSW Trials
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run NACSW scraper
+        env:
+          BROWSE_AI_WEBHOOK_SECRET: ${{ secrets.BROWSE_AI_WEBHOOK_SECRET }}
+        run: node scripts/scrape-nacsw.js

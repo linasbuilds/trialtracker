@@ -1,291 +1,348 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 
-type Org = 'NACSW' | 'AKC' | 'UKI' | 'CPE' | 'Other';
-type Sport = 'Nosework' | 'Agility' | 'Rally' | 'Obedience' | 'Other';
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-export default function SubmitTrialPage() {
-  const [org, setOrg] = useState<Org>('NACSW');
-  const [sport, setSport] = useState<Sport>('Nosework');
+const US_STATES = [
+  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
+  "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
+  "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
+  "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"
+];
 
-  const [trialName, setTrialName] = useState('');
-  const [trialHost, setTrialHost] = useState('');
-
-  const [trialStartDate, setTrialStartDate] = useState('');
-  const [trialEndDate, setTrialEndDate] = useState('');
-
-  const [entryOpens, setEntryOpens] = useState('');
-  const [entryCloses, setEntryCloses] = useState('');
-
-  const [locationName, setLocationName] = useState('');
-  const [street, setStreet] = useState('');
-  const [city, setCity] = useState('');
-  const [stateCode, setStateCode] = useState('');
-  const [zip, setZip] = useState('');
-
-  const [officialLink, setOfficialLink] = useState('');
-
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-
-  function isValidUrl(url: string) {
-    try {
-      const u = new URL(url);
-      return u.protocol === 'http:' || u.protocol === 'https:';
-    } catch {
-      return false;
-    }
-  }
-
-async function onSubmit(e: React.FormEvent) {
-  e.preventDefault();
-  setError(null);
-  setSuccess(false);
-
-  if (!trialName.trim()) return setError('Trial name is required.');
-  if (!trialHost.trim()) return setError('Trial Host is required.');
-  if (!trialStartDate) return setError('TRIAL DATES: Start date is required.');
-  if (!trialEndDate) return setError('TRIAL DATES: End date is required.');
-  if (!entryOpens) return setError('ENTRY OPENS date is required.');
-  if (!entryCloses) return setError('ENTRY CLOSES date is required.');
-  if (!locationName.trim()) return setError('TRIAL LOCATION: Location name is required.');
-  if (!street.trim()) return setError('TRIAL LOCATION: Street address is required.');
-  if (!city.trim()) return setError('TRIAL LOCATION: City is required.');
-  if (!stateCode.trim() || stateCode.length !== 2)
-    return setError('State must be exactly 2 letters (example: MI).');
-  if (!zip.trim()) return setError('ZIP code is required.');
-  if (!officialLink.trim()) return setError('OFFICIAL LISTING LINK is required.');
-
-  const { error } = await supabase.from('trials').insert({
-    organization: org,
-    sport,
-    trial_name: trialName,
-    trial_host: trialHost,
-    trial_start_date: trialStartDate,
-    trial_end_date: trialEndDate,
-    entry_opens: entryOpens,
-    entry_closes: entryCloses,
-    location_name: locationName,
-    street,
-    city,
-    state: stateCode,
-    zip,
-    official_link: officialLink,
+export default function SubmitPage() {
+  const [form, setForm] = useState({
+    organization: "",
+    sport: "",
+    trial_name: "",
+    trial_host: "",
+    location_name: "",
+    city: "",
+    state: "",
+    zip: "",
+    trial_start_date: "",
+    trial_end_date: "",
+    entry_opening_date: "",
+    entry_closing_date: "",
+    official_link: "",
   });
 
-  if (error) {
-    setError(error.message);
-    return;
-  }
+  const [addressPaste, setAddressPaste] = useState("");
+  const [showPasteHelper, setShowPasteHelper] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState<"success" | "error">("success");
 
-  setSuccess(true);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
-  // Clear form
-  setTrialName('');
-  setTrialHost('');
-  setTrialStartDate('');
-  setTrialEndDate('');
-  setEntryOpens('');
-  setEntryCloses('');
-  setLocationName('');
-  setStreet('');
-  setCity('');
-  setStateCode('');
-  setZip('');
-  setOfficialLink('');
-  setOrg('NACSW');
-  setSport('Nosework');
-}
+  const stateMap: Record<string, string> = {
+    "alabama":"AL","alaska":"AK","arizona":"AZ","arkansas":"AR","california":"CA",
+    "colorado":"CO","connecticut":"CT","delaware":"DE","florida":"FL","georgia":"GA",
+    "hawaii":"HI","idaho":"ID","illinois":"IL","indiana":"IN","iowa":"IA",
+    "kansas":"KS","kentucky":"KY","louisiana":"LA","maine":"ME","maryland":"MD",
+    "massachusetts":"MA","michigan":"MI","minnesota":"MN","mississippi":"MS","missouri":"MO",
+    "montana":"MT","nebraska":"NE","nevada":"NV","new hampshire":"NH","new jersey":"NJ",
+    "new mexico":"NM","new york":"NY","north carolina":"NC","north dakota":"ND","ohio":"OH",
+    "oklahoma":"OK","oregon":"OR","pennsylvania":"PA","rhode island":"RI","south carolina":"SC",
+    "south dakota":"SD","tennessee":"TN","texas":"TX","utah":"UT","vermont":"VT",
+    "virginia":"VA","washington":"WA","west virginia":"WV","wisconsin":"WI","wyoming":"WY"
+  };
 
-  const input =
-    'mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-300';
+  const parseAddress = (raw: string) => {
+    const text = raw.trim();
+    const zipMatch = text.match(/\b(\d{5})\b/);
+    const zip = zipMatch ? zipMatch[1] : "";
+    let state = "";
+    const stateAbbrMatch = text.match(/,?\s+([A-Z]{2})\s*(?:\d{5})?$/);
+    if (stateAbbrMatch && US_STATES.includes(stateAbbrMatch[1])) {
+      state = stateAbbrMatch[1];
+    } else {
+      const lowerText = text.toLowerCase();
+      for (const [fullName, abbr] of Object.entries(stateMap)) {
+        if (lowerText.includes(fullName)) { state = abbr; break; }
+      }
+    }
+    const parts = text.split(",").map((p) => p.trim());
+    let city = "";
+    if (parts.length >= 3) city = parts[1];
+    else if (parts.length === 2) city = parts[0];
+    else if (parts.length === 1 && state) city = text.replace(/,?\s*[A-Z]{2}\s*\d{0,5}$/, "").trim();
+    city = city.replace(/\s+[A-Z]{2}\s*\d{0,5}$/, "").trim();
+    return { city, state, zip };
+  };
+
+  const handleApplyAddress = () => {
+    if (!addressPaste.trim()) return;
+    const parsed = parseAddress(addressPaste);
+    setForm((prev) => ({
+      ...prev,
+      city: parsed.city || prev.city,
+      state: parsed.state || prev.state,
+      zip: parsed.zip || prev.zip,
+    }));
+    setShowPasteHelper(false);
+    setAddressPaste("");
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage("");
+
+    if (!form.organization) { setMessage("Please select an organization."); setMessageType("error"); setLoading(false); return; }
+    if (!form.sport) { setMessage("Please select a sport."); setMessageType("error"); setLoading(false); return; }
+    if (!form.trial_host.trim()) { setMessage("Please enter the trial host."); setMessageType("error"); setLoading(false); return; }
+    if (!form.state) { setMessage("Please select a state."); setMessageType("error"); setLoading(false); return; }
+    if (!form.trial_start_date) { setMessage("Please enter a trial start date."); setMessageType("error"); setLoading(false); return; }
+    if (!form.entry_opening_date) { setMessage("Please enter an entry opening date."); setMessageType("error"); setLoading(false); return; }
+    if (!form.entry_closing_date) { setMessage("Please enter an entry closing date."); setMessageType("error"); setLoading(false); return; }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setMessage("You must be logged in to submit a trial."); setMessageType("error"); setLoading(false); return; }
+
+    // Auto-generate trial name if not provided: "Host Club Sport Trial"
+    const trialName = form.trial_name.trim() ||
+      `${form.trial_host.trim()} ${form.sport} Trial`;
+
+    const { error } = await supabase.from("trials").insert([{
+      organization: form.organization,
+      sport: form.sport,
+      trial_name: trialName,
+      trial_host: form.trial_host,
+      location_name: form.location_name,
+      city: form.city,
+      state: form.state,
+      trial_start_date: form.trial_start_date,
+      trial_end_date: form.trial_end_date || form.trial_start_date,
+      entry_opening_date: form.entry_opening_date,
+      entry_closing_date: form.entry_closing_date,
+      official_link: form.official_link,
+      user_id: user.id,
+    }]);
+
+    if (error) {
+      console.error(error);
+      setMessage("Error submitting trial. Please try again.");
+      setMessageType("error");
+    } else {
+      setForm({
+        organization: "", sport: "", trial_name: "", trial_host: "",
+        location_name: "", city: "", state: "", zip: "",
+        trial_start_date: "", trial_end_date: "",
+        entry_opening_date: "", entry_closing_date: "", official_link: "",
+      });
+      setMessage("Trial submitted! It's now live on TrialTracker. 🎉");
+      setMessageType("success");
+    }
+    setLoading(false);
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-2xl px-4 py-8">
-        <div className="rounded-3xl bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-extrabold text-slate-900">Submit a Trial</h1>
-          <p className="mt-2 text-sm text-slate-600">
-            Clubs submit free. TrialTracker shows key dates + location so handlers don’t have to dig through PDFs.
-            Please provide the <span className="font-bold">official listing/registration link</span>.
-          </p>
+    <div className="min-h-screen bg-[#F8F9FA]">
+      <div className="max-w-2xl mx-auto px-4 py-10">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-800 mb-1">Submit a Trial</h1>
+          <p className="text-slate-500">Free for clubs — your trial goes live instantly.</p>
+        </div>
 
-          {success && (
-            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-              ✅ Trial submitted! (Next step: we’ll save to the database so everyone sees it in Search.)
-            </div>
-          )}
+        <form onSubmit={handleSubmit} className="space-y-6">
 
-          {error && (
-            <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={onSubmit} className="mt-6 grid gap-5">
-            <div>
-              <label className="text-sm font-extrabold text-slate-700">Trial Name *</label>
-              <input className={input} value={trialName} onChange={(e) => setTrialName(e.target.value)} />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
+          {/* Org + Sport */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+            <h2 className="font-semibold text-slate-700 text-sm uppercase tracking-wide">Trial Type</h2>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-extrabold text-slate-700">Organization *</label>
-                <select className={input} value={org} onChange={(e) => setOrg(e.target.value as Org)}>
-                  {['NACSW', 'AKC', 'UKI', 'CPE', 'Other'].map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
+                <label className="block text-sm font-medium text-slate-700 mb-1">Organization *</label>
+                <select name="organization" value={form.organization} onChange={handleChange} required
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">Select org</option>
+                  <option>NACSW</option>
+                  <option>AKC</option>
+                  <option>UKI</option>
+                  <option>CPE</option>
+                  <option>NADAC</option>
+                  <option>UKC</option>
+                  <option>WCRL</option>
+                  <option>NAFA</option>
+                  <option>USDAA</option>
+                  <option>TDAA</option>
+                  <option>ASCA</option>
+                  <option>BHA</option>
+                  <option>Other</option>
                 </select>
               </div>
-
               <div>
-                <label className="text-sm font-extrabold text-slate-700">Sport *</label>
-                <select className={input} value={sport} onChange={(e) => setSport(e.target.value as Sport)}>
-                  {['Nosework', 'Agility', 'Rally', 'Obedience', 'Other'].map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
+                <label className="block text-sm font-medium text-slate-700 mb-1">Sport *</label>
+                <select name="sport" value={form.sport} onChange={handleChange} required
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">Select sport</option>
+                  <option>Nosework</option>
+                  <option>Agility</option>
+                  <option>Rally</option>
+                  <option>Obedience</option>
+                  <option>Barn Hunt</option>
+                  <option>Dock Diving</option>
+                  <option>FastCAT</option>
+                  <option>Flyball</option>
+                  <option>Tracking</option>
+                  <option>Herding</option>
+                  <option>Lure Coursing</option>
+                  <option>Conformation</option>
+                  <option>Other</option>
                 </select>
               </div>
             </div>
+          </div>
+
+          {/* Trial Info */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+            <h2 className="font-semibold text-slate-700 text-sm uppercase tracking-wide">Trial Info</h2>
 
             <div>
-              <label className="text-sm font-extrabold text-slate-700">Trial Host:</label>
-              <input
-                className={input}
-                value={trialHost}
-                onChange={(e) => setTrialHost(e.target.value)}
-                placeholder="Example: EVERY DOG NOSEWORK"
-              />
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 p-4">
-              <div className="text-xs font-extrabold text-slate-500">TRIAL DATES:</div>
-              <div className="mt-3 grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="text-sm font-bold text-slate-700">Start *</label>
-                  <input
-                    type="date"
-                    className={input}
-                    value={trialStartDate}
-                    onChange={(e) => setTrialStartDate(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-bold text-slate-700">End *</label>
-                  <input
-                    type="date"
-                    className={input}
-                    value={trialEndDate}
-                    onChange={(e) => setTrialEndDate(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 p-4">
-              <div className="text-xs font-extrabold text-slate-500">TRIAL ENTRY:</div>
-              <div className="mt-3 grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="text-sm font-bold text-slate-700">ENTRY OPENS *</label>
-                  <input
-                    type="date"
-                    className={input}
-                    value={entryOpens}
-                    onChange={(e) => setEntryOpens(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-bold text-slate-700">ENTRY CLOSES *</label>
-                  <input
-                    type="date"
-                    className={input}
-                    value={entryCloses}
-                    onChange={(e) => setEntryCloses(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 p-4">
-              <div className="text-xs font-extrabold text-slate-500">TRIAL LOCATION:</div>
-
-              <div className="mt-3">
-                <label className="text-sm font-bold text-slate-700">Location name *</label>
-                <input
-                  className={input}
-                  value={locationName}
-                  onChange={(e) => setLocationName(e.target.value)}
-                  placeholder="Example: Turtle Creek Stadium"
-                />
-              </div>
-
-              <div className="mt-3">
-                <label className="text-sm font-bold text-slate-700">Street address *</label>
-                <input
-                  className={input}
-                  value={street}
-                  onChange={(e) => setStreet(e.target.value)}
-                  placeholder="333 Stadium Drive"
-                />
-              </div>
-
-              <div className="mt-3 grid gap-4 md:grid-cols-3">
-                <div className="md:col-span-2">
-                  <label className="text-sm font-bold text-slate-700">City *</label>
-                  <input
-                    className={input}
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    placeholder="Traverse City"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-bold text-slate-700">State *</label>
-                  <input
-                    className={input}
-                    value={stateCode}
-                    onChange={(e) => setStateCode(e.target.value.toUpperCase())}
-                    placeholder="MI"
-                    maxLength={2}
-                  />
-                </div>
-              </div>
-
-              <div className="mt-3">
-                <label className="text-sm font-bold text-slate-700">ZIP *</label>
-                <input className={input} value={zip} onChange={(e) => setZip(e.target.value)} placeholder="49685" />
-              </div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Trial Host *</label>
+              <input name="trial_host" value={form.trial_host} onChange={handleChange} required
+                placeholder="e.g. Doberman Pinscher Club of Greater Milwaukee"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <p className="text-xs text-slate-400 mt-1">The club or organization hosting the trial</p>
             </div>
 
             <div>
-              <label className="text-sm font-extrabold text-slate-700">OFFICIAL LISTING LINK *</label>
-              <input
-                className={input}
-                value={officialLink}
-                onChange={(e) => setOfficialLink(e.target.value)}
-                placeholder="https://..."
-              />
-              <p className="mt-2 text-xs text-slate-500">
-                Link to the official listing/registration source (org listing page or host’s official premium/registration page).
-                TrialTracker does not host premiums.
-              </p>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Trial Name <span className="text-slate-400 font-normal">(optional — NACSW only)</span>
+              </label>
+              <input name="trial_name" value={form.trial_name} onChange={handleChange}
+                placeholder="e.g. Spring Nosework Classic — leave blank for AKC/CPE/UKI"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <p className="text-xs text-slate-400 mt-1">If left blank, we&apos;ll auto-generate from host + sport</p>
             </div>
+          </div>
 
-            <button type="submit" className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-extrabold text-white">
-              Submit Trial
+          {/* Location */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+            <h2 className="font-semibold text-slate-700 text-sm uppercase tracking-wide">Location</h2>
+
+            <button type="button" onClick={() => setShowPasteHelper(!showPasteHelper)}
+              className="w-full text-base text-blue-700 font-semibold flex items-center justify-center gap-2 bg-blue-50 border-2 border-blue-200 hover:bg-blue-100 hover:border-blue-400 px-4 py-3 rounded-xl transition-all">
+              📋 Paste full address — we&apos;ll fill in the rest!
             </button>
 
-            <a href="/" className="text-center text-sm font-bold text-slate-600 hover:text-slate-900">
-              ← Back to search
-            </a>
-          </form>
-        </div>
+            {showPasteHelper && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
+                <p className="text-sm text-blue-800 font-medium">Paste a full address and we&apos;ll fill in the fields!</p>
+                <p className="text-xs text-blue-600">Works with: &quot;123 Main St, Springfield, IL 62701&quot; or &quot;Springfield, IL&quot;</p>
+                <textarea value={addressPaste} onChange={(e) => setAddressPaste(e.target.value)}
+                  placeholder="Paste address here..." rows={2}
+                  className="w-full border border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+                <div className="flex gap-2">
+                  <button type="button" onClick={handleApplyAddress}
+                    className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">
+                    Auto-fill fields ✨
+                  </button>
+                  <button type="button" onClick={() => { setShowPasteHelper(false); setAddressPaste(""); }}
+                    className="text-slate-500 text-sm px-4 py-2 rounded-lg hover:bg-slate-100">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Venue / Location Name</label>
+              <input name="location_name" value={form.location_name} onChange={handleChange}
+                placeholder="e.g. Think Pawsitive Dog Training"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+
+            {(form.city || form.state) && (
+              <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center gap-2 text-sm text-green-800">
+                <span>✅</span>
+                <span>Location parsed: <strong>{form.city}{form.city && form.state ? ", " : ""}{form.state}</strong></span>
+                <button type="button" onClick={() => setForm((prev) => ({ ...prev, city: "", state: "" }))}
+                  className="ml-auto text-green-600 hover:text-green-800 underline text-xs">Clear</button>
+              </div>
+            )}
+
+            {/* State manual fallback if paste didn't work */}
+            {!form.state && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">State *</label>
+                <select name="state" value={form.state} onChange={handleChange} required
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">Select state</option>
+                  {US_STATES.map(s => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+            )}
+
+            <input type="hidden" name="city" value={form.city} />
+            <input type="hidden" name="state" value={form.state} />
+          </div>
+
+          {/* Dates */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+            <h2 className="font-semibold text-slate-700 text-sm uppercase tracking-wide">Dates</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Trial Start Date *</label>
+                <input type="date" name="trial_start_date" value={form.trial_start_date} onChange={handleChange} required
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Trial End Date</label>
+                <input type="date" name="trial_end_date" value={form.trial_end_date} onChange={handleChange}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <p className="text-xs text-slate-400 mt-1">Leave blank if same day as start</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Entry Opens *</label>
+                <input type="date" name="entry_opening_date" value={form.entry_opening_date} onChange={handleChange} required
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Entry Closes *</label>
+                <input type="date" name="entry_closing_date" value={form.entry_closing_date} onChange={handleChange} required
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+            </div>
+          </div>
+
+          {/* Link */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+            <h2 className="font-semibold text-slate-700 text-sm uppercase tracking-wide">Registration</h2>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Official Link</label>
+              <input type="url" name="official_link" value={form.official_link} onChange={handleChange}
+                placeholder="https://..."
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <p className="text-xs text-slate-400 mt-1">Link to your club website, premium PDF, or entry system</p>
+            </div>
+          </div>
+
+          <button type="submit" disabled={loading}
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 rounded-xl font-bold text-base hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 transition-all shadow-md hover:shadow-lg">
+            {loading ? "Submitting..." : "Submit Trial — Goes Live Instantly 🐾"}
+          </button>
+
+          {message && (
+            <div className={`rounded-xl p-4 text-center font-medium ${
+              messageType === "success"
+                ? "bg-green-100 text-green-800 border border-green-200"
+                : "bg-red-100 text-red-800 border border-red-200"
+            }`}>
+              {message}
+            </div>
+          )}
+        </form>
       </div>
     </div>
   );
