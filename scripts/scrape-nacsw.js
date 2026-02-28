@@ -4,7 +4,7 @@
 const puppeteer = require('puppeteer');
 const https = require('https');
 
-const WEBHOOK_URL = 'https://trialtracker.app/api/trials-webhook';
+const WEBHOOK_URL = 'https://www.trialtracker.app/api/trials-webhook';
 const WEBHOOK_SECRET = process.env.BROWSE_AI_WEBHOOK_SECRET || 'trialtracker-secret-2026';
 const NACSW_URL = 'https://www.nacsw.net/calendar/trials';
 
@@ -108,17 +108,13 @@ async function main() {
   await delay(2000);
   console.log(`📄 Page title: ${await page.title()}`);
 
-  // Try to extract trials before clicking Apply
   let trials = await extractTrials(page);
   console.log(`🔍 Trials found before clicking Apply: ${trials.length}`);
 
-  // If no trials, click the Apply button like a real user would
   if (trials.length === 0) {
     console.log('🖱️  Clicking Apply button to load trials...');
     try {
-      // Try multiple ways to find the Apply button
       const applyClicked = await page.evaluate(() => {
-        // Try by value
         const inputs = Array.from(document.querySelectorAll('input[type="submit"], button[type="submit"], input[value="Apply"]'));
         const applyBtn = inputs.find(el =>
           el.value?.toLowerCase().includes('apply') ||
@@ -134,33 +130,11 @@ async function main() {
         trials = await extractTrials(page);
         console.log(`🔍 Trials found after clicking Apply: ${trials.length}`);
       } else {
-        console.log('⚠️  Could not find Apply button — trying page scroll...');
-        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-        await delay(3000);
-        trials = await extractTrials(page);
-        console.log(`🔍 Trials found after scroll: ${trials.length}`);
+        console.log('⚠️  Could not find Apply button');
       }
     } catch (err) {
       console.log('⚠️  Error clicking Apply:', err.message);
     }
-  }
-
-  // If still nothing, log page structure for debugging
-  if (trials.length === 0) {
-    const debugInfo = await page.evaluate(() => {
-      const allText = document.body.innerText;
-      const dateMatches = allText.match(/\d{4}-\d{2}-\d{2}/g) || [];
-      return {
-        tableCount: document.querySelectorAll('table').length,
-        trCount: document.querySelectorAll('tr').length,
-        dateCount: dateMatches.length,
-        firstDates: dateMatches.slice(0, 3),
-        bodySnippet: allText.substring(0, 500)
-      };
-    });
-    console.log('🔎 Debug — Tables:', debugInfo.tableCount, 'Rows:', debugInfo.trCount, 'Dates found:', debugInfo.dateCount);
-    console.log('First dates:', debugInfo.firstDates);
-    console.log('Page text snippet:', debugInfo.bodySnippet);
   }
 
   await browser.close();
