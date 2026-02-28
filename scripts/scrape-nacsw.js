@@ -1,5 +1,5 @@
 // scripts/scrape-nacsw.js
-// TrialTracker — NACSW Trial Scraper (v7 - clicks each trial for full details)
+// TrialTracker — NACSW Trial Scraper (v8 - end dates + 90-day club website visits)
 
 const puppeteer = require('puppeteer');
 const https = require('https');
@@ -7,6 +7,7 @@ const https = require('https');
 const WEBHOOK_URL = 'https://www.trialtracker.app/api/trials-webhook';
 const WEBHOOK_SECRET = process.env.BROWSE_AI_WEBHOOK_SECRET || 'trialtracker-secret-2026';
 const NACSW_URL = 'https://www.nacsw.net/calendar/trials';
+const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -45,7 +46,15 @@ function isInFuture(dateStr) {
   return trialDate >= today;
 }
 
-// Convert "January 16-17, 2027" into { start: '2027-01-16', end: '2027-01-17' }
+function isWithin90Days(dateStr) {
+  if (!dateStr) return false;
+  const trialDate = new Date(dateStr + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return (trialDate - today) <= NINETY_DAYS_MS;
+}
+
+// Parse "January 16-17, 2027" or "January 16, 2027" or "January 16 - February 2, 2027"
 function parseDateRange(text) {
   if (!text) return { start: null, end: null };
 
@@ -55,22 +64,33 @@ function parseDateRange(text) {
     september: '09', october: '10', november: '11', december: '12'
   };
 
-  // "January 16-17, 2027"
-  const rangeMatch = text.match(/(\w+)\s+(\d{1,2})[-–](\d{1,2}),?\s*(\d{4})/i);
-  if (rangeMatch) {
-    const m = months[rangeMatch[1].toLowerCase()];
+  // "January 16-17, 2027" — same month range
+  const sameMonthRange = text.match(/(\w+)\s+(\d{1,2})[-–](\d{1,2}),?\s*(\d{4})/i);
+  if (sameMonthRange) {
+    const m = months[sameMonthRange[1].toLowerCase()];
     if (m) return {
-      start: `${rangeMatch[4]}-${m}-${rangeMatch[2].padStart(2, '0')}`,
-      end:   `${rangeMatch[4]}-${m}-${rangeMatch[3].padStart(2, '0')}`
+      start: `${sameMonthRange[4]}-${m}-${sameMonthRange[2].padStart(2, '0')}`,
+      end:   `${sameMonthRange[4]}-${m}-${sameMonthRange[3].padStart(2, '0')}`
     };
   }
 
-  // "January 16, 2027"
-  const singleMatch = text.match(/(\w+)\s+(\d{1,2}),?\s*(\d{4})/i);
-  if (singleMatch) {
-    const m = months[singleMatch[1].toLowerCase()];
+  // "January 30 - February 1, 2027" — cross-month range
+  const crossMonthRange = text.match(/(\w+)\s+(\d{1,2})\s*[-–]\s*(\w+)\s+(\d{1,2}),?\s*(\d{4})/i);
+  if (crossMonthRange) {
+    const m1 = months[crossMonthRange[1].toLowerCase()];
+    const m2 = months[crossMonthRange[3].toLowerCase()];
+    if (m1 && m2) return {
+      start: `${crossMonthRange[5]}-${m1}-${crossMonthRange[2].padStart(2, '0')}`,
+      end:   `${crossMonthRange[5]}-${m2}-${crossMonthRange[4].padStart(2, '0')}`
+    };
+  }
+
+  // "January 16, 2027" — single day
+  const singleDay = text.match(/(\w+)\s+(\d{1,2}),?\s*(\d{4})/i);
+  if (singleDay) {
+    const m = months[singleDay[1].toLowerCase()];
     if (m) return {
-      start: `${singleMatch[3]}-${m}-${singleMatch[2].padStart(2, '0')}`,
+      start: `${singleDay[3]}-${m}-${singleDay[2].padStart(2, '0')}`,
       end: null
     };
   }
@@ -78,8 +98,8 @@ function parseDateRange(text) {
   return { start: null, end: null };
 }
 
-// Get basic trial list from main calendar page
-async function getTrialLinks(page) {
+// Get all trial rows from the main calendar page
+async function getTrialRows(page) {
   return await page.evaluate(() => {
     const results = [];
     const allTds = Array.from(document.querySelectorAll('td'));
@@ -97,18 +117,19 @@ async function getTrialLinks(page) {
       if (!descCell) return;
 
       const desc = descCell.innerText.trim();
-
-      // Get the link to the trial detail page
-      const link = descCell.querySelector('a');
-      const trialPageLink = link ? link.href : null;
-
-      // Basic info from calendar row
       let city = null, state = null, trialHost = null, trialName = null;
+
       const csm = desc.match(/[-–]\s*([A-Za-z][A-Za-z\s\.]+),\s*([A-Z]{2})\s+hosted by/i);
       if (csm) { city = csm[1].trim(); state = csm[2]; }
+
       const hbm = desc.match(/hosted by\s+(.+)$/i);
       if (hbm) trialHost = hbm[1].trim();
+
       trialName = desc.split(/[-–]/)[0].trim() || null;
+
+      // Get the link to the NACSW trial detail page
+      const link = descCell.querySelector('a');
+      const trialPageLink = link ? link.href : null;
 
       results.push({ startDate, city, state, trialHost, trialName, trialPageLink });
     });
@@ -117,46 +138,32 @@ async function getTrialLinks(page) {
   });
 }
 
-// Click a trial link and extract full details from expanded view
+// Visit NACSW trial detail page to get full dates, address, and club website
 async function getTrialDetails(page, trialPageLink) {
+  const empty = { clubWebsite: null, street: null, locationName: null, endDate: null };
+  
+  if (!trialPageLink || trialPageLink.endsWith('#') || trialPageLink.includes('nacsw.net/calendar/trials#')) {
+    return empty;
+  }
+
   try {
-    await page.goto(trialPageLink, { waitUntil: 'networkidle2', timeout: 15000 });
-    await delay(1000);
+    await page.goto(trialPageLink, { waitUntil: 'networkidle2', timeout: 20000 });
+    await delay(1500);
 
     const details = await page.evaluate(() => {
-      let clubWebsite = null;
-      let street = null;
-      let locationName = null;
+      const bodyText = document.body.innerText;
+
+      // Get "When:" line for full date range
       let fullDateText = null;
-
-      // Find all links on page — club website is usually the non-NACSW link
-      const allLinks = Array.from(document.querySelectorAll('a[href]'));
-      for (const link of allLinks) {
-        const href = link.href;
-        if (
-          href &&
-          !href.includes('nacsw.net') &&
-          !href.includes('facebook.com') &&
-          !href.includes('google.com') &&
-          !href.includes('mailto:') &&
-          href.startsWith('http')
-        ) {
-          clubWebsite = href;
-          break;
-        }
-      }
-
-      // Find "When:" row for full dates
-      const allText = document.body.innerText;
-      const whenMatch = allText.match(/When:\s*([^\n]+)/i);
+      const whenMatch = bodyText.match(/When[:\s]+([^\n]+)/i);
       if (whenMatch) fullDateText = whenMatch[1].trim();
 
-      // Find "Where:" row for address
-      const whereMatch = allText.match(/Where:\s*([^\n]+(?:\n[^\n]+)?)/i);
+      // Get "Where:" for location/address
+      let locationName = null;
+      let street = null;
+      const whereMatch = bodyText.match(/Where[:\s]+([\s\S]*?)(?=\n\n|\nPremium|\nQuestions|$)/i);
       if (whereMatch) {
-        const whereText = whereMatch[1].trim();
-        // First line is usually location name, second is street address
-        const lines = whereText.split('\n').map(l => l.trim()).filter(Boolean);
+        const lines = whereMatch[1].split('\n').map(l => l.trim()).filter(Boolean);
         if (lines.length >= 2) {
           locationName = lines[0];
           street = lines[1];
@@ -165,18 +172,37 @@ async function getTrialDetails(page, trialPageLink) {
         }
       }
 
-      return { clubWebsite, street, locationName, fullDateText };
+      // Find club website — first external link that isn't NACSW/Google/Facebook
+      let clubWebsite = null;
+      const allLinks = Array.from(document.querySelectorAll('a[href]'));
+      for (const link of allLinks) {
+        const href = link.href || '';
+        if (
+          href.startsWith('http') &&
+          !href.includes('nacsw.net') &&
+          !href.includes('facebook.com') &&
+          !href.includes('google.com') &&
+          !href.includes('mailto:') &&
+          !href.includes('instagram.com') &&
+          !href.includes('youtube.com')
+        ) {
+          clubWebsite = href;
+          break;
+        }
+      }
+
+      return { fullDateText, locationName, street, clubWebsite };
     });
 
     return details;
   } catch (err) {
-    console.log(`  ⚠️  Could not load detail page: ${err.message}`);
-    return { clubWebsite: null, street: null, locationName: null, fullDateText: null };
+    console.log(`  ⚠️  Detail page error: ${err.message}`);
+    return empty;
   }
 }
 
 async function main() {
-  console.log('🐾 TrialTracker — NACSW Scraper v7 Starting');
+  console.log('🐾 TrialTracker — NACSW Scraper v8 Starting');
   console.log(`📅 Run date: ${new Date().toISOString()}`);
 
   const browser = await puppeteer.launch({
@@ -187,61 +213,63 @@ async function main() {
   const page = await browser.newPage();
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
-  console.log(`🌐 Loading: ${NACSW_URL}`);
+  console.log(`🌐 Loading NACSW calendar...`);
 
   try {
     await page.goto(NACSW_URL, { waitUntil: 'networkidle2', timeout: 30000 });
   } catch (err) {
-    console.error('❌ Failed to load page:', err.message);
+    console.error('❌ Failed to load NACSW calendar:', err.message);
     await browser.close();
     process.exit(1);
   }
 
   await delay(2000);
-  console.log(`📄 Page title: ${await page.title()}`);
 
-  const trials = await getTrialLinks(page);
-  console.log(`🔍 Found ${trials.length} trials on calendar`);
+  const allTrials = await getTrialRows(page);
+  const futureTrials = allTrials.filter(t => isInFuture(t.startDate));
+  
+  console.log(`🔍 Found ${allTrials.length} total rows, ${futureTrials.length} are future trials`);
 
-  const futureTrials = trials.filter(t => isInFuture(t.startDate));
-  console.log(`📅 ${futureTrials.length} are in the future`);
-
-  if (futureTrials.length === 0) {
-    console.log('⚠️  No future trials found.');
-    await browser.close();
-    process.exit(0);
-  }
+  const within90 = futureTrials.filter(t => isWithin90Days(t.startDate));
+  const beyond90 = futureTrials.filter(t => !isWithin90Days(t.startDate));
+  
+  console.log(`📅 Within 90 days: ${within90.length} (will visit detail pages)`);
+  console.log(`📅 Beyond 90 days: ${beyond90.length} (basic info only)`);
 
   let successCount = 0;
   let failCount = 0;
 
+  // Process ALL future trials
   for (let i = 0; i < futureTrials.length; i++) {
     const t = futureTrials[i];
-    console.log(`\n[${i + 1}/${futureTrials.length}] ${t.trialName || 'Trial'} — ${t.startDate} — ${t.city}, ${t.state}`);
+    const within90Days = isWithin90Days(t.startDate);
 
-    // Get full details by visiting the trial page
+    console.log(`\n[${i + 1}/${futureTrials.length}] ${t.trialName || 'Trial'} — ${t.startDate} — ${t.city}, ${t.state}${within90Days ? ' 🔍' : ''}`);
+
+    let endDate = null;
     let clubWebsite = null;
     let street = null;
     let locationName = null;
-    let trialEndDate = t.startDate; // fallback
 
-    if (t.trialPageLink && !t.trialPageLink.endsWith('#')) {
-      console.log(`  🔗 Visiting: ${t.trialPageLink}`);
+    // Only visit detail pages for trials within 90 days
+    if (within90Days && t.trialPageLink && !t.trialPageLink.endsWith('#')) {
       const details = await getTrialDetails(page, t.trialPageLink);
+      
       clubWebsite = details.clubWebsite;
       street = details.street;
       locationName = details.locationName;
 
       if (details.fullDateText) {
         const parsed = parseDateRange(details.fullDateText);
-        if (parsed.end) trialEndDate = parsed.end;
-        console.log(`  📅 Full dates: ${details.fullDateText}`);
+        if (parsed.end) {
+          endDate = parsed.end;
+          console.log(`  📅 Dates: ${details.fullDateText} → end: ${endDate}`);
+        }
       }
 
-      if (clubWebsite) console.log(`  🌐 Club website: ${clubWebsite}`);
-      if (street) console.log(`  📍 Address: ${street}`);
+      if (clubWebsite) console.log(`  🌐 Club: ${clubWebsite}`);
 
-      // Go back to calendar
+      // Go back to calendar for next trial
       await page.goto(NACSW_URL, { waitUntil: 'networkidle2', timeout: 30000 });
       await delay(1500);
     }
@@ -256,7 +284,7 @@ async function main() {
       city: t.city,
       state: t.state,
       trial_start_date: t.startDate,
-      trial_end_date: trialEndDate !== t.startDate ? trialEndDate : null,
+      trial_end_date: endDate || null,
       entry_opening_date: null,
       entry_closing_date: null,
       official_link: clubWebsite || t.trialPageLink || NACSW_URL,
@@ -277,12 +305,12 @@ async function main() {
       failCount++;
     }
 
-    // Respectful delay between trials
     await delay(2000);
   }
 
   await browser.close();
   console.log(`\n✨ Done! ${successCount} posted, ${failCount} failed.`);
+  console.log(`📊 ${within90.length} trials had detail pages visited for club websites + full dates.`);
 }
 
 main().catch(err => {
