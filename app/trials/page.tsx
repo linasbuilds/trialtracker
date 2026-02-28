@@ -267,7 +267,7 @@ export default function TrialsPage() {
             const isOpeningSoon = daysUntil >= 0 && daysUntil <= 14;
             const isOpeningToday = daysUntil === 0;
             const isOpeningTomorrow = daysUntil === 1;
-            const alreadyOpen = daysUntil < 0;
+            const alreadyOpen = trial.entry_opening_date && daysUntil < 0;
 
             return (
               <div
@@ -293,16 +293,38 @@ export default function TrialsPage() {
                 </p>
 
                 <p className="text-slate-600 text-sm mb-1">
-                  🗓️ Trial: {formatDate(trial.trial_start_date, { month: "short", day: "numeric" })} –{" "}
-                  {formatDate(trial.trial_end_date, { month: "short", day: "numeric", year: "numeric" })}
+                  🗓️ Trial:{" "}
+                  {trial.trial_end_date && trial.trial_end_date !== trial.trial_start_date ? (
+                    <>
+                      {formatDate(trial.trial_start_date, { month: "short", day: "numeric" })} – {formatDate(trial.trial_end_date, { month: "short", day: "numeric", year: "numeric" })}
+                    </>
+                  ) : (
+                    formatDate(trial.trial_start_date, { month: "short", day: "numeric", year: "numeric" })
+                  )}
                 </p>
 
                 <p className="text-slate-600 text-sm mb-3">
-                  📋 Entry opens:{" "}
-                  {formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
-                  {trial.entry_closing_date && (
-                    <span className="text-slate-400">
-                      {" "}· closes {formatDate(trial.entry_closing_date, { month: "short", day: "numeric" })}
+                  📋{" "}
+                  {trial.entry_opening_date ? (
+                    <>
+                      Entry opens:{" "}
+                      {formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                      {trial.entry_closing_date && (
+                        <span className="text-slate-400">
+                          {" "}— closes {formatDate(trial.entry_closing_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-slate-400 italic">
+                      Entry dates TBD —{" "}
+                      {trial.official_link ? (
+                        <a href={trial.official_link} target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-500">
+                          View & Register for details
+                        </a>
+                      ) : (
+                        "check club site for details"
+                      )}
                     </span>
                   )}
                 </p>
