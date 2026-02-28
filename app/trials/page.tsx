@@ -86,6 +86,8 @@ interface Trial {
   host_club: string;
   city: string;
   state: string;
+  location_name: string;
+  street: string;
   trial_start_date: string;
   trial_end_date: string;
   entry_opening_date: string;
@@ -291,6 +293,12 @@ export default function TrialsPage() {
                 <p className="text-slate-500 text-sm mb-1">
                   📍 {getHostName(trial)}{getHostName(trial) && trial.city ? " • " : ""}{trial.city}{trial.city && trial.state ? ", " : ""}{trial.state}
                 </p>
+
+                {trial.location_name && (
+                  <p className="text-slate-400 text-xs mb-1 ml-5">
+                    📌 {trial.location_name}{trial.street ? ` · ${trial.street}` : ""}
+                  </p>
+                )}
 
                 <p className="text-slate-600 text-sm mb-1">
                   🗓️ Trial:{" "}
