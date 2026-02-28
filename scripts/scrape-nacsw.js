@@ -1,5 +1,5 @@
 // scripts/scrape-nacsw.js
-// TrialTracker — NACSW Trial Scraper (v4 - smarter row detection)
+// TrialTracker — NACSW Trial Scraper (v5 - clicks Apply to load results)
 
 const puppeteer = require('puppeteer');
 const https = require('https');
@@ -45,83 +45,11 @@ function isInFuture(dateStr) {
   return trialDate >= today;
 }
 
-async function main() {
-  console.log('🐾 TrialTracker — NACSW Scraper v4 Starting');
-  console.log(`📅 Run date: ${new Date().toISOString()}`);
-
-  const browser = await puppeteer.launch({
-    headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-  });
-
-  const page = await browser.newPage();
-
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
-
-  console.log(`🌐 Loading: ${NACSW_URL}`);
-
-  try {
-    await page.goto(NACSW_URL, { waitUntil: 'networkidle2', timeout: 30000 });
-  } catch (err) {
-    console.error('❌ Failed to load page:', err.message);
-    await browser.close();
-    process.exit(1);
-  }
-
-  // Wait extra time for any dynamic content
-  await delay(3000);
-
-  const pageTitle = await page.title();
-  console.log(`📄 Page title: ${pageTitle}`);
-
-  // Debug: log what elements exist on the page
-  const debugInfo = await page.evaluate(() => {
-    const info = {};
-    info.tableCount = document.querySelectorAll('table').length;
-    info.trCount = document.querySelectorAll('tr').length;
-    info.tdCount = document.querySelectorAll('td').length;
-
-    // Look for any text containing a date pattern YYYY-MM-DD
-    const allText = document.body.innerText;
-    const dateMatches = allText.match(/\d{4}-\d{2}-\d{2}/g);
-    info.dateCount = dateMatches ? dateMatches.length : 0;
-    info.firstFewDates = dateMatches ? dateMatches.slice(0, 5) : [];
-
-    // Sample first table row text
-    const firstTr = document.querySelector('tr');
-    info.firstRowText = firstTr ? firstTr.innerText.substring(0, 200) : 'NO TR FOUND';
-
-    // Sample all td text that contains a date
-    const tds = Array.from(document.querySelectorAll('td'));
-    const dateTds = tds.filter(td => /\d{4}-\d{2}-\d{2}/.test(td.innerText));
-    info.dateTdCount = dateTds.length;
-    info.firstDateTd = dateTds.length > 0 ? dateTds[0].innerText.substring(0, 100) : 'NONE';
-
-    // Also check for spans and divs with dates
-    const allElements = Array.from(document.querySelectorAll('*'));
-    const dateElements = allElements.filter(el =>
-      el.children.length === 0 && /^\d{4}-\d{2}-\d{2}$/.test(el.innerText.trim())
-    );
-    info.pureDateElementCount = dateElements.length;
-    info.pureDateElementTag = dateElements.length > 0 ? dateElements[0].tagName : 'NONE';
-
-    return info;
-  });
-
-  console.log('🔎 Page debug info:');
-  console.log(`   Tables: ${debugInfo.tableCount}, Rows: ${debugInfo.trCount}, Cells: ${debugInfo.tdCount}`);
-  console.log(`   Date patterns found: ${debugInfo.dateCount}`);
-  console.log(`   First few dates: ${debugInfo.firstFewDates.join(', ')}`);
-  console.log(`   TD cells with dates: ${debugInfo.dateTdCount}`);
-  console.log(`   First date TD: ${debugInfo.firstDateTd}`);
-  console.log(`   Pure date elements: ${debugInfo.pureDateElementCount} (tag: ${debugInfo.pureDateElementTag})`);
-
-  // Now extract trials using what we learned
-  const trials = await page.evaluate(() => {
+async function extractTrials(page) {
+  return await page.evaluate(() => {
     const results = [];
-
-    // Strategy 1: Find TD cells that contain ONLY a date, then grab sibling TD
     const allTds = Array.from(document.querySelectorAll('td'));
+
     allTds.forEach(td => {
       const text = td.innerText.trim();
       if (!/^\d{4}-\d{2}-\d{2}/.test(text)) return;
@@ -151,42 +79,94 @@ async function main() {
       results.push({ startDate, city, state, trialHost, trialName, officialLink });
     });
 
-    // Strategy 2: If no results, look for any element containing YYYY-MM-DD
-    // followed by trial description text nearby
-    if (results.length === 0) {
-      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-      let node;
-      while ((node = walker.nextNode())) {
-        const text = node.textContent.trim();
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) continue;
-
-        const startDate = text;
-        // Look at parent's siblings for description
-        const parent = node.parentElement;
-        const nextSibling = parent.nextElementSibling;
-        const desc = nextSibling ? nextSibling.innerText.trim() : '';
-        if (!desc) continue;
-
-        let city = null, state = null, trialHost = null, trialName = null;
-        const csm = desc.match(/[-–]\s*([A-Za-z][A-Za-z\s\.]+),\s*([A-Z]{2})\s+hosted by/i);
-        if (csm) { city = csm[1].trim(); state = csm[2]; }
-        const hbm = desc.match(/hosted by\s+(.+)$/i);
-        if (hbm) trialHost = hbm[1].trim();
-        trialName = desc.split(/[-–]/)[0].trim() || null;
-
-        results.push({ startDate, city, state, trialHost, trialName, officialLink: null });
-      }
-    }
-
     return results;
   });
+}
+
+async function main() {
+  console.log('🐾 TrialTracker — NACSW Scraper v5 Starting');
+  console.log(`📅 Run date: ${new Date().toISOString()}`);
+
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+  });
+
+  const page = await browser.newPage();
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+
+  console.log(`🌐 Loading: ${NACSW_URL}`);
+
+  try {
+    await page.goto(NACSW_URL, { waitUntil: 'networkidle2', timeout: 30000 });
+  } catch (err) {
+    console.error('❌ Failed to load page:', err.message);
+    await browser.close();
+    process.exit(1);
+  }
+
+  await delay(2000);
+  console.log(`📄 Page title: ${await page.title()}`);
+
+  // Try to extract trials before clicking Apply
+  let trials = await extractTrials(page);
+  console.log(`🔍 Trials found before clicking Apply: ${trials.length}`);
+
+  // If no trials, click the Apply button like a real user would
+  if (trials.length === 0) {
+    console.log('🖱️  Clicking Apply button to load trials...');
+    try {
+      // Try multiple ways to find the Apply button
+      const applyClicked = await page.evaluate(() => {
+        // Try by value
+        const inputs = Array.from(document.querySelectorAll('input[type="submit"], button[type="submit"], input[value="Apply"]'));
+        const applyBtn = inputs.find(el =>
+          el.value?.toLowerCase().includes('apply') ||
+          el.innerText?.toLowerCase().includes('apply')
+        );
+        if (applyBtn) { applyBtn.click(); return true; }
+        return false;
+      });
+
+      if (applyClicked) {
+        console.log('✅ Clicked Apply — waiting for results...');
+        await delay(4000);
+        trials = await extractTrials(page);
+        console.log(`🔍 Trials found after clicking Apply: ${trials.length}`);
+      } else {
+        console.log('⚠️  Could not find Apply button — trying page scroll...');
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await delay(3000);
+        trials = await extractTrials(page);
+        console.log(`🔍 Trials found after scroll: ${trials.length}`);
+      }
+    } catch (err) {
+      console.log('⚠️  Error clicking Apply:', err.message);
+    }
+  }
+
+  // If still nothing, log page structure for debugging
+  if (trials.length === 0) {
+    const debugInfo = await page.evaluate(() => {
+      const allText = document.body.innerText;
+      const dateMatches = allText.match(/\d{4}-\d{2}-\d{2}/g) || [];
+      return {
+        tableCount: document.querySelectorAll('table').length,
+        trCount: document.querySelectorAll('tr').length,
+        dateCount: dateMatches.length,
+        firstDates: dateMatches.slice(0, 3),
+        bodySnippet: allText.substring(0, 500)
+      };
+    });
+    console.log('🔎 Debug — Tables:', debugInfo.tableCount, 'Rows:', debugInfo.trCount, 'Dates found:', debugInfo.dateCount);
+    console.log('First dates:', debugInfo.firstDates);
+    console.log('Page text snippet:', debugInfo.bodySnippet);
+  }
 
   await browser.close();
 
-  console.log(`\n🔍 Extracted ${trials.length} total trial rows`);
-
   const futureTrials = trials.filter(t => isInFuture(t.startDate));
-  console.log(`📅 ${futureTrials.length} are in the future`);
+  console.log(`📅 ${futureTrials.length} future trials to post`);
 
   if (futureTrials.length === 0) {
     console.log('⚠️  No future trials found.');
