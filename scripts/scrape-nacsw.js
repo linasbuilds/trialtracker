@@ -7,14 +7,10 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const NACSW_URL = "https://www.nacsw.net/calendar/trials";
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+  throw new Error("Missing Supabase secrets.");
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
 
 (async () => {
   console.log("🐾 NACSW Scraper starting...");
@@ -26,117 +22,65 @@ function sleep(ms) {
 
   const page = await browser.newPage();
 
-  // Make the runner look more like a real browser
-  await page.setUserAgent(
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-  );
-  await page.setExtraHTTPHeaders({
-    "Accept-Language": "en-US,en;q=0.9",
-  });
-
   await page.goto(NACSW_URL, { waitUntil: "networkidle2" });
-  await sleep(2500);
 
-  // --------- DEBUG: what page did we actually get? ----------
-  const currentUrl = page.url();
-  const pageTitle = await page.title();
-  const html = await page.content();
+  // 🔥 WAIT for actual trials to render
+  await page.waitForSelector(".views-row", { timeout: 10000 });
 
-  console.log("DEBUG url:", currentUrl);
-  console.log("DEBUG title:", pageTitle);
-  console.log("DEBUG html length:", html.length);
-  console.log("DEBUG contains 'NACSW TRIAL CALENDAR':", html.includes("NACSW TRIAL CALENDAR"));
-  console.log("DEBUG contains 'ELT/NW':", html.includes("ELT/NW"));
+  const trials = await page.evaluate(() => {
+    const rows = [];
+    const blocks = document.querySelectorAll(".views-row");
 
-  // Detect common bot-block pages
-  const looksBlocked =
-    html.toLowerCase().includes("attention required") ||
-    html.toLowerCase().includes("cloudflare") ||
-    html.toLowerCase().includes("captcha") ||
-    html.toLowerCase().includes("access denied");
+    blocks.forEach((block) => {
+      const link = block.querySelector("a");
+      if (!link) return;
 
-  console.log("DEBUG looksBlocked:", looksBlocked);
+      const fullTitle = link.innerText.trim();
+      const officialLink = link.href;
 
-  // --------- Extract trials by grabbing trial detail links ----------
-  const result = await page.evaluate(() => {
-    // Grab ALL links that look like individual NACSW trial pages
-    const anchors = Array.from(document.querySelectorAll('a[href*="/calendar/trials/"]'));
-    const hrefs = anchors
-      .map((a) => a.href)
-      .filter((h) => h && !h.endsWith("/calendar/trials") && !h.endsWith("/calendar/trials/"));
-
-    // De-dupe
-    const unique = Array.from(new Set(hrefs));
-
-    // For debug: return first few links we found
-    const samples = unique.slice(0, 8);
-
-    // Also try to capture the visible title text for each link
-    const trials = [];
-    anchors.forEach((a) => {
-      const href = a.href;
-      if (!href) return;
-      if (href.endsWith("/calendar/trials") || href.endsWith("/calendar/trials/")) return;
-      if (!href.includes("/calendar/trials/")) return;
-
-      const title = (a.innerText || "").trim();
-      if (!title) return;
-
-      // Extract city/state + host from title (best effort)
       let city = null;
       let state = null;
-      const cityMatch = title.match(/- ([^,]+), ([A-Z]{2})/);
+      const cityMatch = fullTitle.match(/- ([^,]+), ([A-Z]{2})/);
       if (cityMatch) {
         city = cityMatch[1].trim();
         state = cityMatch[2].trim();
       }
 
       let trialHost = null;
-      const hostMatch = title.match(/hosted by (.+)$/i);
-      if (hostMatch) trialHost = hostMatch[1].trim();
+      const hostMatch = fullTitle.match(/hosted by (.+)$/i);
+      if (hostMatch) {
+        trialHost = hostMatch[1].trim();
+      }
 
-      trials.push({
-        official_link: href,
-        trial_name: title,
+      rows.push({
+        trial_name: fullTitle,
         trial_host: trialHost,
         city,
         state,
+        official_link: officialLink,
       });
     });
 
-    // De-dupe trials by official_link
-    const byLink = new Map();
-    trials.forEach((t) => byLink.set(t.official_link, t));
-
-    return {
-      anchorCount: anchors.length,
-      uniqueTrialLinks: unique.length,
-      samples,
-      trials: Array.from(byLink.values()),
-    };
+    return rows;
   });
 
-  console.log("DEBUG anchorCount:", result.anchorCount);
-  console.log("DEBUG uniqueTrialLinks:", result.uniqueTrialLinks);
-  console.log("DEBUG sample links:", result.samples);
-
-  console.log(`Found trials: ${result.trials.length}`);
+  console.log(`Found trials: ${trials.length}`);
 
   let success = 0;
   let failed = 0;
 
-  for (const t of result.trials) {
+  for (const t of trials) {
     try {
       const { error } = await supabase.from("trials").upsert(
         {
           organization: "NACSW",
           sport: "Nosework",
           trial_name: t.trial_name,
-          trial_host: t.trial_host || null,
+          trial_host: t.trial_host,
           location_name: null,
           street: null,
-          city: t.city || null,
-          state: t.state || null,
+          city: t.city,
+          state: t.state,
           zip: null,
           trial_start_date: null,
           trial_end_date: null,
@@ -151,9 +95,9 @@ function sleep(ms) {
 
       if (error) throw error;
       success++;
-    } catch (e) {
+    } catch (err) {
       failed++;
-      console.log("Insert error:", e.message);
+      console.log("Insert error:", err.message);
     }
   }
 
