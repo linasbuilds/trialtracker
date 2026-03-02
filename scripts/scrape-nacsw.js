@@ -26,26 +26,24 @@ function sleep(ms) {
 
   const page = await browser.newPage();
   await page.goto(NACSW_URL, { waitUntil: "networkidle2" });
-  await sleep(1500);
+  await sleep(2000);
 
   const trials = await page.evaluate(() => {
     const rows = [];
 
-    const blocks = document.querySelectorAll(".views-row");
+    // NACSW trials are inside article blocks
+    const blocks = document.querySelectorAll("article");
 
     blocks.forEach((block) => {
-      const titleLink = block.querySelector("h3 a");
+      const titleLink = block.querySelector("a");
       if (!titleLink) return;
 
       const fullTitle = titleLink.innerText.trim();
       const officialLink = titleLink.href;
 
-      const dateNode = block.querySelector(".views-field-field-trial-date");
-      const rawDate = dateNode ? dateNode.innerText.trim() : null;
+      const textContent = block.innerText;
 
-      const description = block.innerText;
-
-      // Extract city/state
+      // Extract city/state from title
       let city = null;
       let state = null;
       const cityMatch = fullTitle.match(/- ([^,]+), ([A-Z]{2})/);
@@ -61,40 +59,18 @@ function sleep(ms) {
         trialHost = hostMatch[1].trim();
       }
 
-      // Extract levels (NW1/NW2/NW3/ELT etc)
-      let trialName = fullTitle;
-
-      // Extract date range
+      // Extract date from first line (format like 2027-01-16)
       let trialStartDate = null;
       let trialEndDate = null;
 
-      const whenMatch = description.match(/When:\s*(.+)/i);
-      if (whenMatch) {
-        const dateText = whenMatch[1];
-
-        const dateRangeMatch = dateText.match(
-          /([A-Za-z]+)\s+(\d+)-?(\d+)?,?\s*(\d{4})/
-        );
-
-        if (dateRangeMatch) {
-          const month = dateRangeMatch[1];
-          const startDay = dateRangeMatch[2];
-          const endDay = dateRangeMatch[3] || startDay;
-          const year = dateRangeMatch[4];
-
-          const monthNumber = new Date(`${month} 1, 2000`).getMonth() + 1;
-
-          const mm = String(monthNumber).padStart(2, "0");
-          const ddStart = String(startDay).padStart(2, "0");
-          const ddEnd = String(endDay).padStart(2, "0");
-
-          trialStartDate = `${year}-${mm}-${ddStart}`;
-          trialEndDate = `${year}-${mm}-${ddEnd}`;
-        }
+      const dateMatch = textContent.match(/(\d{4}-\d{2}-\d{2})/);
+      if (dateMatch) {
+        trialStartDate = dateMatch[1];
+        trialEndDate = dateMatch[1];
       }
 
       rows.push({
-        trial_name: trialName,
+        trial_name: fullTitle,
         trial_host: trialHost,
         location_name: null,
         street: null,
