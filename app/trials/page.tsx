@@ -42,6 +42,15 @@ const ORGS = [
   "Other",
 ];
 
+const LEVELS = [
+  "All Levels",
+  "NW1",
+  "NW2",
+  "NW3",
+  "ELT",
+  "SMT", // Summit
+];
+
 const ALL_STATES = [
   "All States",
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
@@ -68,40 +77,72 @@ const MONTHS = [
 
 const parseDate = (dateStr: string) => {
   if (!dateStr) return null;
-  return new Date(dateStr + 'T12:00:00');
+  return new Date(dateStr + "T12:00:00");
 };
 
 const formatDate = (dateStr: string, options: Intl.DateTimeFormatOptions) => {
   const date = parseDate(dateStr);
-  if (!date) return '';
+  if (!date) return "";
   return date.toLocaleDateString("en-US", options);
+};
+
+const normalizeLevel = (level: string) => {
+  if (!level) return "";
+  const u = level.toUpperCase().trim();
+  // Normalize Summit words if they ever come in as "SUMMIT"
+  if (u === "SUMMIT") return "SMT";
+  return u;
+};
+
+const buildAddress = (trial: Trial) => {
+  const parts: string[] = [];
+  if (trial.street) parts.push(trial.street);
+  const cityStateZip: string[] = [];
+  if (trial.city) cityStateZip.push(trial.city);
+  if (trial.state) cityStateZip.push(trial.state);
+  if (trial.zip) cityStateZip.push(trial.zip);
+  if (cityStateZip.length) parts.push(cityStateZip.join(", ").replace(", ,", ","));
+  return parts.join(" · ");
 };
 
 interface Trial {
   id: string;
   organization: string;
   sport: string;
+
+  // NEW: for level filtering (make sure your table has this column)
+  level?: string;
+
   trial_name: string;
   trial_host: string;
   host_club: string;
+
   city: string;
   state: string;
+  zip?: string;
+
   location_name: string;
   street: string;
+
   trial_start_date: string;
   trial_end_date: string;
+
   entry_opening_date: string;
   entry_closing_date: string;
+
   official_link: string;
 }
 
 export default function TrialsPage() {
   const [trials, setTrials] = useState<Trial[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedSport, setSelectedSport] = useState("All Sports");
   const [selectedOrg, setSelectedOrg] = useState("All Orgs");
   const [selectedState, setSelectedState] = useState("All States");
+  const [selectedLevel, setSelectedLevel] = useState("All Levels");
+
   const [keyword, setKeyword] = useState("");
   const [prefsLoaded, setPrefsLoaded] = useState(false);
 
@@ -109,12 +150,14 @@ export default function TrialsPage() {
   useEffect(() => {
     const loadPrefs = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+
       if (user) {
         const { data: profile } = await supabase
           .from("user_profiles")
           .select("preferred_venues, preferred_states, preferred_orgs")
           .eq("user_id", user.id)
           .single();
+
         if (profile) {
           // If they have exactly 1 sport saved, pre-filter to it
           if (profile.preferred_venues?.length === 1) {
@@ -128,23 +171,33 @@ export default function TrialsPage() {
           if (profile.preferred_states?.length === 1) {
             setSelectedState(profile.preferred_states[0]);
           }
-          if (profile.preferred_venues?.length || profile.preferred_orgs?.length || profile.preferred_states?.length) {
+
+          if (
+            profile.preferred_venues?.length ||
+            profile.preferred_orgs?.length ||
+            profile.preferred_states?.length
+          ) {
             setPrefsLoaded(true);
           }
         }
       }
+
       fetchTrials();
     };
+
     loadPrefs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchTrials = async () => {
     setLoading(true);
+
     const { data, error } = await supabase
       .from("trials")
       .select("*")
       .order("trial_start_date", { ascending: true });
-    if (!error && data) setTrials(data);
+
+    if (!error && data) setTrials(data as Trial[]);
     setLoading(false);
   };
 
@@ -152,7 +205,8 @@ export default function TrialsPage() {
     if (!openingDate) return 999;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const opening = parseDate(openingDate)!;
+    const opening = parseDate(openingDate);
+    if (!opening) return 999;
     opening.setHours(0, 0, 0, 0);
     return Math.round((opening.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   };
@@ -164,15 +218,24 @@ export default function TrialsPage() {
     if (selectedSport !== "All Sports" && trial.sport !== selectedSport) return false;
     if (selectedOrg !== "All Orgs" && trial.organization !== selectedOrg) return false;
     if (selectedState !== "All States" && trial.state !== selectedState) return false;
+
+    // NEW: level filter (only applies when level exists on trial)
+    if (selectedLevel !== "All Levels") {
+      const tLevel = normalizeLevel(trial.level || "");
+      if (tLevel !== selectedLevel) return false;
+    }
+
     if (selectedMonth) {
       const trialMonth = trial.trial_start_date?.slice(0, 7);
       if (trialMonth !== selectedMonth) return false;
     }
+
     if (keyword) {
       const kw = keyword.toLowerCase();
-      const searchable = `${trial.trial_name} ${trial.trial_host} ${trial.host_club} ${trial.city} ${trial.state}`.toLowerCase();
+      const searchable = `${trial.trial_name} ${trial.trial_host} ${trial.host_club} ${trial.city} ${trial.state} ${trial.location_name} ${trial.street} ${trial.level}`.toLowerCase();
       if (!searchable.includes(kw)) return false;
     }
+
     return true;
   });
 
@@ -181,6 +244,7 @@ export default function TrialsPage() {
     selectedSport !== "All Sports" ||
     selectedOrg !== "All Orgs" ||
     selectedState !== "All States" ||
+    selectedLevel !== "All Levels" ||
     keyword !== "";
 
   const clearFilters = () => {
@@ -188,11 +252,13 @@ export default function TrialsPage() {
     setSelectedSport("All Sports");
     setSelectedOrg("All Orgs");
     setSelectedState("All States");
+    setSelectedLevel("All Levels");
     setKeyword("");
     setPrefsLoaded(false);
   };
 
-  const selectClass = "border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer";
+  const selectClass =
+    "border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer";
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -202,7 +268,12 @@ export default function TrialsPage() {
         {prefsLoaded && (
           <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-blue-700 text-sm flex items-center justify-between">
             <span>✨ Showing trials based on your saved preferences</span>
-            <button onClick={clearFilters} className="text-blue-500 hover:text-blue-700 underline text-xs ml-4">Show all</button>
+            <button
+              onClick={clearFilters}
+              className="text-blue-500 hover:text-blue-700 underline text-xs ml-4"
+            >
+              Show all
+            </button>
           </div>
         )}
 
@@ -214,19 +285,29 @@ export default function TrialsPage() {
                 <option key={m.value} value={m.value}>{m.label}</option>
               ))}
             </select>
+
             <select value={selectedSport} onChange={(e) => setSelectedSport(e.target.value)} className={selectClass}>
               {SPORTS.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
+
             <select value={selectedOrg} onChange={(e) => setSelectedOrg(e.target.value)} className={selectClass}>
               {ORGS.map((o) => (
                 <option key={o} value={o}>{o}</option>
               ))}
             </select>
+
             <select value={selectedState} onChange={(e) => setSelectedState(e.target.value)} className={selectClass}>
               {ALL_STATES.map((s) => (
                 <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+
+            {/* NEW: Level filter */}
+            <select value={selectedLevel} onChange={(e) => setSelectedLevel(e.target.value)} className={selectClass}>
+              {LEVELS.map((lvl) => (
+                <option key={lvl} value={lvl}>{lvl === "SMT" ? "Summit (SMT)" : lvl}</option>
               ))}
             </select>
           </div>
@@ -234,11 +315,12 @@ export default function TrialsPage() {
           <div className="flex gap-3 items-center">
             <input
               type="text"
-              placeholder="🔍 Search name, city, host club..."
+              placeholder="🔍 Search name, city, host club, level..."
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
@@ -271,6 +353,11 @@ export default function TrialsPage() {
             const isOpeningTomorrow = daysUntil === 1;
             const alreadyOpen = trial.entry_opening_date && daysUntil < 0;
 
+            const level = normalizeLevel(trial.level || "");
+
+            const trialLocation = trial.location_name || getHostName(trial) || "TBD";
+            const fullAddress = buildAddress(trial) || `${trial.city || ""}${trial.city && trial.state ? ", " : ""}${trial.state || ""}` || "TBD";
+
             return (
               <div
                 key={trial.id}
@@ -280,6 +367,7 @@ export default function TrialsPage() {
                   <h2 className="text-lg font-bold text-slate-800">
                     🐾 {getDisplayName(trial)}
                   </h2>
+
                   <div className="flex gap-2 flex-wrap">
                     <span className="text-xs px-2 py-1 rounded-full font-medium bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
                       {trial.organization}
@@ -287,30 +375,51 @@ export default function TrialsPage() {
                     <span className="text-xs px-2 py-1 rounded-full font-medium bg-gradient-to-r from-green-500 to-emerald-500 text-white">
                       {trial.sport}
                     </span>
+
+                    {/* NEW: show level badge if present */}
+                    {level ? (
+                      <span className="text-xs px-2 py-1 rounded-full font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                        {level}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
 
-                <p className="text-slate-500 text-sm mb-1">
+                {/* Host + city/state line (keep your existing style) */}
+                <p className="text-slate-500 text-sm mb-2">
                   📍 {getHostName(trial)}{getHostName(trial) && trial.city ? " • " : ""}{trial.city}{trial.city && trial.state ? ", " : ""}{trial.state}
                 </p>
 
-                {trial.location_name && (
-                  <p className="text-slate-400 text-xs mb-1 ml-5">
-                    📌 {trial.location_name}{trial.street ? ` · ${trial.street}` : ""}
-                  </p>
-                )}
+                {/* NEW: Trial Location + Full Address */}
+                <div className="text-slate-600 text-sm mb-2">
+                  <div className="mb-1">
+                    <span className="font-semibold">Trial Location:</span>{" "}
+                    <span className="text-slate-700">{trialLocation}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">Full Address:</span>{" "}
+                    <span className="text-slate-700">{fullAddress}</span>
+                  </div>
+                </div>
 
+                {/* Trial dates */}
                 <p className="text-slate-600 text-sm mb-1">
                   🗓️ Trial:{" "}
-                  {trial.trial_end_date && trial.trial_end_date !== trial.trial_start_date ? (
-                    <>
-                      {formatDate(trial.trial_start_date, { month: "short", day: "numeric" })} – {formatDate(trial.trial_end_date, { month: "short", day: "numeric", year: "numeric" })}
-                    </>
+                  {trial.trial_start_date ? (
+                    trial.trial_end_date && trial.trial_end_date !== trial.trial_start_date ? (
+                      <>
+                        {formatDate(trial.trial_start_date, { month: "short", day: "numeric" })} –{" "}
+                        {formatDate(trial.trial_end_date, { month: "short", day: "numeric", year: "numeric" })}
+                      </>
+                    ) : (
+                      formatDate(trial.trial_start_date, { month: "short", day: "numeric", year: "numeric" })
+                    )
                   ) : (
-                    formatDate(trial.trial_start_date, { month: "short", day: "numeric", year: "numeric" })
+                    <span className="text-slate-400 italic">TBD</span>
                   )}
                 </p>
 
+                {/* Entry dates */}
                 <p className="text-slate-600 text-sm mb-3">
                   📋{" "}
                   {trial.entry_opening_date ? (
@@ -319,13 +428,14 @@ export default function TrialsPage() {
                       {formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
                       {trial.entry_closing_date && (
                         <span className="text-slate-400">
-                          {" "}— closes {formatDate(trial.entry_closing_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                          {" "}— closes{" "}
+                          {formatDate(trial.entry_closing_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
                         </span>
                       )}
                     </>
                   ) : (
                     <span className="text-slate-400 italic">
-                      Entry dates TBD — check club site for details
+                      Entry dates TBD — click club website below for details
                     </span>
                   )}
                 </p>
@@ -333,31 +443,4 @@ export default function TrialsPage() {
                 {isOpeningSoon && !alreadyOpen && (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-amber-800 text-sm font-medium mb-3">
                     ⚡{" "}
-                    {isOpeningToday ? "Opens TODAY!" : isOpeningTomorrow ? "Opens TOMORROW!" : `Opens in ${daysUntil} days`}
-                  </div>
-                )}
-
-                {alreadyOpen && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-green-700 text-sm font-medium mb-3">
-                    ✅ Entries are open now!
-                  </div>
-                )}
-
-                {trial.official_link && (
-                  <a
-                    href={trial.official_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-                  >
-                    View & Register →
-                  </a>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
+                    {isOpeningToday ? "Opens TODAY!" : isOpeningTomorrow ? "Opens TOMORROW!"
