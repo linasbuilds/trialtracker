@@ -12,6 +12,10 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 (async () => {
   console.log("🐾 NACSW Scraper starting...");
 
@@ -22,11 +26,72 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   const page = await browser.newPage();
 
+  // Optional: slightly more consistent rendering
+  await page.setViewport({ width: 1280, height: 800 });
+
+  // Helps with some sites that serve different content to headless
+  await page.setUserAgent(
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+  );
+
+  // Go to NACSW trials page
   await page.goto(NACSW_URL, { waitUntil: "networkidle2" });
 
-  // 🔥 WAIT for actual trials to render
-  await page.waitForSelector(".views-row", { timeout: 10000 });
+  // ----------------------------
+  // 🔎 DEBUG LOGGING (FULLY INTEGRATED)
+  // ----------------------------
 
+  // 1) Immediately check if .views-row exists at all
+  let initialRowCount = 0;
+  try {
+    initialRowCount = await page.$$eval(".views-row", (els) => els.length);
+  } catch (e) {
+    initialRowCount = 0;
+  }
+  console.log("DEBUG: Row count detected (immediately after goto):", initialRowCount);
+
+  // 2) If rows aren’t there yet, wait a bit and check again (render timing)
+  if (initialRowCount === 0) {
+    console.log("DEBUG: No rows yet. Waiting 3 seconds for dynamic render...");
+    await sleep(3000);
+
+    let delayedRowCount = 0;
+    try {
+      delayedRowCount = await page.$$eval(".views-row", (els) => els.length);
+    } catch (e) {
+      delayedRowCount = 0;
+    }
+    console.log("DEBUG: Row count detected (after 3s):", delayedRowCount);
+
+    // 3) Snapshot HTML (truncated) so we can see what GitHub runner received
+    const content = await page.content();
+    console.log("DEBUG: HTML snapshot (first 20000 chars):");
+    console.log(content.slice(0, 20000));
+
+    // 4) Snapshot visible text too (sometimes HTML is huge and not helpful)
+    const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 1500) || "");
+    console.log("DEBUG: Body text snapshot (first 1500 chars):");
+    console.log(bodyText);
+  }
+
+  // ----------------------------
+  // ✅ WAIT for actual trials to render (existing logic)
+  // ----------------------------
+  try {
+    await page.waitForSelector(".views-row", { timeout: 10000 });
+  } catch (err) {
+    console.log("DEBUG: waitForSelector(.views-row) timed out after 10s.");
+
+    // Take one more final snapshot before exiting
+    const content = await page.content();
+    console.log("DEBUG: FINAL HTML snapshot (first 20000 chars):");
+    console.log(content.slice(0, 20000));
+
+    await browser.close();
+    process.exit(1);
+  }
+
+  // Scrape the trials
   const trials = await page.evaluate(() => {
     const rows = [];
     const blocks = document.querySelectorAll(".views-row");
