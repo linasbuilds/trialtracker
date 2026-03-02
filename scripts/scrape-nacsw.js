@@ -1,13 +1,10 @@
 // scripts/scrape-nacsw.js
-// TrialTracker — NACSW Trial Scraper v12.2 (GitHub Actions READY)
-// - Runs ALL future trials
-// - Extracts trial start date from calendar table (YYYY-MM-DD)
-// - Clicks accordion to get "When/Where" + club website
-// - Prefers "available at https://..." club link
-// - Filters out cookie/consent links (Silktide, etc.)
-// - Scrapes entry open/close dates from club website for trials within 90 days
-// - Posts to TrialTracker webhook
-// - Works on GitHub Actions (adds --no-sandbox args + headless)
+// TrialTracker — NACSW Scraper SAFE TEST (GitHub Actions friendly)
+// ✅ Runs headless with no-sandbox (fixes "No usable sandbox")
+// ✅ Limits to 20 trials (fast)
+// ✅ Scrapes: start date + end date (from When) + location + club link (available at ...)
+// ✅ Skips entry open/close scraping (this is what often causes long hangs)
+// ✅ Posts to TrialTracker webhook
 
 const puppeteer = require('puppeteer');
 const https = require('https');
@@ -15,7 +12,9 @@ const https = require('https');
 const WEBHOOK_URL = 'https://www.trialtracker.app/api/trials-webhook';
 const WEBHOOK_SECRET = process.env.BROWSE_AI_WEBHOOK_SECRET || 'trialtracker-secret-2026';
 const NACSW_URL = 'https://www.nacsw.net/calendar/trials';
-const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+
+const MAX_TRIALS = Number(process.env.MAX_TRIALS || 20); // test cap
+const PAGE_TIMEOUT_MS = Number(process.env.PAGE_TIMEOUT_MS || 30000);
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -57,14 +56,6 @@ function isInFuture(dateStr) {
   return d >= today;
 }
 
-function isWithin90Days(dateStr) {
-  if (!dateStr) return false;
-  const trialDate = new Date(dateStr + 'T00:00:00');
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return (trialDate - today) <= NINETY_DAYS_MS;
-}
-
 function parseDateRange(text) {
   if (!text) return { start: null, end: null };
 
@@ -74,7 +65,7 @@ function parseDateRange(text) {
     september: '09', october: '10', november: '11', december: '12'
   };
 
-  // e.g. "January 16-17, 2027"
+  // "January 16-17, 2027"
   const sameMonthRange = text.match(/(\w+)\s+(\d{1,2})\s*[-–]\s*(\d{1,2}),?\s*(\d{4})/i);
   if (sameMonthRange) {
     const m = months[sameMonthRange[1].toLowerCase()];
@@ -86,7 +77,7 @@ function parseDateRange(text) {
     }
   }
 
-  // e.g. "January 30 - February 1, 2027"
+  // "January 30 - February 1, 2027"
   const crossMonthRange = text.match(/(\w+)\s+(\d{1,2})\s*[-–]\s*(\w+)\s+(\d{1,2}),?\s*(\d{4})/i);
   if (crossMonthRange) {
     const m1 = months[crossMonthRange[1].toLowerCase()];
@@ -99,7 +90,7 @@ function parseDateRange(text) {
     }
   }
 
-  // e.g. "January 16, 2027"
+  // "January 16, 2027"
   const singleDay = text.match(/(\w+)\s+(\d{1,2}),?\s*(\d{4})/i);
   if (singleDay) {
     const m = months[singleDay[1].toLowerCase()];
@@ -118,6 +109,7 @@ function looksLikeBadLink(url) {
   if (!url) return true;
   const u = url.toLowerCase();
   if (u.includes('nacsw.net')) return true;
+
   return (
     u.includes('silktide.com') ||
     u.includes('cookieconsent') ||
@@ -171,7 +163,7 @@ async function getTrialRows(page) {
   });
 }
 
-// Clicks the trial accordion row for a given startDate, then reads When/Where + club link
+// Click accordion row by startDate, then read When/Where + "available at https://..."
 async function getTrialDetailsFromAccordion(page, startDate) {
   const empty = { clubWebsite: null, street: null, locationName: null, fullDateText: null };
 
@@ -192,7 +184,6 @@ async function getTrialDetailsFromAccordion(page, startDate) {
         if (link) { link.click(); return true; }
         return false;
       }
-
       return false;
     }, startDate);
 
@@ -217,7 +208,7 @@ async function getTrialDetailsFromAccordion(page, startDate) {
         else if (lines.length === 1) { street = lines[0]; }
       }
 
-      // ✅ Best club link: "available at https://..."
+      // ✅ Best club link pattern:
       let clubWebsite = null;
       const availMatch = bodyText.match(/available at\s+(https?:\/\/[^\s\n\r"'<>]+)\s*/i);
       if (availMatch && availMatch[1]) {
@@ -244,80 +235,21 @@ async function getTrialDetailsFromAccordion(page, startDate) {
   }
 }
 
-function parseEntryDate(str, refYear) {
-  const months = {
-    january:'01', february:'02', march:'03', april:'04', may:'05', june:'06',
-    july:'07', august:'08', september:'09', october:'10', november:'11', december:'12',
-    jan:'01', feb:'02', mar:'03', apr:'04', jun:'06', jul:'07',
-    aug:'08', sep:'09', oct:'10', nov:'11', dec:'12'
-  };
-  const m = str.match(/([A-Za-z]+)\.?\s+(\d{1,2})(?:[,\s]+(\d{4}))?/);
-  if (!m) return null;
-  const month = months[m[1].toLowerCase().replace(/\.$/, '')];
-  if (!month) return null;
-  return `${m[3] || refYear}-${month}-${m[2].padStart(2, '0')}`;
-}
-
-async function getEntryDates(page, clubWebsite, trialStartDate) {
-  const empty = { entry_opening_date: null, entry_closing_date: null };
-  if (!clubWebsite) return empty;
-
-  const refYear = (trialStartDate || String(new Date().getFullYear())).substring(0, 4);
-
-  const OPEN_PATS = [
-    /entr(?:y|ies)\s+(?:open|opens|opening|available)[:\s]+([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
-    /registration\s+(?:open|opens|opening|available|begin|begins)[:\s]+([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
-    /entries?\s+accepted\s+(?:beginning|starting)[:\s]*([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
-    /open\s+(?:for\s+)?entries?\s+(?:on\s+)?([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
-  ];
-
-  const CLOSE_PATS = [
-    /entr(?:y|ies)\s+(?:close|closes|closing|deadline|due|cutoff)[:\s]+([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
-    /registration\s+(?:close|closes|closing|deadline|cutoff|ends)[:\s]+([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
-    /online\s+entr(?:y|ies)\s+(?:close|closes|due)[:\s]+([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
-    /entry\s+deadline[:\s]+([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
-    /entries?\s+(?:must\s+be\s+)?(?:received|submitted|postmarked)\s+by[:\s]+([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
-    /close\s+of\s+entries?[:\s]+([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
-  ];
-
-  const base = clubWebsite.replace(/\/$/, '');
-  const PATHS = ['', '/events', '/trials', '/nosework', '/calendar', '/enter', '/news'];
-
-  for (const path of PATHS) {
-    try {
-      await page.goto(base + path, { waitUntil: 'domcontentloaded', timeout: 20000 });
-      await delay(800);
-
-      const text = await page.evaluate(() => document.body.innerText || '');
-
-      let opening = null, closing = null;
-
-      for (const pat of OPEN_PATS) {
-        const m = text.match(pat);
-        if (m) { opening = parseEntryDate(m[1], refYear); if (opening) break; }
-      }
-      for (const pat of CLOSE_PATS) {
-        const m = text.match(pat);
-        if (m) { closing = parseEntryDate(m[1], refYear); if (closing) break; }
-      }
-
-      if (opening || closing) {
-        console.log(`  📋 Entry dates @ ${base + path}: open=${opening} close=${closing}`);
-        return { entry_opening_date: opening, entry_closing_date: closing };
-      }
-    } catch {
-      // ignore and try next path
-    }
-  }
-
-  return empty;
+async function gotoWithTimeout(page, url, timeoutMs) {
+  // extra guardrail so GitHub can't hang forever
+  return await Promise.race([
+    page.goto(url, { waitUntil: 'networkidle2', timeout: timeoutMs }),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`Manual timeout after ${timeoutMs}ms: ${url}`)), timeoutMs + 250)
+    )
+  ]);
 }
 
 async function main() {
-  console.log('🐾 TrialTracker — NACSW Scraper v12.2 Starting');
+  console.log('🐾 TrialTracker — NACSW SAFE TEST Starting');
   console.log(`📅 Run date: ${new Date().toISOString()}`);
+  console.log(`🧪 MAX_TRIALS=${MAX_TRIALS}`);
 
-  // ✅ GitHub Actions fix: disable sandbox
   const browser = await puppeteer.launch({
     headless: 'new',
     defaultViewport: null,
@@ -329,50 +261,39 @@ async function main() {
   });
 
   const page = await browser.newPage();
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+  await page.setUserAgent(
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+  );
 
   console.log('🌐 Loading NACSW calendar...');
-  await page.goto(NACSW_URL, { waitUntil: 'networkidle2', timeout: 30000 });
-  await delay(2000);
+  await gotoWithTimeout(page, NACSW_URL, PAGE_TIMEOUT_MS);
+  await delay(1500);
 
   const allTrials = await getTrialRows(page);
   const futureTrials = allTrials.filter(t => isInFuture(t.startDate));
 
   console.log(`🔍 Found ${allTrials.length} rows, ${futureTrials.length} future trials`);
-  console.log(`📅 Within 90 days: ${futureTrials.filter(t => isWithin90Days(t.startDate)).length}`);
-  console.log(`📅 Beyond 90 days: ${futureTrials.filter(t => !isWithin90Days(t.startDate)).length}`);
 
+  const runCount = Math.min(MAX_TRIALS, futureTrials.length);
   let successCount = 0, failCount = 0;
 
-  for (let i = 0; i < futureTrials.length; i++) {
+  for (let i = 0; i < runCount; i++) {
     const t = futureTrials[i];
-    console.log(`\n[${i + 1}/${futureTrials.length}] ${t.trialName || 'Trial'} — ${t.startDate} — ${t.city}, ${t.state}`);
+    console.log(`\n[${i + 1}/${runCount}] ${t.trialName || 'Trial'} — ${t.startDate} — ${t.city}, ${t.state}`);
 
-    // clean state each time
-    await page.goto(NACSW_URL, { waitUntil: 'networkidle2', timeout: 30000 });
-    await delay(1200);
+    // reset
+    await gotoWithTimeout(page, NACSW_URL, PAGE_TIMEOUT_MS);
+    await delay(1000);
 
     const details = await getTrialDetailsFromAccordion(page, t.startDate);
 
     let clubWebsite = details.clubWebsite || null;
     if (clubWebsite && looksLikeBadLink(clubWebsite)) clubWebsite = null;
 
-    console.log(`  🔗 clubWebsite (accordion): ${clubWebsite || 'null'}`);
-    console.log(`  🗓️  when: ${details.fullDateText || 'null'}`);
-
     let endDate = null;
     if (details.fullDateText) {
       const parsed = parseDateRange(details.fullDateText);
       if (parsed.end) endDate = parsed.end;
-    }
-
-    let entry_opening_date = null;
-    let entry_closing_date = null;
-
-    if (clubWebsite && isWithin90Days(t.startDate)) {
-      const entryDates = await getEntryDates(page, clubWebsite, t.startDate);
-      entry_opening_date = entryDates.entry_opening_date;
-      entry_closing_date = entryDates.entry_closing_date;
     }
 
     const trial = {
@@ -386,8 +307,11 @@ async function main() {
       state: t.state,
       trial_start_date: t.startDate,
       trial_end_date: endDate || null,
-      entry_opening_date,
-      entry_closing_date,
+
+      // ✅ SAFE TEST: skip entry_opening_date / entry_closing_date
+      entry_opening_date: null,
+      entry_closing_date: null,
+
       official_link: clubWebsite || NACSW_URL,
       nacsw_source_url: t.trialPageLink || NACSW_URL
     };
@@ -395,7 +319,7 @@ async function main() {
     try {
       const res = await postToWebhook(trial);
       if (res.status === 200 || res.status === 201) {
-        console.log(`  ✅ Posted (HTTP ${res.status})`);
+        console.log(`  ✅ Posted (HTTP ${res.status}) club=${clubWebsite || 'null'}`);
         successCount++;
       } else {
         console.warn(`  ⚠️ HTTP ${res.status}: ${res.body}`);
@@ -406,11 +330,11 @@ async function main() {
       failCount++;
     }
 
-    await delay(800);
+    await delay(400);
   }
 
   await browser.close();
-  console.log(`\n✨ Done! ${successCount} posted, ${failCount} failed.`);
+  console.log(`\n✨ SAFE TEST Done! ${successCount} posted, ${failCount} failed.`);
 }
 
 main().catch(err => {
