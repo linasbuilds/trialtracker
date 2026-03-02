@@ -1,10 +1,13 @@
 // scripts/scrape-nacsw.js
-// TrialTracker — NACSW Trial Scraper v12.1 (CLEAN REBUILD)
-// - Fix: ignores cookie/consent links (Silktide, etc.)
-// - Fix: prefers "available at https://clubsite..." pattern for club website
-// - Parses end date from "When:"
+// TrialTracker — NACSW Trial Scraper v12.2 (GitHub Actions READY)
+// - Runs ALL future trials
+// - Extracts trial start date from calendar table (YYYY-MM-DD)
+// - Clicks accordion to get "When/Where" + club website
+// - Prefers "available at https://..." club link
+// - Filters out cookie/consent links (Silktide, etc.)
+// - Scrapes entry open/close dates from club website for trials within 90 days
 // - Posts to TrialTracker webhook
-// - Runs only 3 trials (safe test mode)
+// - Works on GitHub Actions (adds --no-sandbox args + headless)
 
 const puppeteer = require('puppeteer');
 const https = require('https');
@@ -111,6 +114,24 @@ function parseDateRange(text) {
   return { start: null, end: null };
 }
 
+function looksLikeBadLink(url) {
+  if (!url) return true;
+  const u = url.toLowerCase();
+  if (u.includes('nacsw.net')) return true;
+  return (
+    u.includes('silktide.com') ||
+    u.includes('cookieconsent') ||
+    u.includes('onetrust') ||
+    u.includes('cookiebot') ||
+    u.includes('cookielaw') ||
+    u.includes('termly') ||
+    u.includes('iubenda') ||
+    u.includes('osano') ||
+    u.includes('usercentrics') ||
+    u.includes('consent')
+  );
+}
+
 async function getTrialRows(page) {
   return await page.evaluate(() => {
     const results = [];
@@ -150,30 +171,14 @@ async function getTrialRows(page) {
   });
 }
 
-function looksLikeCookieLink(url) {
-  if (!url) return true;
-  const u = url.toLowerCase();
-  return (
-    u.includes('silktide.com') ||
-    u.includes('cookieconsent') ||
-    u.includes('onetrust') ||
-    u.includes('cookiebot') ||
-    u.includes('cookielaw') ||
-    u.includes('termly') ||
-    u.includes('iubenda') ||
-    u.includes('osano') ||
-    u.includes('usercentrics') ||
-    u.includes('consent')
-  );
-}
-
-// ✅ Accordion extractor: click trial row then scrape only what we need
+// Clicks the trial accordion row for a given startDate, then reads When/Where + club link
 async function getTrialDetailsFromAccordion(page, startDate) {
   const empty = { clubWebsite: null, street: null, locationName: null, fullDateText: null };
 
   try {
     const clicked = await page.evaluate((targetDate) => {
       const allTds = Array.from(document.querySelectorAll('td'));
+
       for (const td of allTds) {
         if (!td.innerText.trim().startsWith(targetDate)) continue;
 
@@ -187,6 +192,7 @@ async function getTrialDetailsFromAccordion(page, startDate) {
         if (link) { link.click(); return true; }
         return false;
       }
+
       return false;
     }, startDate);
 
@@ -197,12 +203,12 @@ async function getTrialDetailsFromAccordion(page, startDate) {
     const details = await page.evaluate(() => {
       const bodyText = document.body.innerText || '';
 
-      // When
+      // When:
       let fullDateText = null;
       const whenMatch = bodyText.match(/When[:\s]+([^\n]+)/i);
       if (whenMatch) fullDateText = whenMatch[1].trim();
 
-      // Where
+      // Where:
       let locationName = null, street = null;
       const whereMatch = bodyText.match(/Where[:\s]+([\s\S]*?)(?=\n\n|\nPremium|\nQuestions|$)/i);
       if (whereMatch) {
@@ -211,19 +217,18 @@ async function getTrialDetailsFromAccordion(page, startDate) {
         else if (lines.length === 1) { street = lines[0]; }
       }
 
-      // ✅ BEST: specifically find "available at https://clubsite..."
+      // ✅ Best club link: "available at https://..."
       let clubWebsite = null;
       const availMatch = bodyText.match(/available at\s+(https?:\/\/[^\s\n\r"'<>]+)\s*/i);
       if (availMatch && availMatch[1]) {
         clubWebsite = availMatch[1].replace(/[.,;)]+$/, '');
       }
 
-      // fallback: any URL in text (we will filter cookies outside)
+      // fallback: any URL in text
       if (!clubWebsite) {
         const urls = bodyText.match(/https?:\/\/[^\s\n\r"'<>]+/g) || [];
         for (const u of urls) {
           const clean = u.replace(/[.,;)]+$/, '');
-          if (clean.toLowerCase().includes('nacsw')) continue;
           clubWebsite = clean;
           break;
         }
@@ -263,13 +268,16 @@ async function getEntryDates(page, clubWebsite, trialStartDate) {
     /entr(?:y|ies)\s+(?:open|opens|opening|available)[:\s]+([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
     /registration\s+(?:open|opens|opening|available|begin|begins)[:\s]+([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
     /entries?\s+accepted\s+(?:beginning|starting)[:\s]*([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
+    /open\s+(?:for\s+)?entries?\s+(?:on\s+)?([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
   ];
 
   const CLOSE_PATS = [
     /entr(?:y|ies)\s+(?:close|closes|closing|deadline|due|cutoff)[:\s]+([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
     /registration\s+(?:close|closes|closing|deadline|cutoff|ends)[:\s]+([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
+    /online\s+entr(?:y|ies)\s+(?:close|closes|due)[:\s]+([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
     /entry\s+deadline[:\s]+([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
     /entries?\s+(?:must\s+be\s+)?(?:received|submitted|postmarked)\s+by[:\s]+([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
+    /close\s+of\s+entries?[:\s]+([A-Za-z]+\.?\s+\d{1,2}(?:[,\s]+\d{4})?)/i,
   ];
 
   const base = clubWebsite.replace(/\/$/, '');
@@ -298,7 +306,7 @@ async function getEntryDates(page, clubWebsite, trialStartDate) {
         return { entry_opening_date: opening, entry_closing_date: closing };
       }
     } catch {
-      // ignore
+      // ignore and try next path
     }
   }
 
@@ -306,13 +314,18 @@ async function getEntryDates(page, clubWebsite, trialStartDate) {
 }
 
 async function main() {
-  console.log('🐾 TrialTracker — NACSW Scraper v12.1 Starting');
+  console.log('🐾 TrialTracker — NACSW Scraper v12.2 Starting');
   console.log(`📅 Run date: ${new Date().toISOString()}`);
 
+  // ✅ GitHub Actions fix: disable sandbox
   const browser = await puppeteer.launch({
-    headless: false,
+    headless: 'new',
     defaultViewport: null,
-    args: ['--start-maximized']
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage'
+    ]
   });
 
   const page = await browser.newPage();
@@ -327,26 +340,25 @@ async function main() {
 
   console.log(`🔍 Found ${allTrials.length} rows, ${futureTrials.length} future trials`);
   console.log(`📅 Within 90 days: ${futureTrials.filter(t => isWithin90Days(t.startDate)).length}`);
+  console.log(`📅 Beyond 90 days: ${futureTrials.filter(t => !isWithin90Days(t.startDate)).length}`);
 
   let successCount = 0, failCount = 0;
 
-  // ✅ SAFE TEST MODE: only 3 trials
   for (let i = 0; i < futureTrials.length; i++) {
     const t = futureTrials[i];
     console.log(`\n[${i + 1}/${futureTrials.length}] ${t.trialName || 'Trial'} — ${t.startDate} — ${t.city}, ${t.state}`);
 
-    // Always reload calendar each iteration (clean state)
+    // clean state each time
     await page.goto(NACSW_URL, { waitUntil: 'networkidle2', timeout: 30000 });
-    await delay(1500);
+    await delay(1200);
 
     const details = await getTrialDetailsFromAccordion(page, t.startDate);
 
     let clubWebsite = details.clubWebsite || null;
-    if (clubWebsite && looksLikeCookieLink(clubWebsite)) {
-      clubWebsite = null;
-    }
+    if (clubWebsite && looksLikeBadLink(clubWebsite)) clubWebsite = null;
 
     console.log(`  🔗 clubWebsite (accordion): ${clubWebsite || 'null'}`);
+    console.log(`  🗓️  when: ${details.fullDateText || 'null'}`);
 
     let endDate = null;
     if (details.fullDateText) {
@@ -376,7 +388,7 @@ async function main() {
       trial_end_date: endDate || null,
       entry_opening_date,
       entry_closing_date,
-      official_link: clubWebsite || null,
+      official_link: clubWebsite || NACSW_URL,
       nacsw_source_url: t.trialPageLink || NACSW_URL
     };
 
@@ -394,7 +406,7 @@ async function main() {
       failCount++;
     }
 
-    await delay(1200);
+    await delay(800);
   }
 
   await browser.close();
