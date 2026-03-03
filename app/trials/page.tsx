@@ -131,6 +131,7 @@ interface Trial {
   entry_closing_date: string;
 
   official_link: string;
+  club_website?: string;
 }
 
 export default function TrialsPage() {
@@ -424,18 +425,18 @@ export default function TrialsPage() {
                   📋{" "}
                   {trial.entry_opening_date ? (
                     <>
-                      Entry opens:{" "}
+                      Trial Entry Opens:{" "}
                       {formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
                       {trial.entry_closing_date && (
                         <span className="text-slate-400">
-                          {" "}— closes{" "}
+                          {" "}— Trial Entry Closes:{" "}
                           {formatDate(trial.entry_closing_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
                         </span>
                       )}
                     </>
                   ) : (
                     <span className="text-slate-400 italic">
-                      Entry dates TBD — click club website below for details
+                      Entry dates TBD — check club site for details
                     </span>
                   )}
                 </p>
@@ -443,4 +444,31 @@ export default function TrialsPage() {
                 {isOpeningSoon && !alreadyOpen && (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-amber-800 text-sm font-medium mb-3">
                     ⚡{" "}
-                    {isOpeningToday ? "Opens TODAY!" : isOpeningTomorrow ? "Opens TOMORROW!"
+                    {isOpeningToday ? "Opens TODAY!" : isOpeningTomorrow ? "Opens TOMORROW!" : `Opens in ${daysUntil} days`}
+                  </div>
+                )}
+
+                {alreadyOpen && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-green-700 text-sm font-medium mb-3">
+                    ✅ Entries are open now!
+                  </div>
+                )}
+
+                {(trial.club_website || trial.official_link) && (
+                  <a
+                    href={trial.club_website || trial.official_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                  >
+                    View &amp; Register →
+                  </a>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
