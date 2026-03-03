@@ -487,6 +487,7 @@ async function main() {
             entry_opening_date:  t.entry_opening_date,
             entry_closing_date:  t.entry_closing_date,
             official_link:       t.official_link,
+            club_website:        t.club_website,
             cancelled:           false,
             data_source:         'nacsw',
           },
