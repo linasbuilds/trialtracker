@@ -1,33 +1,155 @@
-name: Scrape NACSW Trials
+const puppeteer = require("puppeteer");
+const { createClient } = require("@supabase/supabase-js");
 
-on:
-  schedule:
-    - cron: "0 8 * * 1"
-  workflow_dispatch:
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-jobs:
-  scrape:
-    name: Fetch & Post NACSW Trials
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+const NACSW_URL = "https://www.nacsw.net/calendar/trials";
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error("Missing Supabase secrets.");
+}
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-      # Install dependencies the reliable way:
-      # If you have package-lock.json, npm ci is best.
-      - name: Install dependencies
-        run: npm ci
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-      # Run scraper with Supabase secrets
-      - name: Run NACSW scraper
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node scripts/scrape-nacsw.js
+(async () => {
+  console.log("🐾 NACSW Scraper starting...");
+
+  const browser = await puppeteer.launch({
+    headless: "new",
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+    ],
+  });
+
+  const page = await browser.newPage();
+  await page.setViewport({ width: 1280, height: 800 });
+
+  await page.setUserAgent(
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+  );
+
+  // Pre-accept cookie consent before loading the page
+  await page.setCookie(
+    { name: "cookieconsent_status", value: "dismiss", domain: ".nacsw.net", path: "/" },
+    { name: "cookieconsent_dismissed", value: "true", domain: ".nacsw.net", path: "/" }
+  );
+
+  await page.goto(NACSW_URL, { waitUntil: "networkidle2" });
+  await sleep(1200);
+
+  const debug = await page.evaluate(() => {
+    const banner = document.querySelector(".cc_banner-wrapper");
+    const viewContent = document.querySelectorAll(".view-content").length;
+    const rows = document.querySelectorAll(".view-content .views-row").length;
+    const links = document.querySelectorAll(".view-content .views-row a").length;
+    return { bannerPresent: !!banner, viewContent, rows, links };
+  });
+  console.log("DEBUG:", debug);
+
+  try {
+    await page.waitForSelector(".view-content .views-row a", { timeout: 45000 });
+  } catch (e) {
+    console.log("ERROR: Timed out waiting for trial rows/links to render.");
+    console.log((await page.content()).slice(0, 20000));
+    await browser.close();
+    process.exit(1);
+  }
+
+  const trials = await page.evaluate(() => {
+    const out = [];
+    const blocks = Array.from(document.querySelectorAll(".view-content .views-row"));
+
+    for (const block of blocks) {
+      const link =
+        block.querySelector(".views-field-title a") ||
+        block.querySelector("a");
+
+      if (!link) continue;
+
+      const fullTitle = (link.innerText || link.textContent || "").trim();
+      const officialLink = link.href;
+
+      if (!fullTitle || fullTitle.length < 10) continue;
+
+      let city = null;
+      let state = null;
+      const cityMatch = fullTitle.match(/- ([^,]+), ([A-Z]{2})/);
+      if (cityMatch) {
+        city = cityMatch[1].trim();
+        state = cityMatch[2].trim();
+      }
+
+      let trialHost = null;
+      const hostMatch = fullTitle.match(/hosted by (.+)$/i);
+      if (hostMatch) trialHost = hostMatch[1].trim();
+
+      out.push({
+        trial_name: fullTitle,
+        trial_host: trialHost,
+        city,
+        state,
+        official_link: officialLink,
+      });
+    }
+
+    const seen = new Set();
+    return out.filter((r) => {
+      if (seen.has(r.official_link)) return false;
+      seen.add(r.official_link);
+      return true;
+    });
+  });
+
+  console.log(`Found trials: ${trials.length}`);
+
+  if (trials.length === 0) {
+    console.log("ERROR: 0 trials extracted.");
+    await browser.close();
+    process.exit(1);
+  }
+
+  let success = 0;
+  let failed = 0;
+
+  for (const t of trials) {
+    try {
+      const { error } = await supabase.from("trials").upsert(
+        {
+          organization: "NACSW",
+          sport: "Nosework",
+          trial_name: t.trial_name,
+          trial_host: t.trial_host,
+          location_name: null,
+          street: null,
+          city: t.city,
+          state: t.state,
+          zip: null,
+          trial_start_date: null,
+          trial_end_date: null,
+          entry_opening_date: null,
+          entry_closing_date: null,
+          official_link: t.official_link,
+          cancelled: false,
+          data_source: "nacsw",
+        },
+        { onConflict: "official_link" }
+      );
+
+      if (error) throw error;
+      success++;
+    } catch (err) {
+      failed++;
+      console.log("Insert error:", err.message);
+    }
+  }
+
+  console.log(`✅ Done. Success: ${success}, Failed: ${failed}`);
+  await browser.close();
+})();
