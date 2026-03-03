@@ -2,54 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import {
+  CATALOG, ALL_ORGS, ALL_SPORTS,
+  getSportsForOrg, getLevelsForOrgSport, normalizeLevel,
+} from "../lib/catalog";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
-
-const SPORTS = [
-  "All Sports",
-  "Nosework",
-  "Agility",
-  "Rally",
-  "Obedience",
-  "Barn Hunt",
-  "Dock Diving",
-  "FastCAT",
-  "Flyball",
-  "Tracking",
-  "Herding",
-  "Lure Coursing",
-  "Conformation",
-  "Other",
-];
-
-const ORGS = [
-  "All Orgs",
-  "NACSW",
-  "AKC",
-  "UKI",
-  "CPE",
-  "NADAC",
-  "UKC",
-  "WCRL",
-  "NAFA",
-  "USDAA",
-  "TDAA",
-  "ASCA",
-  "BHA",
-  "Other",
-];
-
-const LEVELS = [
-  "All Levels",
-  "NW1",
-  "NW2",
-  "NW3",
-  "ELT",
-  "SMT", // Summit
-];
 
 const ALL_STATES = [
   "All States",
@@ -84,14 +45,6 @@ const formatDate = (dateStr: string, options: Intl.DateTimeFormatOptions) => {
   const date = parseDate(dateStr);
   if (!date) return "";
   return date.toLocaleDateString("en-US", options);
-};
-
-const normalizeLevel = (level: string) => {
-  if (!level) return "";
-  const u = level.toUpperCase().trim();
-  // Normalize Summit words if they ever come in as "SUMMIT"
-  if (u === "SUMMIT") return "SMT";
-  return u;
 };
 
 const buildAddress = (trial: Trial) => {
@@ -220,10 +173,9 @@ export default function TrialsPage() {
     if (selectedOrg !== "All Orgs" && trial.organization !== selectedOrg) return false;
     if (selectedState !== "All States" && trial.state !== selectedState) return false;
 
-    // NEW: level filter (only applies when level exists on trial)
     if (selectedLevel !== "All Levels") {
       const tLevel = normalizeLevel(trial.level || "");
-      if (tLevel !== selectedLevel) return false;
+      if (tLevel !== normalizeLevel(selectedLevel)) return false;
     }
 
     if (selectedMonth) {
@@ -287,28 +239,54 @@ export default function TrialsPage() {
               ))}
             </select>
 
-            <select value={selectedSport} onChange={(e) => setSelectedSport(e.target.value)} className={selectClass}>
-              {SPORTS.map((s) => (
+            {/* Org — resets Sport + Level downstream */}
+            <select
+              value={selectedOrg}
+              onChange={(e) => {
+                setSelectedOrg(e.target.value);
+                setSelectedSport("All Sports");
+                setSelectedLevel("All Levels");
+              }}
+              className={selectClass}
+            >
+              <option value="All Orgs">All Orgs</option>
+              {ALL_ORGS.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+
+            {/* Sport — options cascade from selected Org; resets Level downstream */}
+            <select
+              value={selectedSport}
+              onChange={(e) => {
+                setSelectedSport(e.target.value);
+                setSelectedLevel("All Levels");
+              }}
+              className={selectClass}
+            >
+              <option value="All Sports">All Sports</option>
+              {getSportsForOrg(selectedOrg).map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
 
-            <select value={selectedOrg} onChange={(e) => setSelectedOrg(e.target.value)} className={selectClass}>
-              {ORGS.map((o) => (
-                <option key={o} value={o}>{o}</option>
-              ))}
-            </select>
+            {/* Level — options cascade from Org + Sport; only shown when sport is known */}
+            {(() => {
+              const levels = getLevelsForOrgSport(selectedOrg, selectedSport);
+              if (!levels.length) return null;
+              return (
+                <select
+                  value={selectedLevel}
+                  onChange={(e) => setSelectedLevel(e.target.value)}
+                  className={selectClass}
+                >
+                  <option value="All Levels">All Levels</option>
+                  {levels.map((lvl) => <option key={lvl} value={lvl}>{lvl}</option>)}
+                </select>
+              );
+            })()}
 
             <select value={selectedState} onChange={(e) => setSelectedState(e.target.value)} className={selectClass}>
               {ALL_STATES.map((s) => (
                 <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-
-            {/* NEW: Level filter */}
-            <select value={selectedLevel} onChange={(e) => setSelectedLevel(e.target.value)} className={selectClass}>
-              {LEVELS.map((lvl) => (
-                <option key={lvl} value={lvl}>{lvl === "SMT" ? "Summit (SMT)" : lvl}</option>
               ))}
             </select>
           </div>

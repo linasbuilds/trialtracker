@@ -3,22 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
+import { ALL_ORGS, ALL_SPORTS, getSportsForOrgs, getLevelsForPrefs } from '../lib/catalog'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
-
-const SPORTS = [
-  'Nosework', 'Agility', 'Rally', 'Obedience', 'Barn Hunt',
-  'Dock Diving', 'FastCAT', 'Flyball', 'Tracking', 'Herding',
-  'Lure Coursing', 'Conformation', 'Other'
-]
-
-const ORGANIZATIONS = [
-  'NACSW', 'AKC', 'UKI', 'CPE', 'NADAC', 'UKC', 'WCRL', 'NAFA',
-  'USDAA', 'TDAA', 'ASCA', 'BHA', 'Other'
-]
 
 const STATES = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
@@ -39,6 +29,7 @@ export default function PreferencesPage() {
   const [selectedSports, setSelectedSports] = useState<string[]>([])
   const [selectedOrgs, setSelectedOrgs] = useState<string[]>([])
   const [selectedStates, setSelectedStates] = useState<string[]>([])
+  const [selectedLevels, setSelectedLevels] = useState<string[]>([])
   const [homeZip, setHomeZip] = useState('')
   const [dayTripMiles, setDayTripMiles] = useState('150')
   const [overnightMiles, setOvernightMiles] = useState('300')
@@ -51,7 +42,7 @@ export default function PreferencesPage() {
 
       const { data: profile, error } = await supabase
         .from('user_profiles')
-        .select('preferred_venues, preferred_states, preferred_orgs, home_zip, day_trip_miles, overnight_miles, alert_timing')
+        .select('preferred_venues, preferred_states, preferred_orgs, preferred_levels, home_zip, day_trip_miles, overnight_miles, alert_timing')
         .eq('user_id', user.id)
         .single()
 
@@ -64,6 +55,7 @@ export default function PreferencesPage() {
         setSelectedSports(Array.isArray(profile.preferred_venues) ? profile.preferred_venues : [])
         setSelectedStates(Array.isArray(profile.preferred_states) ? profile.preferred_states : [])
         setSelectedOrgs(Array.isArray(profile.preferred_orgs) ? profile.preferred_orgs : [])
+        setSelectedLevels(Array.isArray(profile.preferred_levels) ? profile.preferred_levels : [])
         setHomeZip(profile.home_zip || '')
         setDayTripMiles(profile.day_trip_miles || '150')
         setOvernightMiles(profile.overnight_miles || '300')
@@ -88,6 +80,7 @@ export default function PreferencesPage() {
       preferred_venues: selectedSports,
       preferred_states: selectedStates,
       preferred_orgs: selectedOrgs,
+      preferred_levels: selectedLevels,
       home_zip: homeZip,
       day_trip_miles: dayTripMiles,
       overnight_miles: overnightMiles,
@@ -185,38 +178,12 @@ export default function PreferencesPage() {
           </div>
         </div>
 
-        {/* Favorite Sports */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <h2 className="text-base font-bold text-slate-700 mb-1">🐾 Favorite Sports</h2>
-          <p className="text-xs text-slate-400 mb-4">Select all that apply — leave empty to see all sports.</p>
-          <div className="flex flex-wrap gap-2">
-            {SPORTS.map(sport => (
-              <button
-                key={sport}
-                onClick={() => toggle(sport, selectedSports, setSelectedSports)}
-                style={selectedSports.includes(sport) ? {
-                  background: 'linear-gradient(to right, #22c55e, #10b981)',
-                  color: 'white',
-                  border: '1px solid transparent'
-                } : {
-                  background: 'white',
-                  color: '#475569',
-                  border: '1px solid #e2e8f0'
-                }}
-                className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:shadow-sm"
-              >
-                {sport}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Favorite Organizations */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
           <h2 className="text-base font-bold text-slate-700 mb-1">🔍 Favorite Organizations</h2>
           <p className="text-xs text-slate-400 mb-4">Select your preferred organizations — leave empty to see all.</p>
           <div className="flex flex-wrap gap-2">
-            {ORGANIZATIONS.map(org => (
+            {ALL_ORGS.map(org => (
               <button
                 key={org}
                 onClick={() => toggle(org, selectedOrgs, setSelectedOrgs)}
@@ -236,6 +203,75 @@ export default function PreferencesPage() {
             ))}
           </div>
         </div>
+
+        {/* Favorite Sports — cascades from selected orgs */}
+        {(() => {
+          const availableSports = getSportsForOrgs(selectedOrgs)
+          // When orgs are selected and narrow the list, remove any saved sports that no longer apply
+          const visibleSports = selectedOrgs.length > 0 ? availableSports : ALL_SPORTS
+          return (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+              <h2 className="text-base font-bold text-slate-700 mb-1">🐾 Favorite Sports</h2>
+              <p className="text-xs text-slate-400 mb-4">
+                {selectedOrgs.length > 0
+                  ? `Showing sports for your selected org${selectedOrgs.length > 1 ? 's' : ''} — leave empty to see all.`
+                  : 'Select all that apply — leave empty to see all sports.'}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {visibleSports.map(sport => (
+                  <button
+                    key={sport}
+                    onClick={() => toggle(sport, selectedSports, setSelectedSports)}
+                    style={selectedSports.includes(sport) ? {
+                      background: 'linear-gradient(to right, #22c55e, #10b981)',
+                      color: 'white',
+                      border: '1px solid transparent'
+                    } : {
+                      background: 'white',
+                      color: '#475569',
+                      border: '1px solid #e2e8f0'
+                    }}
+                    className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:shadow-sm"
+                  >
+                    {sport}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Favorite Levels — cascades from selected orgs + sports */}
+        {(() => {
+          const availableLevels = getLevelsForPrefs(selectedOrgs, selectedSports)
+          if (!availableLevels.length) return null
+          return (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+              <h2 className="text-base font-bold text-slate-700 mb-1">🏅 Favorite Levels</h2>
+              <p className="text-xs text-slate-400 mb-4">Select the levels you compete at — leave empty to see all levels.</p>
+              <div className="flex flex-wrap gap-2">
+                {availableLevels.map(level => (
+                  <button
+                    key={level}
+                    onClick={() => toggle(level, selectedLevels, setSelectedLevels)}
+                    style={selectedLevels.includes(level) ? {
+                      background: 'linear-gradient(to right, #f59e0b, #ef4444)',
+                      color: 'white',
+                      border: '1px solid transparent'
+                    } : {
+                      background: 'white',
+                      color: '#475569',
+                      border: '1px solid #e2e8f0'
+                    }}
+                    className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:shadow-sm"
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Favorite States */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
