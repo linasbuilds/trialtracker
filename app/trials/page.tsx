@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import {
-  CATALOG, ALL_ORGS, ALL_SPORTS,
+  ALL_ORGS,
   getSportsForOrg, getLevelsForOrgSport, normalizeLevel,
 } from "../lib/catalog";
 
@@ -268,7 +268,7 @@ export default function TrialsPage() {
               ))}
             </select>
 
-            {/* Level — options cascade from Org + Sport; only shown when sport is known */}
+            {/* Level — appears as soon as an Org is selected; narrows when Sport is also picked */}
             {(() => {
               const levels = getLevelsForOrgSport(selectedOrg, selectedSport);
               if (!levels.length) return null;
@@ -276,9 +276,9 @@ export default function TrialsPage() {
                 <select
                   value={selectedLevel}
                   onChange={(e) => setSelectedLevel(e.target.value)}
-                  className={selectClass}
+                  className={`${selectClass} border-blue-300 bg-blue-50`}
                 >
-                  <option value="All Levels">All Levels</option>
+                  <option value="All Levels">🏅 All Levels</option>
                   {levels.map((lvl) => <option key={lvl} value={lvl}>{lvl}</option>)}
                 </select>
               );

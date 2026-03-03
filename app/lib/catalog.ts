@@ -50,8 +50,23 @@ export function getSportsForOrg(org: string): string[] {
   return Object.keys(CATALOG[org] ?? {});
 }
 
-/** Levels for an org+sport combo (used in Find Trials single-select) */
+/** All levels for a single org — union across all its sports */
+export function getLevelsForOrg(org: string): string[] {
+  if (!org || org === 'All Orgs') return [];
+  const set = new Set<string>();
+  for (const levels of Object.values(CATALOG[org] ?? {})) {
+    levels.forEach(l => set.add(l));
+  }
+  return [...set];
+}
+
+/** Levels for an org+sport combo (used in Find Trials single-select).
+ *  If sport is "All Sports" but an org IS selected, returns all levels for that org. */
 export function getLevelsForOrgSport(org: string, sport: string): string[] {
+  // Org selected, no sport yet → show all levels for that org
+  if ((!sport || sport === 'All Sports') && org && org !== 'All Orgs') {
+    return getLevelsForOrg(org);
+  }
   if (!sport || sport === 'All Sports') return [];
   if (SPORT_LEVELS[sport]) return SPORT_LEVELS[sport];
   if (org && org !== 'All Orgs') return CATALOG[org]?.[sport] ?? [];
@@ -73,18 +88,27 @@ export function getSportsForOrgs(orgs: string[]): string[] {
   return [...set];
 }
 
-/** Levels available for multiple selected orgs + sports (used in Preferences multi-select) */
+/** Levels available for multiple selected orgs + sports (used in Preferences multi-select).
+ *  If no sports are selected but orgs are, returns all levels for those orgs. */
 export function getLevelsForPrefs(orgs: string[], sports: string[]): string[] {
-  if (!sports.length) return [];
   const set = new Set<string>();
-  for (const sport of sports) {
-    if (SPORT_LEVELS[sport]) {
-      SPORT_LEVELS[sport].forEach(l => set.add(l));
-      continue;
+  if (sports.length) {
+    for (const sport of sports) {
+      if (SPORT_LEVELS[sport]) {
+        SPORT_LEVELS[sport].forEach(l => set.add(l));
+        continue;
+      }
+      const searchOrgs = orgs.length ? orgs : Object.keys(CATALOG);
+      for (const org of searchOrgs) {
+        (CATALOG[org]?.[sport] ?? []).forEach(l => set.add(l));
+      }
     }
-    const searchOrgs = orgs.length ? orgs : Object.keys(CATALOG);
-    for (const org of searchOrgs) {
-      (CATALOG[org]?.[sport] ?? []).forEach(l => set.add(l));
+  } else if (orgs.length) {
+    // No sports yet — show all levels for selected orgs
+    for (const org of orgs) {
+      for (const levels of Object.values(CATALOG[org] ?? {})) {
+        levels.forEach(l => set.add(l));
+      }
     }
   }
   return [...set];
