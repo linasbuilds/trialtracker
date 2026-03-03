@@ -16,16 +16,32 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function safeEvaluate(page, fn, tries = 2) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await page.evaluate(fn);
+    } catch (e) {
+      lastErr = e;
+      const msg = String(e?.message || e);
+      // Retry only the common navigation/context-destroyed error
+      if (msg.includes("Execution context was destroyed")) {
+        console.log("DEBUG: evaluate interrupted by navigation, retrying...");
+        await sleep(1000);
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastErr;
+}
+
 (async () => {
   console.log("🐾 NACSW Scraper starting...");
 
   const browser = await puppeteer.launch({
     headless: "new",
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-    ],
+    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
   });
 
   const page = await browser.newPage();
@@ -41,10 +57,24 @@ function sleep(ms) {
     { name: "cookieconsent_dismissed", value: "true", domain: ".nacsw.net", path: "/" }
   );
 
-  await page.goto(NACSW_URL, { waitUntil: "networkidle2" });
-  await sleep(1200);
+  await page.goto(NACSW_URL, { waitUntil: "domcontentloaded" });
 
-  const debug = await page.evaluate(() => {
+  // Give the page a moment to finish any auto-navigation/JS boot
+  await sleep(2000);
+
+  // Wait for results area AND links (longer timeout, GitHub runner is slower)
+  try {
+    await page.waitForSelector(".view-content", { timeout: 60000 });
+    await page.waitForSelector(".view-content .views-row a", { timeout: 60000 });
+  } catch (e) {
+    console.log("ERROR: Timed out waiting for trial rows/links to render.");
+    console.log((await page.content()).slice(0, 20000));
+    await browser.close();
+    process.exit(1);
+  }
+
+  // Debug counts (retry-safe)
+  const debug = await safeEvaluate(page, () => {
     const banner = document.querySelector(".cc_banner-wrapper");
     const viewContent = document.querySelectorAll(".view-content").length;
     const rows = document.querySelectorAll(".view-content .views-row").length;
@@ -53,16 +83,8 @@ function sleep(ms) {
   });
   console.log("DEBUG:", debug);
 
-  try {
-    await page.waitForSelector(".view-content .views-row a", { timeout: 45000 });
-  } catch (e) {
-    console.log("ERROR: Timed out waiting for trial rows/links to render.");
-    console.log((await page.content()).slice(0, 20000));
-    await browser.close();
-    process.exit(1);
-  }
-
-  const trials = await page.evaluate(() => {
+  // Extract trials (retry-safe)
+  const trials = await safeEvaluate(page, () => {
     const out = [];
     const blocks = Array.from(document.querySelectorAll(".view-content .views-row"));
 
@@ -77,6 +99,7 @@ function sleep(ms) {
       const officialLink = link.href;
 
       if (!fullTitle || fullTitle.length < 10) continue;
+      if (!officialLink) continue;
 
       let city = null;
       let state = null;
@@ -99,6 +122,7 @@ function sleep(ms) {
       });
     }
 
+    // de-dupe
     const seen = new Set();
     return out.filter((r) => {
       if (seen.has(r.official_link)) return false;
