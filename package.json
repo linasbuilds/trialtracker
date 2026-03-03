@@ -12,6 +12,8 @@
     "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/supabase-js": "^2.95.3",
     "next": "16.1.6",
+    "pdf-parse": "^2.4.5",
+    "playwright": "^1.58.2",
     "puppeteer": "^24.37.5",
     "react": "19.2.3",
     "react-dom": "19.2.3",
