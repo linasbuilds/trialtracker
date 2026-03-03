@@ -25,80 +25,69 @@ function sleep(ms) {
       "--no-sandbox",
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
-      "--disable-blink-features=AutomationControlled",
     ],
   });
 
   const page = await browser.newPage();
-
-  // Make headless look less headless (helps on some sites)
   await page.setViewport({ width: 1280, height: 800 });
+
   await page.setUserAgent(
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
   );
-  await page.evaluateOnNewDocument(() => {
-    Object.defineProperty(navigator, "webdriver", { get: () => false });
-  });
 
   await page.goto(NACSW_URL, { waitUntil: "domcontentloaded" });
 
-  // IMPORTANT:
-  // .views-row can exist EMPTY on GitHub runner.
-  // So we wait for "real content": at least one link inside a row, or row text.
+  // 1) Accept cookie banner if present
   try {
-    await page.waitForFunction(
-      () => {
-        const rows = Array.from(document.querySelectorAll(".views-row"));
-        if (rows.length === 0) return false;
-
-        // Wait until at least one row has a link with meaningful text
-        const hasRealRow = rows.some((r) => {
-          const a =
-            r.querySelector(".views-field-title a") ||
-            r.querySelector("a");
-          const txt = (a?.textContent || r.textContent || "").trim();
-          return txt.length > 10;
-        });
-
-        return hasRealRow;
-      },
-      { timeout: 30000 }
-    );
+    const acceptBtn = await page.$(".cc_btn_accept_all");
+    if (acceptBtn) {
+      console.log("DEBUG: Cookie banner detected. Clicking Accept...");
+      await acceptBtn.click();
+      await sleep(500);
+    } else {
+      console.log("DEBUG: No cookie banner button found.");
+    }
   } catch (e) {
-    console.log("ERROR: Timed out waiting for populated trial rows.");
+    console.log("DEBUG: Cookie accept click failed:", e.message);
+  }
 
-    // Helpful snapshot so we can see what runner got
-    const html = (await page.content()).slice(0, 20000);
-    console.log("DEBUG HTML snapshot (first 20000 chars):");
-    console.log(html);
-
+  // 2) Wait for the Drupal view content container (results area)
+  try {
+    await page.waitForSelector(".view-content", { timeout: 20000 });
+  } catch (e) {
+    console.log("ERROR: Timed out waiting for .view-content (results container).");
+    console.log((await page.content()).slice(0, 20000));
     await browser.close();
     process.exit(1);
   }
 
-  // Small settle (sometimes titles appear a beat after the container)
-  await sleep(500);
+  // 3) Wait for an actual trial link inside the view rows
+  try {
+    await page.waitForSelector(".views-row a", { timeout: 20000 });
+  } catch (e) {
+    console.log("ERROR: Timed out waiting for .views-row a (trial links).");
+    console.log((await page.content()).slice(0, 20000));
+    await browser.close();
+    process.exit(1);
+  }
 
   const trials = await page.evaluate(() => {
     const rows = [];
-    const blocks = Array.from(document.querySelectorAll(".views-row"));
+    const blocks = document.querySelectorAll(".view-content .views-row");
 
-    for (const block of blocks) {
-      // More specific first; fallback second
+    blocks.forEach((block) => {
+      // Prefer the title link if present; fall back to first link
       const link =
         block.querySelector(".views-field-title a") ||
         block.querySelector("a");
 
-      if (!link) continue;
+      if (!link) return;
 
       const fullTitle = (link.innerText || link.textContent || "").trim();
       const officialLink = link.href;
 
-      // Skip junk/empty
-      if (!fullTitle || fullTitle.length < 10) continue;
-      if (!officialLink) continue;
+      if (!fullTitle || fullTitle.length < 10) return;
 
-      // Extract city/state
       let city = null;
       let state = null;
       const cityMatch = fullTitle.match(/- ([^,]+), ([A-Z]{2})/);
@@ -107,7 +96,6 @@ function sleep(ms) {
         state = cityMatch[2].trim();
       }
 
-      // Extract host
       let trialHost = null;
       const hostMatch = fullTitle.match(/hosted by (.+)$/i);
       if (hostMatch) {
@@ -121,9 +109,9 @@ function sleep(ms) {
         state,
         official_link: officialLink,
       });
-    }
+    });
 
-    // de-dupe by official link (prevents duplicates if page repeats links)
+    // de-dupe
     const seen = new Set();
     return rows.filter((r) => {
       if (seen.has(r.official_link)) return false;
@@ -134,9 +122,8 @@ function sleep(ms) {
 
   console.log(`Found trials: ${trials.length}`);
 
-  // Fail loudly if we got nothing (so Actions doesn’t “look green”)
   if (trials.length === 0) {
-    console.log("ERROR: 0 trials extracted. DOM is still not yielding links/text.");
+    console.log("ERROR: 0 trials extracted even after waiting for links.");
     await browser.close();
     process.exit(1);
   }
