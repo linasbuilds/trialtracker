@@ -19,12 +19,14 @@ function sleep(ms) {
 (async () => {
   console.log("🐾 NACSW Scraper starting...");
 
+  // IMPORTANT: headless false (but GitHub Actions will still run it using Xvfb)
   const browser = await puppeteer.launch({
-    headless: "new",
+    headless: false,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
+      "--disable-blink-features=AutomationControlled",
     ],
   });
 
@@ -35,37 +37,32 @@ function sleep(ms) {
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
   );
 
+  await page.evaluateOnNewDocument(() => {
+    Object.defineProperty(navigator, "webdriver", { get: () => false });
+  });
+
   await page.goto(NACSW_URL, { waitUntil: "domcontentloaded" });
 
-  // 1) Accept cookie banner if present
+  // Cookie banner sometimes blocks the page from finishing rendering.
+  // Click Accept if it exists.
   try {
-    const acceptBtn = await page.$(".cc_btn_accept_all");
-    if (acceptBtn) {
+    const accept = await page.$(".cc_btn_accept_all");
+    if (accept) {
       console.log("DEBUG: Cookie banner detected. Clicking Accept...");
-      await acceptBtn.click();
-      await sleep(500);
-    } else {
-      console.log("DEBUG: No cookie banner button found.");
+      await accept.click();
+      await sleep(800);
     }
   } catch (e) {
     console.log("DEBUG: Cookie accept click failed:", e.message);
   }
 
-  // 2) Wait for the Drupal view content container (results area)
+  // Wait for the results container AND a real link inside it.
+  // This is stronger than waiting for ".views-row".
   try {
-    await page.waitForSelector(".view-content", { timeout: 20000 });
+    await page.waitForSelector(".view-content", { timeout: 30000 });
+    await page.waitForSelector(".view-content .views-row a", { timeout: 30000 });
   } catch (e) {
-    console.log("ERROR: Timed out waiting for .view-content (results container).");
-    console.log((await page.content()).slice(0, 20000));
-    await browser.close();
-    process.exit(1);
-  }
-
-  // 3) Wait for an actual trial link inside the view rows
-  try {
-    await page.waitForSelector(".views-row a", { timeout: 20000 });
-  } catch (e) {
-    console.log("ERROR: Timed out waiting for .views-row a (trial links).");
+    console.log("ERROR: Timed out waiting for trial rows/links to render.");
     console.log((await page.content()).slice(0, 20000));
     await browser.close();
     process.exit(1);
@@ -73,20 +70,20 @@ function sleep(ms) {
 
   const trials = await page.evaluate(() => {
     const rows = [];
-    const blocks = document.querySelectorAll(".view-content .views-row");
+    const blocks = Array.from(document.querySelectorAll(".view-content .views-row"));
 
-    blocks.forEach((block) => {
-      // Prefer the title link if present; fall back to first link
+    for (const block of blocks) {
       const link =
         block.querySelector(".views-field-title a") ||
         block.querySelector("a");
 
-      if (!link) return;
+      if (!link) continue;
 
       const fullTitle = (link.innerText || link.textContent || "").trim();
       const officialLink = link.href;
 
-      if (!fullTitle || fullTitle.length < 10) return;
+      if (!fullTitle || fullTitle.length < 10) continue;
+      if (!officialLink) continue;
 
       let city = null;
       let state = null;
@@ -98,9 +95,7 @@ function sleep(ms) {
 
       let trialHost = null;
       const hostMatch = fullTitle.match(/hosted by (.+)$/i);
-      if (hostMatch) {
-        trialHost = hostMatch[1].trim();
-      }
+      if (hostMatch) trialHost = hostMatch[1].trim();
 
       rows.push({
         trial_name: fullTitle,
@@ -109,9 +104,9 @@ function sleep(ms) {
         state,
         official_link: officialLink,
       });
-    });
+    }
 
-    // de-dupe
+    // De-dupe
     const seen = new Set();
     return rows.filter((r) => {
       if (seen.has(r.official_link)) return false;
@@ -123,7 +118,7 @@ function sleep(ms) {
   console.log(`Found trials: ${trials.length}`);
 
   if (trials.length === 0) {
-    console.log("ERROR: 0 trials extracted even after waiting for links.");
+    console.log("ERROR: 0 trials extracted even after rows/links appeared.");
     await browser.close();
     process.exit(1);
   }
