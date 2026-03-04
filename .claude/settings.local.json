@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node:*)",
+      "Bash(gh run:*)",
+      "Bash(curl:*)",
+      "Bash(npx vercel:*)",
+      "WebFetch(domain:www.mydogentry.com)",
+      "WebSearch",
+      "WebFetch(domain:www.infodog.com)",
+      "WebFetch(domain:mydogentry.com)"
+    ]
+  }
+}

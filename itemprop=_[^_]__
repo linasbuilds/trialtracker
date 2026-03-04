@@ -1,0 +1,1250 @@
+HTTP/1.1 302 Found
+Date: Wed, 04 Mar 2026 04:25:12 GMT
+Server: Apache
+Expires: Thu, 19 Nov 1981 08:52:00 GMT
+Cache-Control: no-store, no-cache, must-revalidate
+Pragma: no-cache
+Set-Cookie: UKC_ID=27b8011a41f0849683e2bd3809ac6c22; path=/; secure; HttpOnly; SameSite=Strict
+Strict-Transport-Security: max-age=15552000
+X-Frame-Options: sameorigin
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Referrer-Policy: strict-origin-when-cross-origin
+Upgrade: h2,h2c
+Connection: Upgrade
+Location: /badrequest
+Content-Length: 0
+Content-Type: text/html; charset=UTF-8
+
+HTTP/1.1 200 OK
+Date: Wed, 04 Mar 2026 04:25:12 GMT
+Server: Apache
+Expires: Thu, 19 Nov 1981 08:52:00 GMT
+Cache-Control: no-store, no-cache, must-revalidate
+Pragma: no-cache
+Vary: Accept-Encoding
+Strict-Transport-Security: max-age=15552000
+X-Frame-Options: sameorigin
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Referrer-Policy: strict-origin-when-cross-origin
+Transfer-Encoding: chunked
+Content-Type: text/html; charset=UTF-8
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- page: url_token: badrequest, root_id: 0, menu_id: 0, page_id: 814 -->
+<!-- template: page-full -->
+   <meta charset="utf-8" />
+
+   <!-- Analytics -->
+   <!-- Start GPT Tag -->
+<script async src="https://securepubads.g.doubleclick.net/tag/js/gpt.js" crossorigin="anonymous"></script>
+<script>
+window.googletag = window.googletag || {cmd: []};
+googletag.cmd.push(function() {
+   googletag.defineSlot('/22106040024/ukc_forums_top', [[728,90]], 'div-gpt-ad-8294292-1').addService(googletag.pubads());
+   googletag.defineSlot('/22106040024/ukc_litterreg_sidebar', [[300,250],[300,600]], 'div-gpt-ad-8294292-2').addService(googletag.pubads());
+   googletag.defineSlot('/22106040024/ukc_singlereg_sidebar', [[300,250],[300,600]], 'div-gpt-ad-8294292-3').addService(googletag.pubads());
+   
+   /* Updated on 05/01/2025 */
+   googletag.defineSlot('/22106040024/ukc_generic_ad', [[125, 125], [970, 250], [930, 180], [120, 240], [234, 60], [250, 250], [1024, 768], [88, 31], [580, 400], [292, 30], [216, 54], [750, 200], [950, 90], [250, 360], [300, 31], [970, 66], [120, 20], [300, 250], [980, 120], [970, 90], [120, 30], [336, 280], [168, 42], [750, 100], [480, 320], [120, 90], [320, 480], [240, 133], [120, 60], [750, 300], [220, 90], [168, 28], [216, 36], [120, 600], [300, 1050], [300, 600], [300, 100], [768, 1024], [240, 400], [300, 75], [728, 90], [320, 100], [300, 50], [468, 60], [960, 90], [180, 150], [200, 446], [200, 200], [980, 90], [320, 50], [160, 600]], 'div-gpt-ad-1746103115508-0').setTargeting('Vertical', ['vertical']).setTargeting('Leaderboard', ['bottomleaderboard', 'topleaderboard']).setTargeting('sidebar', ['left', 'right']).addService(googletag.pubads());
+
+   googletag.pubads().enableSingleRequest();
+   googletag.enableServices();
+});
+</script>
+<!-- End GPT Tag -->
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-PLCRMHN');</script>
+<!-- End Google Tag Manager -->
+
+<!-- IpMeta must be included after Google Analytics -->
+<script src="https://ipmeta.io/plugin.js"></script>
+
+<script>
+var data  = provideGtmPlugin({
+	gtmEventKey: 'ipmeta_loaded',
+	apiKey: '6bd8ddd6c028e2bdff2066cb8fbca66ff4109eee37b5ca18022f7ebefbffdcb2',
+});
+window.dataLayer = window.dataLayer || [];
+window.dataLayer.push(data);
+</script>
+
+<script defer data-domain="ukcdogs.com" src="https://plausible.io/js/script.js"></script>
+
+   <meta name="viewport" content="width=device-width">
+   <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+   <!-- Style Sheets -->
+   <link rel="stylesheet" href="/styles/compiled/compiled.css?v=10282025">
+
+   <!-- Action / PHP Script -->
+   
+   <meta name="description" content="">
+
+   <title> Error 400 | United Kennel Club (UKC)</title>
+
+   <!-- FAVICONS -->
+   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+   <link rel="manifest" href="/site.webmanifest">
+   <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#00615c">
+   <meta name="msapplication-TileColor" content="#00aba9">
+   <meta name="theme-color" content="#ffffff">
+
+   <!-- Start of ukcdogshelp Zendesk Widget script -->
+   <script id="ze-snippet" src="https://static.zdassets.com/ekr/snippet.js?key=10165cd5-8554-4128-ae13-7ed3c13b0d35"> </script>
+   <!-- End of ukcdogshelp Zendesk Widget script -->
+   
+      <script id="mcjs">!function(c,h,i,m,p){m=c.createElement(h),p=c.getElementsByTagName(h)[0],m.async=1,m.src=i,p.parentNode.insertBefore(m,p)}(document,"script","https://chimpstatic.com/mcjs-connected/js/users/3481982a8bd2276820d5d237e/8a8cd962e3189430eab3677bf.js");</script>
+   
+   <meta name="facebook-domain-verification" content="o9zm0hp423og0do16diacvaqyagl8k" />
+   
+   </head>
+
+<body id="branding_default_page">
+	
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-PLCRMHN"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+
+
+   
+
+   
+   <div id="topAlert"><p>Phone and chat hours: Monday-Friday from 8:30 a.m. - 5 p.m. (ET)</p></div>
+
+   
+   
+   <div id="notice">
+
+   <a href="#" class="button" onclick="return acceptCookiePolicy('ukc-cookie-policy');">I Accept</a>
+
+   <p>United Kennel Club (UKC) is an international dog registry celebrating bonds, rewarding ability, and preserving the value of a pedigree. We use cookies to capture information such as IP addresses and tailor the website to our clients' needs. We also use this information to target and measure promotional material. Please see our <a href="/privacy">Privacy Policy</a> for more information.</p>
+
+   </div>
+
+   <script>
+   //addEventListener("load", setHeaderMargin);
+   //addEventListener("resize", setHeaderMargin);
+   </script>
+
+   
+   <!-- Header -->
+   <header class="pure-g main_header">
+
+      <div class="skipnav"><a href="#main">Skip to main content</a></div>
+
+      <div class="pure-u-1 pure-u-md-1-6 navCol1"><a href="/home" class="logo"><img src="/graphics/logos/ukc-logo-green-2019.svg.gz" width="125" height="105" alt="United Kennel Club Logo"></a></div>
+
+      <div class="social_icons">
+         <a href="https://www.facebook.com/ukcdogs/" target="_blank" title="Like us on Facebook"><img src="/graphics/icons/facebook-icon-green.svg.gz" width="28" height="31" alt="Facebook"></a>
+
+         <a href="https://www.instagram.com/ukcdogs/" target="_blank" title="Follow us on Instagram"><img src="/graphics/icons/instagram-icon-green.svg.gz"  width="28" height="31" alt="Instagram"></a>
+
+         <a href="/email-newsletter" target="_blank" title="Subscribe to E-news"><img src="/graphics/icons/envelope-icon-green.svg.gz" width="28" height="31" alt="Subscribe to E-news"></a> 
+
+         <a href="https://www.youtube.com/ukcdogs" target="_blank" title="Follow us on YouTube"><img src="/graphics/icons/youtube-icon-green.svg.gz" width="44" height="31" alt="YouTube"></a>
+      </div>
+
+      <div class="pure-u-1 pure-u-md-5-6 navCol2">
+			
+			
+
+         <nav class="pure-g" id="mainNav" aria-label="Main Navigation for UKC Dogs">
+         
+            <div class="pure-u-1 pure-u-sm-1-3 pure-u-md-1-4 pure-u-lg-1-8 menu_item " id="menu1" onmouseover="setMenu('registration_megamenu');" onmouseout="clearMenu('');">
+            <!-- Registration Mega Menu -->
+<div class="main_header_megamenu" id="registration_megamenu" aria-hidden="true" aria-label="Registration Mega Menu">
+   <div class="pure-g wrapper">
+      <div class="pure-u-1 pure-u-sm-1-2 pure-u-md-1-4">
+         <div class="padding">
+
+            <h3><a href="/register-my-dog" title="Registration Menu - Register My Dog">Register My Dog</a></h3>
+
+            <ul>
+                <li><a href="/registermydog" title="Registration Menu - Register My Dog">Register My Dog</a></li>
+                <li><a href="/register-my-litter" title="Registration Menu - Register Litter">Register My Litter</a></li>
+<li><a href="/transfer-dog" title="Registration Menu - Transfer My Dog">Transfer Ownership of My Dog</a></li>
+                <li><a href="https://shop.ukcdogs.com/registration-services/pedigrees/display-pedigrees/" title="Registration Menu - Purchase a Display Pedigree">Purchase a Display Pedigree</a></li>
+
+            </ul>
+         </div>
+      </div>
+
+      <div class="pure-u-1 pure-u-sm-1-2 pure-u-md-1-4">
+         <div class="padding">
+ 
+            <h3><a href="/registration-info" title="Registration Menu - Registration Info">Registration Info</a></h3>
+            <ul>
+            <li><a href="/litter-registration-types" title="Registration Menu - Registration Info - Litter Registration">Litter Registration</a></li>
+            <li><a href="/single-registration" title="Registration Menu - Registration Info - Single Registration">Single Registration</a></li>
+            <li><a href="/permanent-registration" title="Registration Menu - Registration Info - Permanent Registration">Permanent Registration & Owner Transfers</a></li>
+            <li><a href="/performance-listing-services" title="Registration Menu - Registration Info - Performance Listing Services">Performance Listing Services</a></li>
+            <li><a href="/fielddogstudbook" title="Registration Menu - Registration Info - Single Registration">Field Dog Stud Book (FDSB)</a></li>
+            <li><a href="/titles" title="Registration Menu - Registration Info - Titles">Titles</a></li>
+            <li><a href="/registration-forms-and-fees" title="Registration Menu - Forms & Fees">Forms & Fees</a></li>
+            <li><a href="/registration-faqs" title="Registration Menu - Registration Info - Registration FAQs">Registration FAQs</a></li>
+            <li><a href="/registration-news" title="Registration Menu - Registration Info - Registration News">Registration News</a></li>
+            <li><a href="/suspension" title="Registration Menu - Registration Info - Notice of Suspension">Notice of Suspension</a></li>
+
+            </ul>
+ 
+         </div>
+      </div>
+
+      <div class="pure-u-1 pure-u-sm-1-2 pure-u-md-1-4">
+         <div class="padding">
+
+            <h3><a href="/breeds" title="Registration Menu - Breeds">Breeds</a></h3>
+
+            <ul>
+            <li><a href="/breed-standards" title="Registration Menu - Breeds - Breed Standards">Breed Standards</a></li>
+            <li><a href="/find-a-breeder" title="Registration Menu - Breeds - Find a Breeder">Find a Breeder</a></li>
+            <li><a href="/breed-recognition" title="Registration Menu - Breeds - Breed Recognition">Breed Recognition</a></li>
+            <li><a href="/breeders-code-of-ethics" title="Registration Menu - Breeds - Breeder's Code of Ethics">Breeder's Code of Ethics</a></li>
+            </ul>
+
+         </div>
+      </div>
+
+      
+<div class="pure-u-1 pure-u-sm-1-2 pure-u-md-1-4">
+<div class="padding">
+            <h3><a href="/contact-registration" title="Registration Menu - Contact Registration">Contact Registration</a></h3>
+<ul>
+<li><a href="/registration-status-check">Registration Status Check</a></li>
+</ul>
+
+         </div>
+      </div>
+
+      <div class="pure-u-1 pure-u-sm-1-3">
+         <div class="padding">
+            <a href="https://shop.ukcdogs.com/heritage-display-pedigree-3-generation/" target="_blank" title="Display Pedigree"><img  src="/images/ads/heritage-pedigree-mega.jpg" alt="Heritage Pedigree"></a>
+         </div>
+      </div>
+     <div class="pure-u-1 pure-u-sm-1-3">
+         <div class="padding">
+            <a href="https://shop.ukcdogs.com/display-pedigrees/" title="Display Pedigree" target="_blank"><img  src="/images/ads/display-pedigree-mega.jpg" alt="Display Pedigree"></a>
+         </div>
+      </div>
+      <div class="pure-u-1 pure-u-sm-1-3">
+         <div class="padding">
+            <a href="https://www.ukcdogs.com/registermydog" title="Register My Dog" target="_blank"><img  src="/images/ads/register-my-dog-mega.jpg" alt="Register My Dog"></a>
+         </div>
+      </div>
+
+
+   </div><!--pure-g-->
+</div><!--main_header_megamenu-->
+<!-- Registration Mega Menu -->
+               <a href="/registration" target="_self" title="Main Menu - Registration"  aria-haspopup="true">Registration</a>
+
+               <a href="#" onclick="toggleMenu('registration_megamenu');" title="Toggle Registration Menu"> &nbsp; <span class="fa fa-caret-down" aria-hidden="true"></span><span class="visiblyHidden">Toggle Registration</span></a>
+            </div>
+
+      
+            <div class="pure-u-1 pure-u-sm-1-3 pure-u-md-1-4 pure-u-lg-1-8 menu_item " id="menu2" onmouseover="setMenu('hunting_megamenu');" onmouseout="clearMenu('');">
+            <!-- Hunting Mega Menu -->
+<div class="main_header_megamenu" id="hunting_megamenu" aria-hidden="true" aria-label="Hunting Megamenu">
+   <div class="pure-g wrapper">
+
+      <div class="pure-u-1 pure-u-sm-1-2 pure-u-md-1-6">
+         <div class="padding">
+
+            <h3><a href="/coonhounds" title="Hunting Menu - Coonhounds">Coonhounds</a></h3>
+
+            <ul>
+            <li><a href="http://forums.ukcdogs.com/forumdisplay.php?forumid=4" target="_blank" title="Hunting Menu - Coonhounds - Coonhounds Forum">Coonhounds Forum</a></li>
+<li><a href="/coonhound-historical-winners" title="Hunting Menu - Coonhounds - Historical Winners">Historical Winners</a></li>
+            <li><a href="/coonhound-points" title="Hunting Menu - Coonhounds - Points Check">Points Check</a></li>
+            <li><a href="coonhound-events-calendar" title="Hunting Menu - Coonhounds - Events Calendar">Events Calendar</a></li>
+            <li><a href="coonhound-events-programs" title="Hunting Menu - Coonhounds - Events &amp; Programs">Events &amp; Programs</a></li>
+            <li><a href="coonhound-standings-results" title="Hunting Menu - Coonhounds - Standings &amp; Results">Standings &amp; Results</a></li>
+            <li><a href="coonhound-rules-forms" title="Hunting Menu - Coonhounds - Forms &amp; Rules">Forms &amp; Rules</a></li>
+            <li><a href="coonhound-officials" title="Hunting Menu - Coonhounds - Officials">Officials</a></li>
+            <li><a href="coonhound-clubs" title="Hunting Menu - Coonhounds - Clubs">Clubs</a></li>
+            <li><a href="coonhound-news" title="Hunting Menu - Coonhounds - News">News</a></li>
+            <li><a href="coonhound-about" title="Hunting Menu - Coonhounds - About UKC Coonhounds">About UKC Coonhounds</a></li>
+            </ul>
+
+         </div>
+      </div>
+
+      <div class="pure-u-1 pure-u-sm-1-2 pure-u-md-1-6">
+         <div class="padding">
+
+            <h3><a href="/beagles" title="Hunting Menu - Beagles">Beagles</a></h3>
+
+            <ul>
+            <li><a href="http://forums.ukcdogs.com/forumdisplay.php?forumid=3" target="_blank" title="Hunting Menu - Beagles - Beagles Forum">Beagles Forum</a></li>
+            <li><a href="beagle-historical-winners" title="Hunting Menu - Beagles - Historical Winners">Historical Winners</a></li>
+            <li><a href="/beagle-points" title="Hunting Menu - Beagles - Points Check">Points Check</a></li>
+            <li><a href="beagle-events-calendar" title="Hunting Menu - Beagles - Events Calendar">Events Calendar</a></li>
+            <li><a href="beagle-event-programs" title="Hunting Menu - Beagles - Events &amp; Programs">Events &amp; Programs</a></li>
+            <li><a href="beagle-standings-results" title="Hunting Menu - Beagles - Standings &amp; Results">Standings &amp; Results</a></li>
+            <li><a href="beagle-forms-rules" title="Hunting Menu - Beagles - Forms &amp; Rules">Forms &amp; Rules</a></li>
+            <li><a href="beagle-officials" title="Hunting Menu - Beagles - Officials">Officials</a></li>
+            <li><a href="beagle-clubs" title="Hunting Menu - Beagles - Clubs">Clubs</a></li>
+            <li><a href="beagle-news" title="Hunting Menu - Beagles - News">News</a></li>
+            <li><a href="beagle-about" title="Hunting Menu - Beagles - About UKC Beagles">About UKC Beagles</a></li>
+            </ul>
+
+         </div>
+      </div>
+
+      <div class="pure-u-1 pure-u-sm-1-2 pure-u-md-1-6">
+         <div class="padding">
+
+            <h3><a href="/hunting-retrievers" title="Hunting Menu - Hunting Retrievers">Hunting Retrievers</a></h3>
+
+            <ul>
+            <li><a href="/points-check" title="Hunting Menu - Hunting Retrievers - Points Check">Points Check</a></li>
+            <li><a href="/hrc-membership" title="Hunting Menu - Hunting Retrievers - Membership">Membership</a></li>
+            <li><a href="hunting-retriever-events-calendar" title="Hunting Menu - Hunting Retrievers - Events Calendar">Events Calendar</a></li>
+            <li><a href="hunting-retriever-events-programs" title="Hunting Menu - Hunting Retrievers - Events &amp; Programs">Events &amp; Programs</a></li>
+            <li><a href="hunting-retriever-forms-rules" title="Hunting Menu - Hunting Retrievers - Forms &amp; Rules">Forms &amp; Rules</a></li>
+            <li><a href="hunting-retriever-officials" title="Hunting Menu - Hunting Retrievers - Officials">Officials</a></li>
+            <li><a href="hunting-retriever-clubs" title="Hunting Menu - Hunting Retrievers - Clubs">Clubs</a></li>
+            <li><a href="hunting-retriever-news" title="Hunting Menu - Hunting Retrievers - News">News</a></li>
+            <li><a href="hunting-retriever-about" title="Hunting Menu - Hunting Retrievers - About UKC Hunting Retrievers">About UKC Hunting Retrievers</a></li>
+            </ul>
+
+         </div>
+      </div>
+
+      <div class="pure-u-1 pure-u-sm-1-2 pure-u-md-1-6">
+         <div class="padding">
+
+            <h3><a href="/cur-feists" title="Hunting Menu - Cur &amp; Feists">Cur &amp; Feists</a></h3>
+
+            <ul>
+            <li><a href="http://forums.ukcdogs.com/forumdisplay.php?forumid=5" target="_blank" title="Hunting Menu - Cur &amp; Feists - Cur &amp; Feists Forum">Cur &amp; Feists Forum</a></li>
+            <li><a href="cur-feist-points" title="Hunting Menu - Cur &amp; Feists - Points Check">Points Check</a></li>
+            <li><a href="cur-feist-events-calendar" title="Hunting Menu - Cur &amp; Feists - Events Calendar">Events Calendar</a></li>
+            <li><a href="cur-feist-events-programs" title="Hunting Menu - Cur &amp; Feists - Events &amp; Programs">Events &amp; Programs</a></li>
+            <li><a href="cur-feist-standings-results" title="Hunting Menu - Cur &amp; Feists - Standings &amp; Results">Standings &amp; Results</a></li>
+            <li><a href="cur-feist-forms-rules" title="Hunting Menu - Cur &amp; Feists - Forms &amp; Rules">Forms &amp; Rules</a></li>
+            <li><a href="cur-feist-officials" title="Hunting Menu - Cur &amp; Feists - Officials">Officials</a></li>
+            <li><a href="cur-feist-clubs" title="Hunting Menu - Cur &amp; Feists - Clubs">Clubs</a></li>
+            <li><a href="cur-feist-news" title="Hunting Menu - Cur &amp; Feists - News">News</a></li>
+            <li><a href="cur-feist-about" title="Hunting Menu - Cur &amp; Feists - About UKC Cur &amp; Feists">About UKC Cur &amp; Feists</a></li>
+            </ul>
+
+         </div>
+      </div>
+
+      <div class="pure-u-1 pure-u-sm-1-2 pure-u-md-1-6">
+         <div class="padding">
+
+            <h3><a href="/upland-hunting-programs" title="Hunting Menu - Upland Hunting Programs">Upland Hunting Programs</a></h3>
+
+            <ul>
+            <li><a href="pointing-dog-points" title="Hunting Menu - Pointing Dogs - Points Check">Points Check</a></li>
+            <li><a href="pointing-dogs-events-calendar" title="Hunting Menu - Pointing Dogs - Events Calendar">Events Calendar</a></li>
+            <li><a href="pointing-dog-events-programs" title="Hunting Menu - Pointing Dogs - Events &amp; Programs">Events &amp; Programs</a></li>
+            <li><a href="pointing-dog-forms-rules" title="Hunting Menu - Pointing Dogs - Forms &amp; Rules">Forms &amp; Rules</a></li>
+            <li><a href="pointing-dog-officials" title="Hunting Menu - Pointing Dogs - Officials">Officials</a></li>
+            <li><a href="pointing-dog-clubs" title="Hunting Menu - Pointing Dogs - Clubs">Clubs</a></li>
+            <li><a href="pointing-dog-news" title="Hunting Menu - Pointing Dogs - News">News</a></li>
+            <li><a href="about-upland-hunting-programs" title="Hunting Menu - Pointing Dogs - About UKC Upland Hunting Dog Programs">About UKC Upland Hunting Programs</a></li>
+            </ul>
+
+         </div>
+      </div>
+
+      <div class="pure-u-1 pure-u-sm-1-2 pure-u-md-1-6">
+         <div class="padding">
+
+            <h3><a href="/elite-shed-dogs" title="Hunting Menu - Elite Shed Dogs">Elite Shed Dogs</a></h3>
+
+            <ul>
+            <li><a href="elite-shed-dogs-points-check" title="Hunting Menu - Elite Shed Dogs - Points Check">Points Check</a></li>
+            <li><a href="elite-shed-dogs-events-calendar" title="Hunting Menu - Elite Shed Dogs - Events Calendar">Events Calendar</a></li>
+            <li><a href="elite-shed-dogs-forms-rules" title="Hunting Menu - Elite Shed Dogs - Forms and Rules">Forms &amp; Rules</a></li>
+<li><a href="shed-dog-programs" title="Hunting Menu - Elite Shed Dogs - Events &amp; Programs">Events &amp; Programs</a></li>
+            <li><a href="elite-shed-dogs-standings-results" title="Hunting Menu - Elite Shed Dogs - Standings &amp; Results">Standings &amp; Results</a></li>
+            <li><a href="elite-shed-dogs-officials" title="Hunting Menu - Elite Shed Dogs - Officials">Officials</a></li>
+            <li><a href="elite-shed-dogs-clubs" title="Hunting Menu - Elite Shed Dogs - Clubs">Clubs</a></li>
+            <li><a href="elite-shed-dogs-news" title="Hunting Menu - Elite Shed Dogs - News">News</a></li>
+            <li><a href="about-elite-shed-dogs" title="Hunting Menu - Elite Shed Dogs - About UKC Elite Shed Dogs">About UKC Elite Shed Dogs</a></li>
+            </ul>                           
+
+            <h3><a href="/about-hunting-ops" title="Hunting Menu - About Hunting Ops">About Hunting Ops</a></h3>
+            <h3><a href="/contact-hunting-ops" title="Hunting Menu - Contact Hunting Ops">Contact Hunting Ops</a></h3>
+ <h3><a href="/hunting-ops-podcast/" title="Hunting Menu - Hunting Ops Podcast">Hunting Ops Podcast</a></h3>
+
+
+         </div>
+      </div>
+
+<div class="pure-u-1 pure-u-sm-1-3">
+         <div class="padding">
+         <a href="/proslam" title="UKC Pro Slam"><img  src="/images/huntingevents/ukc-pro-slam.png" alt="UKC Pro Slam"></a>
+         </div>
+      </div>
+
+ <div class="pure-u-1 pure-u-sm-1-3">
+         <div class="padding">
+         <a href="/winter-classic" title="Coonhound World Championship"><img  src="/images/huntingevents/winter-classic-logo.png" alt="Winter Classic"></a>
+         </div>
+      </div>
+
+<div class="pure-u-1 pure-u-sm-1-3">
+         <div class="padding">
+         <a href="/shed-dog-nationals" title="Triple Crown"><img src="/images/hunting/shed-dog-nationals-logo-button.png" alt="Shed Dog Nationals"></a>
+         </div>
+      </div>
+
+   </div><!--pure-g-->
+</div><!--main_header_megamenu-->
+<!-- Hunting Mega Menu -->
+               <a href="/hunting-ops" target="_self" title="Main Menu - Hunting Ops"  aria-haspopup="true">Hunting Ops</a>
+
+               <a href="#" onclick="toggleMenu('hunting_megamenu');" title="Toggle Hunting Ops Menu"> &nbsp; <span class="fa fa-caret-down" aria-hidden="true"></span><span class="visiblyHidden">Toggle Hunting Ops</span></a>
+            </div>
+
+      
+            <div class="pure-u-1 pure-u-sm-1-3 pure-u-md-1-4 pure-u-lg-1-8 menu_item " id="menu3" onmouseover="setMenu('show_megamenu');" onmouseout="clearMenu('');">
+            <!-- Show Mega Menu -->
+<div class="main_header_megamenu" id="show_megamenu" aria-hidden="true" aria-label="Show Mega Menu">
+   <div class="pure-g wrapper">
+
+      <div class="pure-u-1 pure-u-sm-1-4 pure-u-md-1-4">
+         <div class="padding">
+
+            <h3><a href="/about-all-breed-sports" title="About Menu - Show">About</a></h3>
+            <ul>
+            <li><a href="/all-breed-sports-news" title="About Menu - About - News">News</a></li>
+            <li><a href="/about-all-breed-sports" title="About Menu - About - About All-Breed Sports">About All-Breed Sports</a></li>
+            </ul>
+          
+
+         </div>
+      </div>
+
+      <div class="pure-u-1 pure-u-sm-1-4 pure-u-md-1-4">
+         <div class="padding">
+
+            <h3><a href="/about-all-breed-sports" title="About Menu - Show &amp; Programs">Programs</a></h3>
+
+            <ul>
+            <li><a href="/agility" title="About Menu - Show Programs - Agility">Agility</a></li>
+            <li><a href="/conformation" title="About Menu - Show Programs - Conformation">Conformation</a></li>
+            <li><a href="/dock-jumping" title="About Menu - Show Programs - Dock Jumping">Dock Jumping</a></li>
+               <li><a href="/junior-program" title="About Menu - Show Programs - Junior Program">Junior Program</a></li>
+            <li><a href="/lure-coursing" title="About Menu - Show Programs - Lure Coursing">Lure Coursing</a></li>
+            <li><a href="/nosework" title="About Menu - Show Programs - Nosework">Nosework</a></li>
+            <li><a href="/obedience" title="About Menu - Show Programs - Obedience">Obedience</a></li>
+            <li><a href="/precision-coursing" title="About Menu - Show Programs - Precision Coursing">Precision Coursing</a></li>
+            <li><a href="/rally-obedience" title="About Menu - Show Programs - Rally Obedience">Rally Obedience</a></li>
+            <li><a href="/weight-pull" title="About Menu - Show Programs - Weight Pull">Weight Pull</a></li>
+            <li><a href="/spot" title="About Menu - Show Programs - SPOT">SPOT</a></li>
+<li><a href="/super-dog" title="About Menu - Show Programs - Super Dog">Super Dog</a></li>
+            <li><a href="/total-dog" title="About Menu - Show Programs - Total Dog">Total Dog</a></li>
+            </ul>
+
+         </div>
+      </div>
+
+      <div class="pure-u-1 pure-u-sm-1-4 pure-u-md-1-4">
+         <div class="padding">
+
+<h3><a href="/about-all-breed-sports" title="About Menu - About">Tools</a></h3>
+
+            <ul>
+            <li><a href="/show-ops-events-calendar" title="About Menu - About - Events Calendar">Events Calendar</a></li> 
+            <li><a href="/standings" title="About Menu - About - Standings &amp; Results">Standings &amp; Results</a></li>
+            <li><a href="/show-ops-events" title="About Menu - About - UKC Main Events">UKC Main Events</a></li>
+            <li><a href="/tl-numbers" title="About Menu - About - TL Numbers">TL Numbers</a></li>
+            <li><a href="/points-check" title="About Menu - About - Points Check">Points Check</a></li>
+            <li><a href="/clubs" title="About Menu - About - Clubs">Clubs</a></li>
+            <li><a href="/judges" title="About Menu - About - Judges">Judges</a></li>
+            </ul>
+         </div>
+      </div>
+
+      <div class="pure-u-1 pure-u-sm-1-4 pure-u-md-1-4">
+         <div class="padding">
+
+            <h3><a href="/contact-all-breed-sports" title="About Menu - Contact All-Breed Sports">Contact All-Breed Sports</a></h3>
+  
+</div>
+      </div>
+ <div class="pure-u-1 pure-u-sm-1-3">
+         <div class="padding">
+         <a href="/premier" title="UKC Premier Nationals"><img  src="/images/showevents/premier-event-logo-500x500.png" alt="UKC Premier Nationals"></a>
+         </div>
+      </div>
+     <div class="pure-u-1 pure-u-sm-1-3">
+         <div class="padding">
+         <a href="/all-breed-classics" title="UKC Classics"><img  src="/images/showevents/classics-logo-500x500.png" alt="UKC Classics"></a>
+         </div>
+      </div>
+      <div class="pure-u-1 pure-u-sm-1-3">
+         <div class="padding">
+         <a href="/total-dog-invitational" title="UKC Total Dog Invitational"><img  src="/images/showevents/total-dog-invitational-web-logo-500x500.png" alt="UKC Total Dog Invitational"></a>
+         </div>
+      </div>
+
+
+   </div><!--pure-g-->
+</div><!--main_header_megamenu-->
+<!-- Events Mega Menu -->
+               <a href="/all-breed-sports" target="_self" title="Main Menu - All-Breed Sports"  aria-haspopup="true">All-Breed Sports</a>
+
+               <a href="#" onclick="toggleMenu('show_megamenu');" title="Toggle All-Breed Sports Menu"> &nbsp; <span class="fa fa-caret-down" aria-hidden="true"></span><span class="visiblyHidden">Toggle All-Breed Sports</span></a>
+            </div>
+
+      
+            <div class="pure-u-1 pure-u-sm-1-3 pure-u-md-1-4 pure-u-lg-1-8 menu_item " id="menu4" onmouseover="setMenu('inside_ukc_megamenu');" onmouseout="clearMenu('');">
+            <!-- Inside UKC Mega Menu -->
+<div class="main_header_megamenu" id="inside_ukc_megamenu" aria-hidden="true" aria-label="Inside UKC Megamenu">
+   <div class="pure-g wrapper">
+
+      <div class="pure-u-1 pure-u-sm-1-2 pure-u-md-1-6">
+         <div class="padding">
+
+            <h3><a href="/about" title="Inside UKC Menu - About UKC">About UKC</a></h3>
+
+            <ul>
+            <li><a href="/history" title="Inside UKC Menu - About UKC - History">History</a></li>
+            <li><a href="/staff" title="Inside UKC Menu - About UKC - Staff Directory">Staff Directory</a></li>
+            <li><a href="/working-at-ukc" title="Inside UKC Menu - About UKC - Working at UKC">Working at UKC</a></li>
+<li><a href="/ukc-partners" title="Inside UKC Menu - About UKC - UKC Partners">UKC Partners</a></li>
+            </ul>
+
+         </div>
+      </div>
+
+      <div class="pure-u-1 pure-u-sm-1-2 pure-u-md-1-6">
+         <div class="padding">
+
+            <h3><a href="/careers" title="Inside UKC Menu - Careers">Careers</a></h3>
+
+            <ul>
+            <li><a href="/careers" title="Inside UKC Menu - Careers - Careers">Careers</a></li>
+            </ul>
+
+         </div>
+      </div>
+
+      <div class="pure-u-1 pure-u-sm-1-2 pure-u-md-1-6">
+         <div class="padding">
+
+            <h3><a href="/news" title="Inside UKC Menu - News">News</a></h3>
+
+            <ul>
+            <li><a href="/news" title="Inside UKC Menu - News - News">News</a></li>
+            </ul>
+
+         </div>
+      </div>
+
+      <div class="pure-u-1 pure-u-sm-1-2 pure-u-md-1-6">
+         <div class="padding">
+
+            <h3><a href="/publications" title="Inside UKC Menu - Publications">Publications</a></h3>
+
+            <ul>
+            <li><a href="/advertising" title="Inside UKC Menu - Publications - Advertising">Advertising</a></li>
+            <li><a href="/cover-dog" title="Inside UKC Menu - Publications - Cover Photos">Cover Photos</a></li>
+            <li><a href="/publications-faqs" title="Inside UKC Menu - Publications - Publications FAQs">Publications FAQs</a></li>
+            </ul>
+
+         </div>
+      </div>
+
+      <div class="pure-u-1 pure-u-sm-1-2 pure-u-md-1-6">
+         <div class="padding">
+
+            <h3><a href="dog-law" title="Inside UKC Menu - Dog Law">Dog Law</a></h3>
+
+            <ul>
+            <li><a href="/get-involved" title="Inside UKC Menu - Dog Law - Get Involved">Get Involved</a></li>
+            <li><a href="/contacting-lawmakers" title="Inside UKC Menu - Dog Law - Contacting Lawmakers">Contacting Lawmakers</a></li>
+            <li><a href="/dog-owner-rights-partners" title="Inside UKC Menu - Dog Law - Dog Owner Rights Partners">Dog Owner Rights Partners</a></li>
+            <li><a href="/position-statements" title="Inside UKC Menu - Dog Law - Position Statements">Position Statements</a></li>
+            </ul>
+
+         </div>
+      </div>
+
+      <div class="pure-u-1 pure-u-sm-1-2 pure-u-md-1-6">
+         <div class="padding">
+
+            <h3><a href="/contact" title="Inside UKC Menu - Contact UKC">Contact UKC</a></h3>
+
+            <ul>
+            <li><a href="/contact" title="Inside UKC Menu - Contact UKC - Contact Form">Contact Form</a></li>
+            </ul>
+
+         </div>
+      </div>
+
+   </div><!--pure-g-->
+</div><!--main_header_megamenu-->
+<!-- Inside UKC Mega Menu -->
+               <a href="/inside-ukc" target="_self" title="Main Menu - Inside UKC"  aria-haspopup="true">Inside UKC</a>
+
+               <a href="#" onclick="toggleMenu('inside_ukc_megamenu');" title="Toggle Inside UKC Menu"> &nbsp; <span class="fa fa-caret-down" aria-hidden="true"></span><span class="visiblyHidden">Toggle Inside UKC</span></a>
+            </div>
+
+      
+            <div class="pure-u-1 pure-u-sm-1-3 pure-u-md-1-4 pure-u-lg-1-8 menu_item " id="menu5" onmouseover="setMenu('');" onmouseout="clearMenu('');">
+            
+               <a href="/contact" target="_self" title="Main Menu - Contact" >Contact</a>
+
+               
+            </div>
+
+      
+            <div class="pure-u-1 pure-u-sm-1-3 pure-u-md-1-4 pure-u-lg-1-8 menu_item " id="menu6" onmouseover="setMenu('');" onmouseout="clearMenu('');">
+            
+               <a href="/shop" target="_self" title="Main Menu - Shop" >Shop</a>
+
+               
+            </div>
+
+      
+            <!-- Search -->
+            <div class="pure-u-1 pure-u-sm-1-3 pure-u-md-1-4 pure-u-lg-2-24 menu_item" id="menu8">
+               <a href="#" onclick="toggleMenu('searchForm');" title="Main Menu - Display Search"><span class="fa fa-search"></span><span class="visiblyHidden">Toggle Search</span></a>
+
+               <form id="searchForm" role="search" method="post" action="/search">
+               <label for="header_site_search" class="visiblyHidden">Search UKC Website</label>
+               <input type="search" name="site_search" id="header_site_search" placeholder="Search UKC">
+               <button type="submit" name="submit_button" value="Go">Go</button>
+               </form>
+            </div>
+
+         </nav>
+
+      </div><!--pure-u-1 pure-u-sm-1-1 pure-u-md-5-6-->
+
+   </header>
+
+   <nav class="mobile-menu" aria-label="Mobile Navigation"><a class="toggleMenu" href="#">&#9660; &nbsp; Show Menu &nbsp; &#9660;</a>
+
+<ul class="mobile-nav" style="display: none;">
+<li><a href="/registration" title="Mobile Menu - Registration">Registration</a>
+   <ul>
+   <li><a href="/register-my-dog" title="Mobile Menu - Registration - Register My Dog">Register My Dog</a>
+      <ul>
+      <li><a href="/registermydog" title="Mobile Menu - Registration - Register My Dog - Register My Dog">Register My Dog</a></li>
+      <li><a href="/register-my-litter" title="Mobile Menu - Registration - Register My Dog - Register My Litter">Register My Litter</a></li>
+      <li><a href="/transfer-dog" title="Mobile Menu - Registration - Register My Dog - Transfer Ownership of My Dog">Transfer Ownership of My Dog</a></li>
+      <li><a href="/displaypedigree" title="Mobile Menu - Registration - Register My Dog - Purchase a Display Pedigree">Purchase a Display Pedigree</a></li>
+      </ul>
+   </li>
+   <li><a href="/registration-info" title="Mobile Menu - Registration - Registration Info">Registration Info</a>
+      <ul>
+      <li><a href="/litter-registration-types" title="Mobile Menu - Registration - Registration Info - Litter Registration">Litter Registration</a></li>
+      <li><a href="/singleregistration" title="Mobile Menu - Registration - Registration Info - Single Registration">Single Registration</a></li>
+      <li><a href="/permanentregistration" title="Mobile Menu - Registration - Registration Info - Permanent Registration &amp; Owner Transfers">Permanent Registration &amp; Owner Transfers</a></li>
+      <li><a href="/performance-listing-services" title="Mobile Menu - Registration - Registration Info - Performance Listing Services">Performance Listing Services</a></li>
+      <li><a href="/fdsb" title="Mobile Menu - Registration - Registration Info - Field Dog Stud Book (FDSB)">Field Dog Stud Book (FDSB)</a></li>
+      <li><a href="/titles" title="Mobile Menu - Registration - Registration Info - Titles">Titles</a></li>
+      <li><a href="/registrationforms" title="Mobile Menu - Registration - Registration Info - Forms and Fees">Forms and Fees</a></li>
+      <li><a href="/registration-faqs" title="Mobile Menu - Registration - Registration Info - Registration FAQs">Registration FAQs</a></li>
+      <li><a href="/registration-news" title="Mobile Menu - Registration - Registration Info - Registration News">Registration News</a></li>
+      <li><a href="/suspension" title="Mobile Menu - Registration - Registration Info - Notice Of Suspension">Notice Of Suspension</a></li>
+      </ul>
+   </li>
+   <li><a href="/breeds" title="Mobile Menu - Registration - Breeds">Breeds</a>
+      <ul>
+      <li><a href="/breed-standards" title="Mobile Menu - Registration - Breeds - Breed Standards">Breed Standards</a></li>
+      <li><a href="/find-a-breeder" title="Mobile Menu - Registration - Breeds - Find a Breeder">Find a Breeder</a></li>
+      <li><a href="/breed-recognition" title="Mobile Menu - Registration - Breeds - Breed Recognition">Breed Recognition</a></li>
+      <li><a href="/breeders-code-of-ethics" title="Mobile Menu - Registration - Breeds - Breeder's Code of Ethics">Breeder's Code of Ethics</a></li>
+      </ul>
+   </li>
+   <li><a href="/contact-registration" title="Mobile Menu - Registration - Contact Registration">Contact Registration</a>
+      <ul>
+      <li><a href="/status-check" title="Mobile Menu - Registration - Contact Registration - Registration Status Check">Registration Status Check</a></li>
+      </ul>
+   </li>
+   <li><a href="/display-pedigrees" title="Mobile Menu - Registration - Display Pedigrees">Display Pedigrees</a></li>
+   </ul>
+</li>
+<li><a href="/hunting-ops" title="Mobile Menu - Hunting Ops">Hunting Ops</a>
+   <ul>
+   <li><a href="/coonhounds" title="Mobile Menu - Hunting Ops - Coonhounds">Coonhounds</a>
+      <ul>
+      <li><a href="/coonhound-forum" title="Mobile Menu - Hunting Ops - Coonhounds - Coonhounds Forum">Coonhounds Forum</a></li>
+      <li><a href="/coonhound-historical-winners" title="Mobile Menu - Hunting Ops - Coonhounds - Historical Winners">Historical Winners</a></li>
+      <li><a href="/coonhound-points" title="Mobile Menu - Hunting Ops - Coonhounds - Points Check">Points Check</a></li>
+      <li><a href="/coonhound-events-calendar" title="Mobile Menu - Hunting Ops - Coonhounds - Events Calendar">Events Calendar</a></li>
+      <li><a href="/coonhound-events-programs" title="Mobile Menu - Hunting Ops - Coonhounds - Events &amp; Programs">Events &amp; Programs</a>
+         <ul>
+         <li><a href="/ukc-tournament-of-champions" title="Mobile Menu - Hunting Ops - Coonhounds - Events &amp; Programs - UKC Tournament of Champions">UKC Tournament of Champions</a></li>
+         <li><a href="/autumn-oaks" title="Mobile Menu - Hunting Ops - Coonhounds - Events &amp; Programs - Autumn Oaks">Autumn Oaks</a></li>
+         <li><a href="/winter-classic" title="Mobile Menu - Hunting Ops - Coonhounds - Events &amp; Programs - Winter Classic">Winter Classic</a></li>
+         <li><a href="/coonhound-world-championship" title="Mobile Menu - Hunting Ops - Coonhounds - Events &amp; Programs - Coonhound World Championship">Coonhound World Championship</a></li>
+         <li><a href="/youth-nationals" title="Mobile Menu - Hunting Ops - Coonhounds - Events &amp; Programs - Youth Nationals">Youth Nationals</a></li>
+         <li><a href="/grand-american" title="Mobile Menu - Hunting Ops - Coonhounds - Events &amp; Programs - Grand American">Grand American</a></li>
+         <li><a href="/htx-hunt-tests" title="Mobile Menu - Hunting Ops - Coonhounds - Events &amp; Programs - HTX Hunt Tests">HTX Hunt Tests</a></li>
+         <li><a href="/performance-program" title="Mobile Menu - Hunting Ops - Coonhounds - Events &amp; Programs - Performance Program">Performance Program</a></li>
+         <li><a href="/triple-crown-program" title="Mobile Menu - Hunting Ops - Coonhounds - Events &amp; Programs - Triple Crown Program">Triple Crown Program</a></li>
+         <li><a href="/next-gen-spotlight" title="Mobile Menu - Hunting Ops - Coonhounds - Events &amp; Programs - Next Generation Spotlight Series">Next Generation Spotlight Series</a></li>
+         <li><a href="/youth-coonhound-series" title="Mobile Menu - Hunting Ops - Coonhounds - Events &amp; Programs - Youth Coonhound Series">Youth Coonhound Series</a></li>
+         <li><a href="/yep" title="Mobile Menu - Hunting Ops - Coonhounds - Events &amp; Programs - Youth Education Program (YEP)">Youth Education Program (YEP)</a></li>
+         <li><a href="/major-events-schedule" title="Mobile Menu - Hunting Ops - Coonhounds - Events &amp; Programs - Major Events Schedule">Major Events Schedule</a></li>
+         <li><a href="/proslamcoonhound" title="Mobile Menu - Hunting Ops - Coonhounds - Events &amp; Programs - Pro Slam">Pro Slam</a></li>
+         </ul>
+      </li>
+      <li><a href="/coonhound-standings-results" title="Mobile Menu - Hunting Ops - Coonhounds - Standings &amp; Results">Standings &amp; Results</a></li>
+      <li><a href="/coonhound-rules-forms" title="Mobile Menu - Hunting Ops - Coonhounds - Forms &amp; Rules">Forms &amp; Rules</a></li>
+      <li><a href="/coonhound-officials" title="Mobile Menu - Hunting Ops - Coonhounds - Officials">Officials</a></li>
+      <li><a href="/coonhound-clubs" title="Mobile Menu - Hunting Ops - Coonhounds - Clubs">Clubs</a></li>
+      <li><a href="/coonhound-news" title="Mobile Menu - Hunting Ops - Coonhounds - News">News</a></li>
+      <li><a href="/coonhound-about" title="Mobile Menu - Hunting Ops - Coonhounds - About UKC Coonhounds">About UKC Coonhounds</a></li>
+      </ul>
+   </li>
+   <li><a href="/beagles" title="Mobile Menu - Hunting Ops - Beagles">Beagles</a>
+      <ul>
+      <li><a href="/beagle-points" title="Mobile Menu - Hunting Ops - Beagles - Points Check">Points Check</a></li>
+      <li><a href="/beagle-historical-winners" title="Mobile Menu - Hunting Ops - Beagles - Historical Winners">Historical Winners</a></li>
+      <li><a href="/beagle-gundog-events-calendar" title="Mobile Menu - Hunting Ops - Beagles - Gundog Calendar">Gundog Calendar</a></li>
+      <li><a href="/beagle-gundog-results" title="Mobile Menu - Hunting Ops - Beagles - Gundog Results">Gundog Results</a></li>
+      <li><a href="/beagle-events-calendar" title="Mobile Menu - Hunting Ops - Beagles - Hunting Beagle Calendar">Hunting Beagle Calendar</a></li>
+      <li><a href="/beagle-standings-results" title="Mobile Menu - Hunting Ops - Beagles - Hunting Beagle Results">Hunting Beagle Results</a>
+         <ul>
+         <li><a href="/beagle-first-strike-series-standings" title="Mobile Menu - Hunting Ops - Beagles - Hunting Beagle Results - First Strike Series Standings">First Strike Series Standings</a></li>
+         </ul>
+      </li>
+      <li><a href="/beagle-forms-rules" title="Mobile Menu - Hunting Ops - Beagles - Event Forms &amp; Rulebooks">Event Forms &amp; Rulebooks</a></li>
+      <li><a href="/beagle-event-programs" title="Mobile Menu - Hunting Ops - Beagles - Major Events &amp; Programs">Major Events &amp; Programs</a>
+         <ul>
+         <li><a href="/hunting-beagle-nationals" title="Mobile Menu - Hunting Ops - Beagles - Major Events &amp; Programs - Hunting Beagle Nationals">Hunting Beagle Nationals</a></li>
+         <li><a href="/hunting-beagle-world" title="Mobile Menu - Hunting Ops - Beagles - Major Events &amp; Programs - Hunting Beagle World">Hunting Beagle World</a></li>
+         <li><a href="/beagle-first-strike-series" title="Mobile Menu - Hunting Ops - Beagles - Major Events &amp; Programs - Beagle First Strike Series">Beagle First Strike Series</a></li>
+         <li><a href="/ukc-clash-of-champions" title="Mobile Menu - Hunting Ops - Beagles - Major Events &amp; Programs - Clash of Champions">Clash of Champions</a></li>
+         <li><a href="/beagle-gundog-nationals" title="Mobile Menu - Hunting Ops - Beagles - Major Events &amp; Programs - Beagle Gundog Nationals">Beagle Gundog Nationals</a></li>
+         <li><a href="/proslambeagle" title="Mobile Menu - Hunting Ops - Beagles - Major Events &amp; Programs - Pro Slam">Pro Slam</a></li>
+         <li><a href="/the-eliminator" title="Mobile Menu - Hunting Ops - Beagles - Major Events &amp; Programs - The Eliminator">The Eliminator</a></li>
+         </ul>
+      </li>
+      <li><a href="/beagle-officials" title="Mobile Menu - Hunting Ops - Beagles - Officials">Officials</a></li>
+      <li><a href="/beagle-clubs" title="Mobile Menu - Hunting Ops - Beagles - Clubs">Clubs</a></li>
+      <li><a href="/beagle-news" title="Mobile Menu - Hunting Ops - Beagles - News">News</a></li>
+      <li><a href="/beagle-major-events" title="Mobile Menu - Hunting Ops - Beagles - Beagle Major Event Schedule">Beagle Major Event Schedule</a></li>
+      <li><a href="/beagle-about" title="Mobile Menu - Hunting Ops - Beagles - About Gundog &amp; Hunting Beagle Formats">About Gundog &amp; Hunting Beagle Formats</a></li>
+      </ul>
+   </li>
+   <li><a href="/hunting-retrievers" title="Mobile Menu - Hunting Ops - Hunting Retrievers">Hunting Retrievers</a>
+      <ul>
+      <li><a href="/hunting-retriever-points" title="Mobile Menu - Hunting Ops - Hunting Retrievers - Points Check">Points Check</a></li>
+      <li><a href="/hrc-membership" title="Mobile Menu - Hunting Ops - Hunting Retrievers - Membership">Membership</a></li>
+      <li><a href="/hunting-retriever-events-calendar" title="Mobile Menu - Hunting Ops - Hunting Retrievers - Events Calendar">Events Calendar</a></li>
+      <li><a href="/hunting-retriever-events-programs" title="Mobile Menu - Hunting Ops - Hunting Retrievers - Events &amp; Programs">Events &amp; Programs</a>
+         <ul>
+         <li><a href="/hrc-grand" title="Mobile Menu - Hunting Ops - Hunting Retrievers - Events &amp; Programs - HRC Grand">HRC Grand</a></li>
+         </ul>
+      </li>
+      <li><a href="/hunting-retriever-forms-rules" title="Mobile Menu - Hunting Ops - Hunting Retrievers - Forms &amp; Rules">Forms &amp; Rules</a></li>
+      <li><a href="/hunting-retriever-officials" title="Mobile Menu - Hunting Ops - Hunting Retrievers - Officials">Officials</a></li>
+      <li><a href="/hunting-retriever-clubs" title="Mobile Menu - Hunting Ops - Hunting Retrievers - Clubs">Clubs</a></li>
+      <li><a href="/hunting-retriever-news" title="Mobile Menu - Hunting Ops - Hunting Retrievers - News">News</a></li>
+      <li><a href="/hunting-retriever-about" title="Mobile Menu - Hunting Ops - Hunting Retrievers - About UKC Hunting Retrievers">About UKC Hunting Retrievers</a></li>
+      </ul>
+   </li>
+   <li><a href="/cur-feists" title="Mobile Menu - Hunting Ops - Cur &amp; Feists">Cur &amp; Feists</a>
+      <ul>
+      <li><a href="/cur-feist-forum" title="Mobile Menu - Hunting Ops - Cur &amp; Feists - Cur &amp; Feists Forum">Cur &amp; Feists Forum</a></li>
+      <li><a href="/cur-feist-points" title="Mobile Menu - Hunting Ops - Cur &amp; Feists - Points Check">Points Check</a></li>
+      <li><a href="/cur-feist-events-calendar" title="Mobile Menu - Hunting Ops - Cur &amp; Feists - Events Calendar">Events Calendar</a></li>
+      <li><a href="/cur-feist-events-programs" title="Mobile Menu - Hunting Ops - Cur &amp; Feists - Events &amp; Programs">Events &amp; Programs</a>
+         <ul>
+         <li><a href="/cur-world" title="Mobile Menu - Hunting Ops - Cur &amp; Feists - Events &amp; Programs - Cur World">Cur World</a></li>
+         <li><a href="/feist-world" title="Mobile Menu - Hunting Ops - Cur &amp; Feists - Events &amp; Programs - Feist World">Feist World</a></li>
+         <li><a href="/cur-slam-events" title="Mobile Menu - Hunting Ops - Cur &amp; Feists - Events &amp; Programs - Cur Slam Events">Cur Slam Events</a></li>
+         <li><a href="/cur-feist-htx" title="Mobile Menu - Hunting Ops - Cur &amp; Feists - Events &amp; Programs - HTX Hunt Tests">HTX Hunt Tests</a></li>
+         <li><a href="/proslam" title="Mobile Menu - Hunting Ops - Cur &amp; Feists - Events &amp; Programs - Pro Slam">Pro Slam</a></li>
+         </ul>
+      </li>
+      <li><a href="/cur-feist-standings-results" title="Mobile Menu - Hunting Ops - Cur &amp; Feists - Standings &amp; Results">Standings &amp; Results</a></li>
+      <li><a href="/cur-feist-forms-rules" title="Mobile Menu - Hunting Ops - Cur &amp; Feists - Forms &amp; Rules">Forms &amp; Rules</a></li>
+      <li><a href="/cur-feist-officials" title="Mobile Menu - Hunting Ops - Cur &amp; Feists - Officials">Officials</a></li>
+      <li><a href="/cur-feist-clubs" title="Mobile Menu - Hunting Ops - Cur &amp; Feists - Clubs">Clubs</a></li>
+      <li><a href="/cur-feist-news" title="Mobile Menu - Hunting Ops - Cur &amp; Feists - News">News</a></li>
+      <li><a href="/cur-feist-about" title="Mobile Menu - Hunting Ops - Cur &amp; Feists - About UKC Cur &amp; Feists">About UKC Cur &amp; Feists</a></li>
+      </ul>
+   </li>
+   <li><a href="/upland-hunting-programs" title="Mobile Menu - Hunting Ops - Upland Hunting Programs">Upland Hunting Programs</a>
+      <ul>
+      <li><a href="/pointing-dog-points" title="Mobile Menu - Hunting Ops - Upland Hunting Programs - Points Check">Points Check</a></li>
+      <li><a href="/pointing-dogs-events-calendar" title="Mobile Menu - Hunting Ops - Upland Hunting Programs - Events Calendar">Events Calendar</a></li>
+      <li><a href="/pointing-dog-events-programs" title="Mobile Menu - Hunting Ops - Upland Hunting Programs - Events &amp; Programs">Events &amp; Programs</a></li>
+      <li><a href="/pointing-dog-forms-rules" title="Mobile Menu - Hunting Ops - Upland Hunting Programs - Forms &amp; Rules">Forms &amp; Rules</a></li>
+      <li><a href="/pointing-dog-officials" title="Mobile Menu - Hunting Ops - Upland Hunting Programs - Officials">Officials</a></li>
+      <li><a href="/pointing-dog-clubs" title="Mobile Menu - Hunting Ops - Upland Hunting Programs - Clubs">Clubs</a></li>
+      <li><a href="/pointing-dog-news" title="Mobile Menu - Hunting Ops - Upland Hunting Programs - News">News</a></li>
+      <li><a href="/about-upland-hunting-programs" title="Mobile Menu - Hunting Ops - Upland Hunting Programs - About UKC Upland Hunting Programs">About UKC Upland Hunting Programs</a></li>
+      <li><a href="/american-field-ukc" title="Mobile Menu - Hunting Ops - Upland Hunting Programs - American Field by UKC">American Field by UKC</a></li>
+      </ul>
+   </li>
+   <li><a href="/elite-shed-dogs" title="Mobile Menu - Hunting Ops - Elite Shed Dogs">Elite Shed Dogs</a>
+      <ul>
+      <li><a href="/elite-shed-dogs-points-check" title="Mobile Menu - Hunting Ops - Elite Shed Dogs - Points Check">Points Check</a></li>
+      <li><a href="/elite-shed-dogs-events-calendar" title="Mobile Menu - Hunting Ops - Elite Shed Dogs - Events Calendar">Events Calendar</a></li>
+      <li><a href="/shed-dog-programs" title="Mobile Menu - Hunting Ops - Elite Shed Dogs - Events &amp; Programs">Events &amp; Programs</a></li>
+      <li><a href="/elite-shed-dogs-forms-rules" title="Mobile Menu - Hunting Ops - Elite Shed Dogs - Forms &amp; Rules">Forms &amp; Rules</a></li>
+      <li><a href="/elite-shed-dogs-standings-results" title="Mobile Menu - Hunting Ops - Elite Shed Dogs - Standings &amp; Results">Standings &amp; Results</a></li>
+      <li><a href="/elite-shed-dogs-officials" title="Mobile Menu - Hunting Ops - Elite Shed Dogs - Officials">Officials</a></li>
+      <li><a href="/elite-shed-dogs-clubs" title="Mobile Menu - Hunting Ops - Elite Shed Dogs - Clubs">Clubs</a></li>
+      <li><a href="/elite-shed-dogs-news" title="Mobile Menu - Hunting Ops - Elite Shed Dogs - News">News</a></li>
+      <li><a href="/about-elite-shed-dogs" title="Mobile Menu - Hunting Ops - Elite Shed Dogs - About UKC Elite Shed Dogs">About UKC Elite Shed Dogs</a></li>
+      </ul>
+   </li>
+   <li><a href="/about-hunting-ops" title="Mobile Menu - Hunting Ops - About Hunting Ops">About Hunting Ops</a>
+      <ul>
+      <li><a href="/hunting-events" title="Mobile Menu - Hunting Ops - About Hunting Ops - Hunting Events Calendar">Hunting Events Calendar</a></li>
+      <li><a href="/hunting-event-results" title="Mobile Menu - Hunting Ops - About Hunting Ops - Hunting Event Results">Hunting Event Results</a></li>
+      <li><a href="/hunting-news" title="Mobile Menu - Hunting Ops - About Hunting Ops - Hunting News">Hunting News</a></li>
+      </ul>
+   </li>
+   <li><a href="/contact-hunting-ops" title="Mobile Menu - Hunting Ops - Contact Hunting Ops">Contact Hunting Ops</a></li>
+   <li><a href="/hunting-ops-podcast" title="Mobile Menu - Hunting Ops - Hunting Ops Podcast">Hunting Ops Podcast</a></li>
+   </ul>
+</li>
+<li><a href="/all-breed-sports" title="Mobile Menu - All-Breed Sports">All-Breed Sports</a>
+   <ul>
+   <li><a href="/show-ops-events-calendar" title="Mobile Menu - All-Breed Sports - Events Calendar">Events Calendar</a></li>
+   <li><a href="/show-ops-events" title="Mobile Menu - All-Breed Sports - UKC Main Events">UKC Main Events</a>
+      <ul>
+      <li><a href="/premier" title="Mobile Menu - All-Breed Sports - UKC Main Events - Premier">Premier</a></li>
+      <li><a href="/total-dog-invitational" title="Mobile Menu - All-Breed Sports - UKC Main Events - Total Dog Invitational">Total Dog Invitational</a></li>
+      <li><a href="/southern-classic" title="Mobile Menu - All-Breed Sports - UKC Main Events - Southern Classic">Southern Classic</a></li>
+      <li><a href="/midwest-classic" title="Mobile Menu - All-Breed Sports - UKC Main Events - Midwest Classic">Midwest Classic</a></li>
+      <li><a href="/western-classic" title="Mobile Menu - All-Breed Sports - UKC Main Events - Western Classic">Western Classic</a></li>
+      <li><a href="/southeast-classic" title="Mobile Menu - All-Breed Sports - UKC Main Events - Southeast Classic">Southeast Classic</a></li>
+      <li><a href="/all-breed-sports-historical-winners" title="Mobile Menu - All-Breed Sports - UKC Main Events - Historical Winners">Historical Winners</a></li>
+      </ul>
+   </li>
+   <li><a href="/tl-numbers" title="Mobile Menu - All-Breed Sports - TL Numbers">TL Numbers</a></li>
+   <li><a href="/points-check" title="Mobile Menu - All-Breed Sports - Points Check">Points Check</a></li>
+   <li><a href="/standings" title="Mobile Menu - All-Breed Sports - Standings &amp; Results">Standings &amp; Results</a></li>
+   <li><a href="/clubs" title="Mobile Menu - All-Breed Sports - Clubs">Clubs</a>
+      <ul>
+      <li><a href="/club-directory" title="Mobile Menu - All-Breed Sports - Clubs - Club Directory">Club Directory</a></li>
+      <li><a href="/new-clubs" title="Mobile Menu - All-Breed Sports - Clubs - Start New Club">Start New Club</a></li>
+      <li><a href="/national-assocations" title="Mobile Menu - All-Breed Sports - Clubs - National Breed Associations">National Breed Associations</a></li>
+      <li><a href="/club-forms" title="Mobile Menu - All-Breed Sports - Clubs - Forms">Forms</a></li>
+      <li><a href="/club-events" title="Mobile Menu - All-Breed Sports - Clubs - Events &amp; Matches">Events &amp; Matches</a></li>
+      <li><a href="/event-managers" title="Mobile Menu - All-Breed Sports - Clubs - Event Managers">Event Managers</a></li>
+      <li><a href="/ukc-event-support-team" title="Mobile Menu - All-Breed Sports - Clubs - Event Support Team (ABEST)">Event Support Team (ABEST)</a></li>
+      </ul>
+   </li>
+   <li><a href="/judges" title="Mobile Menu - All-Breed Sports - Judges">Judges</a>
+      <ul>
+      <li><a href="/judge-directory" title="Mobile Menu - All-Breed Sports - Judges - Judge Directory">Judge Directory</a></li>
+      <li><a href="/judge-requirements" title="Mobile Menu - All-Breed Sports - Judges - Judge Requirements">Judge Requirements</a></li>
+      </ul>
+   </li>
+   <li><a href="/agility" title="Mobile Menu - All-Breed Sports - Agility">Agility</a>
+      <ul>
+      <li><a href="/agility-events" title="Mobile Menu - All-Breed Sports - Agility - Agility Events">Agility Events</a></li>
+      <li><a href="/agility-event-results" title="Mobile Menu - All-Breed Sports - Agility - Agility Event Results">Agility Event Results</a></li>
+      <li><a href="/agility-all-stars" title="Mobile Menu - All-Breed Sports - Agility - Agility All Stars">Agility All Stars</a></li>
+      <li><a href="/agility-forms-rules" title="Mobile Menu - All-Breed Sports - Agility - Agility Forms &amp; Rules">Agility Forms &amp; Rules</a></li>
+      </ul>
+   </li>
+   <li><a href="/conformation" title="Mobile Menu - All-Breed Sports - Conformation">Conformation</a>
+      <ul>
+      <li><a href="/conformation-events" title="Mobile Menu - All-Breed Sports - Conformation - Conformation Events">Conformation Events</a></li>
+      <li><a href="/conformation-event-results" title="Mobile Menu - All-Breed Sports - Conformation - Conformation Event Results">Conformation Event Results</a></li>
+      <li><a href="/conformation-top-ten" title="Mobile Menu - All-Breed Sports - Conformation - Breed Top Ten Standings">Breed Top Ten Standings</a></li>
+      <li><a href="/top-ten-group-standings" title="Mobile Menu - All-Breed Sports - Conformation - Group Top Ten Standings">Group Top Ten Standings</a></li>
+      <li><a href="/conformation-forms-rules" title="Mobile Menu - All-Breed Sports - Conformation - Conformation Forms &amp; Rules">Conformation Forms &amp; Rules</a></li>
+      <li><a href="/conformation-breed-standards" title="Mobile Menu - All-Breed Sports - Conformation - Breed Standards">Breed Standards</a></li>
+      </ul>
+   </li>
+   <li><a href="/dock-jumping" title="Mobile Menu - All-Breed Sports - Dock Jumping">Dock Jumping</a>
+      <ul>
+      <li><a href="/dock-jumping-events" title="Mobile Menu - All-Breed Sports - Dock Jumping - Dock Jumping Events">Dock Jumping Events</a></li>
+      <li><a href="/dock-jumping-event-results" title="Mobile Menu - All-Breed Sports - Dock Jumping - Dock Jumping Event Results">Dock Jumping Event Results</a></li>
+      <li><a href="/dock-jumping-forms-rules" title="Mobile Menu - All-Breed Sports - Dock Jumping - Dock Jumping Forms &amp; Rules">Dock Jumping Forms &amp; Rules</a></li>
+      </ul>
+   </li>
+   <li><a href="/lure-coursing" title="Mobile Menu - All-Breed Sports - Lure Coursing">Lure Coursing</a>
+      <ul>
+      <li><a href="/lure-coursing-events" title="Mobile Menu - All-Breed Sports - Lure Coursing - Lure Coursing Events">Lure Coursing Events</a></li>
+      <li><a href="/lure-coursing-event-results" title="Mobile Menu - All-Breed Sports - Lure Coursing - Lure Coursing Event Results">Lure Coursing Event Results</a></li>
+      <li><a href="/lure-coursing-forms-rules" title="Mobile Menu - All-Breed Sports - Lure Coursing - Lure Coursing Forms &amp; Rules">Lure Coursing Forms &amp; Rules</a></li>
+      </ul>
+   </li>
+   <li><a href="/junior-program" title="Mobile Menu - All-Breed Sports - Junior Program">Junior Program</a>
+      <ul>
+      <li><a href="/junior-program-events" title="Mobile Menu - All-Breed Sports - Junior Program - Junior Program Events">Junior Program Events</a></li>
+      <li><a href="/juniors-event-results" title="Mobile Menu - All-Breed Sports - Junior Program - Juniors Event Results">Juniors Event Results</a></li>
+      <li><a href="/top-junior-standings" title="Mobile Menu - All-Breed Sports - Junior Program - Top Junior Standings">Top Junior Standings</a></li>
+      <li><a href="/junior-program-forms-rules" title="Mobile Menu - All-Breed Sports - Junior Program - Junior Program Forms &amp; Rules">Junior Program Forms &amp; Rules</a></li>
+      </ul>
+   </li>
+   <li><a href="/nosework" title="Mobile Menu - All-Breed Sports - Nosework">Nosework</a>
+      <ul>
+      <li><a href="/nosework-events" title="Mobile Menu - All-Breed Sports - Nosework - Nosework Events">Nosework Events</a></li>
+      <li><a href="/nosework-event-results" title="Mobile Menu - All-Breed Sports - Nosework - Nosework Event Results">Nosework Event Results</a></li>
+      <li><a href="/nosework-forms-rules" title="Mobile Menu - All-Breed Sports - Nosework - Nosework Forms &amp; Rules">Nosework Forms &amp; Rules</a></li>
+      <li><a href="/nosework-hof-standings" title="Mobile Menu - All-Breed Sports - Nosework - Nosework Hall of Fame">Nosework Hall of Fame</a></li>
+      </ul>
+   </li>
+   <li><a href="/obedience" title="Mobile Menu - All-Breed Sports - Obedience">Obedience</a>
+      <ul>
+      <li><a href="/obedience-events" title="Mobile Menu - All-Breed Sports - Obedience - Obedience Events">Obedience Events</a></li>
+      <li><a href="/obedience-event-results" title="Mobile Menu - All-Breed Sports - Obedience - Obedience Event Results">Obedience Event Results</a></li>
+      <li><a href="/obedience-all-stars" title="Mobile Menu - All-Breed Sports - Obedience - Obedience All Stars">Obedience All Stars</a></li>
+      <li><a href="/obedience-forms-rules" title="Mobile Menu - All-Breed Sports - Obedience - Obedience Forms &amp; Rules">Obedience Forms &amp; Rules</a></li>
+      </ul>
+   </li>
+   <li><a href="/precision-coursing" title="Mobile Menu - All-Breed Sports - Precision Coursing">Precision Coursing</a>
+      <ul>
+      <li><a href="/precision-coursing-events" title="Mobile Menu - All-Breed Sports - Precision Coursing - Precision Coursing Events">Precision Coursing Events</a></li>
+      <li><a href="/precision-coursing-forms-rules" title="Mobile Menu - All-Breed Sports - Precision Coursing - Precision Coursing Forms and Rules">Precision Coursing Forms and Rules</a></li>
+      </ul>
+   </li>
+   <li><a href="/rally-obedience" title="Mobile Menu - All-Breed Sports - Rally Obedience">Rally Obedience</a>
+      <ul>
+      <li><a href="/rally-obedience-events" title="Mobile Menu - All-Breed Sports - Rally Obedience - Rally Obedience Events">Rally Obedience Events</a></li>
+      <li><a href="/rally-obedience-event-results" title="Mobile Menu - All-Breed Sports - Rally Obedience - Rally Obedience Event Results">Rally Obedience Event Results</a></li>
+      <li><a href="/rally-obedience-all-stars" title="Mobile Menu - All-Breed Sports - Rally Obedience - Rally Obedience All Stars">Rally Obedience All Stars</a></li>
+      <li><a href="/rally-obedience-forms-rules" title="Mobile Menu - All-Breed Sports - Rally Obedience - Rally Obedience Forms &amp; Rules">Rally Obedience Forms &amp; Rules</a></li>
+      </ul>
+   </li>
+   <li><a href="/weight-pull" title="Mobile Menu - All-Breed Sports - Weight Pull">Weight Pull</a>
+      <ul>
+      <li><a href="/weight-pull-events" title="Mobile Menu - All-Breed Sports - Weight Pull - Weight Pull Events">Weight Pull Events</a></li>
+      <li><a href="/weight-pull-event-results" title="Mobile Menu - All-Breed Sports - Weight Pull - Weight Pull Event Results">Weight Pull Event Results</a></li>
+      <li><a href="/weight-pull-forms-rules" title="Mobile Menu - All-Breed Sports - Weight Pull - Weight Pull Forms &amp; Rules">Weight Pull Forms &amp; Rules</a></li>
+      </ul>
+   </li>
+   <li><a href="/spot" title="Mobile Menu - All-Breed Sports - SPOT">SPOT</a>
+      <ul>
+      <li><a href="/spot-evaluators" title="Mobile Menu - All-Breed Sports - SPOT - SPOT Evaluators">SPOT Evaluators</a></li>
+      <li><a href="/spot-participants" title="Mobile Menu - All-Breed Sports - SPOT - SPOT Participants">SPOT Participants</a></li>
+      </ul>
+   </li>
+   <li><a href="/total-dog" title="Mobile Menu - All-Breed Sports - Total Dog">Total Dog</a></li>
+   <li><a href="/superdog" title="Mobile Menu - All-Breed Sports - Super Dog">Super Dog</a></li>
+   <li><a href="/about-all-breed-sports" title="Mobile Menu - All-Breed Sports - About All-Breed Sports">About All-Breed Sports</a></li>
+   <li><a href="/all-breed-sports-news" title="Mobile Menu - All-Breed Sports - News">News</a></li>
+   <li><a href="/contact-all-breed-sports" title="Mobile Menu - All-Breed Sports - Contact All-Breed Sports">Contact All-Breed Sports</a></li>
+   </ul>
+</li>
+<li><a href="/inside-ukc" title="Mobile Menu - Inside UKC">Inside UKC</a>
+   <ul>
+   <li><a href="/about" title="Mobile Menu - Inside UKC - About UKC">About UKC</a>
+      <ul>
+      <li><a href="/history" title="Mobile Menu - Inside UKC - About UKC - History">History</a></li>
+      <li><a href="/staff" title="Mobile Menu - Inside UKC - About UKC - Staff Directory">Staff Directory</a></li>
+      <li><a href="/working-at-ukc" title="Mobile Menu - Inside UKC - About UKC - Working At UKC">Working At UKC</a></li>
+      </ul>
+   </li>
+   <li><a href="/careers" title="Mobile Menu - Inside UKC - Careers">Careers</a></li>
+   <li><a href="/news" title="Mobile Menu - Inside UKC - News">News</a>
+      <ul>
+      <li><a href="/inside-ukc-news" title="Mobile Menu - Inside UKC - News - Inside UKC News">Inside UKC News</a></li>
+      </ul>
+   </li>
+   <li><a href="/publications" title="Mobile Menu - Inside UKC - Publications">Publications</a>
+      <ul>
+      <li><a href="/advertising" title="Mobile Menu - Inside UKC - Publications - Advertising">Advertising</a></li>
+      <li><a href="/cover-dog" title="Mobile Menu - Inside UKC - Publications - Cover Photos">Cover Photos</a></li>
+      <li><a href="/publications-faqs" title="Mobile Menu - Inside UKC - Publications - Publications FAQs">Publications FAQs</a></li>
+      </ul>
+   </li>
+   <li><a href="/dog-law" title="Mobile Menu - Inside UKC - Dog Law">Dog Law</a>
+      <ul>
+      <li><a href="/get-involved" title="Mobile Menu - Inside UKC - Dog Law - Get Involved">Get Involved</a></li>
+      <li><a href="/contacting-lawmakers" title="Mobile Menu - Inside UKC - Dog Law - Contacting Lawmakers">Contacting Lawmakers</a></li>
+      <li><a href="/dog-owner-rights-partners" title="Mobile Menu - Inside UKC - Dog Law - Dog Owner Rights Partners">Dog Owner Rights Partners</a></li>
+      <li><a href="/position-statements" title="Mobile Menu - Inside UKC - Dog Law - Position Statements">Position Statements</a></li>
+      </ul>
+   </li>
+   <li><a href="/contact-ukc" title="Mobile Menu - Inside UKC - Contact UKC">Contact UKC</a></li>
+   </ul>
+</li>
+<li><a href="/contact" title="Mobile Menu - Contact">Contact</a></li>
+<li><a href="/shop" title="Mobile Menu - Shop">Shop</a></li>
+</ul>
+</nav>
+
+
+<div id="as-root"></div><script>(function(e,t,n){var r,i=e.getElementsByTagName(t)[0];if(e.getElementById(n))return;r=e.createElement(t);r.id=n;r.src="//button.aftership.com/all.js";i.parentNode.insertBefore(r,i)})(document,"script","aftership-jssdk")</script>
+
+<div class="pure-g" id="pageFrameFull">
+
+
+
+   
+
+   <main id="main">
+
+      <article class="pure-u-1">
+
+      <h1>Error 400 - Bad Request</h1>
+
+<p>
+We’re sorry, your browser sent a request that this server could not understand.
+</p>
+
+
+
+<img  src="/images/general/404.jpg" width="60%" alt="404 Cyber The Labrador">
+
+
+
+
+      </article>
+
+   </main>
+
+</div>
+
+
+<footer class="main_footer">
+   <div class="wrapper pure-g mobile_hide">
+
+      <div class="pure-u-1 pure-u-sm-1-2 pure-u-lg-1-4">
+
+         <nav class="registration_col" aria-label="Footer Navigation - Registration">
+            <h3 class="header_icon"><a href="/registration" title="Footer - Registration">Registration</a></h3>
+
+            <ul>
+               <li><a href="/register-my-dog" title="Footer - Registration - Register My Dog">Register My Dog</a></li>
+               <li><a href="/register-my-litter" title="Footer - Registration - Register My Litter">Register My Litter</a></li>
+               <li><a href="/breeds" title="Footer - Registration - Breeds">Breeds</a></li>
+               <li><a href="/registration-info" title="Footer - Registration - Registration Info">Registration Info</a></li>
+               <li><a href="/contact-registration" title="Footer - Registration - Contact Registration">Contact Registration</a></li>
+            </ul>
+
+            <div class="footer_updates_box">
+               <h3>Updates</h3>
+
+               <div class="footer_updates">
+
+               <p>
+We are currently processing all incoming Registration applications received by February 14th.</p> <p></p>               </div>
+            </div>
+         </nav>
+
+      </div>
+
+      <div class="pure-u-1 pure-u-sm-1-2 pure-u-lg-1-4">
+
+         <nav class="hunting_col" aria-label="Footer Navigation - Hunting">
+            <h3 class="header_icon"><a href="/hunting-ops" title="Footer - Hunting">Hunting Ops</a></h3>
+
+            <ul>
+               <li><a href="/coonhounds" title="Footer - Hunting - Coonhounds">Coonhounds</a></li>
+               <li><a href="/beagles/" title="Footer - Hunting - Beagles">Beagles</a></li>
+               <li><a href="/hunting-retrievers" title="Footer - Hunting - Hunting Retrievers">Hunting Retrievers</a></li>
+               <li><a href="/cur-feists" title="Footer - Hunting - Cur &amp; Feists">Cur &amp; Feists</a></li>
+               <li><a href="/upland-hunting-programs" title="Footer - Hunting - Upland Hunting Programs">Upland Hunting Programs</a></li>
+               <li><a href="/elite-shed-dogs" title="Footer - Hunting - Elite Shed Dogs">Elite Shed Dogs</a></li>
+               <li><a href="/about-hunting-ops" title="Footer - Hunting - About Hunting Ops">About Hunting Ops</a></li>
+               <li><a href="/contact-hunting-ops" title="Footer - Hunting - Contact Hunting Ops">Contact Hunting Ops</a></li>
+               </ul>
+         </nav>
+
+      </div>
+
+      <div class="pure-u-1 pure-u-sm-1-2 pure-u-lg-1-4">
+
+         <nav class="show_col" aria-label="Footer Navigation - All-Breed Sports">
+            <h3 class="header_icon"><a href="/all-breed-sports" title="Footer - All-Breed Sports">All-Breed Sports</a></h3>
+
+            <ul>
+               <li><a href="/show-ops-events-calendar" title="Footer - Show - Events Calendar">Events Calendar</a></li>
+               <li><a href="/show-ops-events" title="Footer - Show - Featured Events">Featured Events</a></li>
+               <li><a href="/tl-numbers" title="Footer - Show - TL Numbers">TL Numbers</a></li>
+               <li><a href="/points-check" title="Footer - Show - Points Check">Points Check</a></li>
+               <li><a href="/standings" title="Footer - Show - Standings &amp; Results">Standings &amp; Results</a></li>
+               <li><a href="/clubs" title="Footer - Show - Clubs">Clubs</a></li>
+               <li><a href="/judges" title="Footer - Show - Judges">Judges</a></li>
+               <li><a href="/all-breed-sports-news" title="Footer - All Breed Sports News">News</a></li>
+               <li><a href="/about-all-breed-sports" title="Footer - Show - About All-Breed Sports">About All-Breed Sports</a></li>
+               <li><a href="/agility" title="Footer - Show - Agility">Agility</a></li>
+               <li><a href="/conformation" title="Footer - Show - Conformation">Conformation</a></li>
+               <li><a href="/dock-jumping" title="Footer - Show - Dock Jumping">Dock Jumping</a></li>
+               <li><a href="/lure-coursing" title="Footer - Show - Lure Coursing">Lure Coursing</a></li>
+               <li><a href="/junior-program" title="Footer - Show - Junior Program">Junior Program</a></li>
+               <li><a href="/nosework" title="Footer - Show - Nosework">Nosework</a></li>
+               <li><a href="/obedience" title="Footer - Show - Obedience">Obedience</a></li>
+               <li><a href="/precision-coursing" title="Footer - Show - Precision Lure Coursing">Precision Lure Coursing</a></li>
+               <li><a href="/rally-obedience" title="Footer - Show - Rally Obedience">Rally Obedience</a></li>
+               <li><a href="/spot" title="Footer - Show - SPOT">SPOT</a></li>
+               <li><a href="/total-dog" title="Footer - Show - Total Dog">Total Dog</a></li>
+               <li><a href="/weight-pull" title="Footer - Show - Weight Pull">Weight Pull</a></li>
+            </ul>
+         </nav>
+
+      </div>
+
+      <div class="pure-u-1 pure-u-sm-1-2 pure-u-lg-1-4">
+
+         <nav class="inside_col" aria-label="Footer Navigation - Inside UKC">
+            <h3 class="header_icon"><a href="/inside-ukc" title="Footer - Inside UKC">Inside UKC</a></h3>
+
+            <ul>
+               <li><a href="/about" title="Footer - Inside UKC - About UKC">About UKC</a></li>
+               <li><a href="/careers" title="Footer - Inside UKC - Careers">Careers</a></li>
+               <li><a href="/news" title="Footer - Inside UKC - News">News</a></li>
+               <li><a href="/publications" title="Footer - Inside UKC - Publications">Publications</a></li>
+               <li><a href="/dog-law" title="Footer - Inside UKC - Dog Law">Dog Law</a></li>
+               <li><a href="/contact-ukc" title="Footer - Inside UKC - Contact UKC">Contact UKC</a></li>
+               <li><a href="http://forums.ukcdogs.com/" target="_blank" title="Footer - Inside UKC - Forums">Forums</a></li>
+               <li><a href="http://shop.ukcdogs.com/" title="Footer - Inside UKC - Store">Store</a></li>
+            </ul>
+
+            <div class="footer_contact">
+            
+            </div>
+
+         </nav>
+
+      </div>
+
+   </div><!--wrapper-->
+   
+   
+   
+   
+   
+   <div class="mobile_show">
+		<div class="footer_updates_box">
+			<h3>Updates</h3>
+			
+			<div class="footer_updates">
+				<p>
+We are currently processing all incoming Registration applications received by February 14th.</p> <p></p>			</div>
+		</div>
+   </div>
+   
+   
+   
+   
+   
+   
+   <div class="footer_bottom" id="footer_bottom" role="contentinfo" itemscope itemtype="http://schema.org/LocalBusiness">
+      <div class="wrapper pure-g">
+
+         <div class="pure-u-1 pure-u-sm-1-1 pure-u-lg-1-2">
+            <div class="mission">
+               <img src="/graphics/logos/ukc-logo-footer-white2.svg.gz" class="logo" width="131" height="42" alt="UKC Logo">
+               <img src="/graphics/logos/ukc-logo-green-2019.svg.gz" class="hidden" itemprop="image" width="100" height="106" alt="United Kennel Club Logo">
+               <p itemprop="description">Celebrating the dog/human bond through family-friendly events and programs for dogs that do more.</p>
+            </div>
+         </div>
+
+         <div class="pure-u-1 pure-u-sm-1-1 pure-u-lg-1-4">
+            <div class="social_icons">
+               <a href="https://www.facebook.com/ukcdogs/" itemprop="sameAs" target="_blank" title="Footer - Like us on Facebook"><img src="/graphics/icons/facebook-icon-white.svg.gz" width="28" height="31" alt="Facebook"></a>
+
+               <a href="https://www.instagram.com/ukcdogs/" itemprop="sameAs" target="_blank" title="Footer - Follow us on Instagram"><img src="/graphics/icons/instagram-icon-white.svg.gz" width="28" height="31" alt="Instagram"></a>
+
+               
+
+               
+
+               
+
+               <a href="/email-newsletter" target="_blank" itemprop="sameAs" target="_blank" title="Footer - Subscribe to E-news"><img src="/graphics/icons/envelope-icon-white.svg.gz" width="28" height="31" alt="Subscribe to E-news"></a>
+
+               <a href="https://www.youtube.com/ukcdogs" itemprop="sameAs" target="_blank" title="Follow us on YouTube"><img src="/graphics/icons/youtube-icon-white2.svg.gz" width="44" height="31" alt="YouTube"></a>
+
+               
+            </div>
+         </div>
+
+         <div class="pure-u-1 pure-u-sm-1-1 pure-u-lg-1-4">
+            <div class="copyright">
+            <p>&copy; 2026 <span itemprop="name">United Kennel Club</span><br>
+
+            <span class="hidden" itemprop="address" itemscope itemtype="http://schema.org/PostalAddress">
+               <span itemprop="streetAddress">100 E Kilgore Rd</span>, 
+               <span itemprop="addressLocality">Portage</span>, 
+               <span itemprop="addressRegion">MI</span>
+               <span itemprop="postalCode">49002</span>
+            </span>
+
+            <strong>Hours:</strong> <meta itemprop="openingHours" content="Mo-Fr 8:30-20:30">8:30 am - 5 pm (ET) M-F<br>
+
+            <strong>Phone:</strong> <a href="tel:+12693439020" title="Footer - Phone Number"><span itemprop="telephone">269.343.9020</span></a><br>
+            <a href="/contact" title="Footer - Contact">Contact</a> | <a href="/sitemap" title="Footer - Sitemap">Sitemap</a> | <a href="/privacy" title="Footer - Privacy Policy">Privacy Policy</a></p>
+
+            <a href="/email-newsletter" class="button">Sign Up for Enews</a>
+            </div>
+         </div>
+
+      </div>
+
+   </div><!--wrapper-->
+
+</footer>
+
+<!-- Jquery -->
+<script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
+<script>window.jQuery || document.write('<script src="js/vendor/jquery-1.10.1.min.js"><\/script>');</script>
+
+<!-- Fonts, Typekit -->
+<link rel="stylesheet" href="https://use.typekit.net/sva2jjp.css">
+
+<script>
+"use strict";
+var load_stylesheets = function(){
+   var stylesheets = ['https://maxcdn.bootstrapcdn.com/font-awesome/4.6.1/css/font-awesome.min.css']
+
+   var head = document.getElementsByTagName('head')[0];
+   for (var i in stylesheets)
+   {
+      var l = document.createElement('link');
+      l.rel = 'stylesheet';
+      l.href = stylesheets[i];
+      head.appendChild(l);
+   }
+}
+
+var raf = requestAnimationFrame || mozRequestAnimationFrame || webkitRequestAnimationFrame || msRequestAnimationFrame;
+if (raf)
+{
+   raf(load_stylesheets);
+}
+else
+{
+   window.addEventListener('load', load_stylesheets);
+}
+</script>
+
+<!-- ShareThis -->
+
+
+<script type="text/javascript" src="/js/safeemail.min.js.gz" async></script>
+<script type="text/javascript" src="/js/dhtml_funcs.min.js.gz" async></script>
+<script type="text/javascript" src="/js/validate.min.js.gz" async></script>
+<script type="text/javascript" src="/js/cookie.js.gz" async></script>
+
+<!-- Async Doesn't work -->
+<script type="text/javascript" src="/js/mobile-nav.min.js.gz"></script>
+
+<!-- Select2 - Inner Pages, only used on inner pages -->
+
+<!-- Videos, Home and Landing Pages, only used on Home and Landing pages -->
+
+
+<!-- Must be last to override 3rd party styles we are trying to hide -->
+<link type="text/css" href="/styles/print.min.css.gz" rel="stylesheet">
+
+</body>
+</html>

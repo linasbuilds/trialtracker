@@ -7,6 +7,9 @@ export default function Footer() {
         <a href="mailto:support@trialtracker.app" className="hover:underline">Contact Us</a>
       </div>
       <p className="mt-2">© {new Date().getFullYear()} TrialTracker. All rights reserved.</p>
+      <p className="mt-2 text-xs text-slate-400 max-w-xl mx-auto px-4">
+        TrialTracker aggregates trial information from public sources and does our best to keep listings accurate and complete. We may occasionally miss a trial or have outdated info — always verify details on the official club website.
+      </p>
     </footer>
   );
 }

@@ -181,22 +181,21 @@ export default function PreferencesPage() {
         {/* Favorite Organizations */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
           <h2 className="text-base font-bold text-slate-700 mb-1">🔍 Favorite Organizations</h2>
-          <p className="text-xs text-slate-400 mb-4">Select your preferred organizations — leave empty to see all.</p>
+          <p className="text-xs text-slate-400 mb-3">Tap to select — leave empty to see all.</p>
+          <div className="flex gap-3 mb-3 text-xs">
+            <button onClick={() => { setSelectedOrgs([...ALL_ORGS]); setSaved(false) }} className="text-blue-600 hover:underline">Select All</button>
+            <button onClick={() => { setSelectedOrgs([]); setSaved(false) }} className="text-slate-400 hover:underline">Clear All</button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {ALL_ORGS.map(org => (
               <button
                 key={org}
                 onClick={() => toggle(org, selectedOrgs, setSelectedOrgs)}
-                style={selectedOrgs.includes(org) ? {
-                  background: 'linear-gradient(to right, #a855f7, #ec4899)',
-                  color: 'white',
-                  border: '1px solid transparent'
-                } : {
-                  background: 'white',
-                  color: '#475569',
-                  border: '1px solid #e2e8f0'
-                }}
-                className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:shadow-sm"
+                className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                  selectedOrgs.includes(org)
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                }`}
               >
                 {org}
               </button>
@@ -217,21 +216,20 @@ export default function PreferencesPage() {
                   ? `Showing sports for your selected org${selectedOrgs.length > 1 ? 's' : ''} — leave empty to see all.`
                   : 'Select all that apply — leave empty to see all sports.'}
               </p>
+              <div className="flex gap-3 mb-3 text-xs">
+                <button onClick={() => { setSelectedSports([...visibleSports]); setSaved(false) }} className="text-blue-600 hover:underline">Select All</button>
+                <button onClick={() => { setSelectedSports([]); setSaved(false) }} className="text-slate-400 hover:underline">Clear All</button>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {visibleSports.map(sport => (
                   <button
                     key={sport}
                     onClick={() => toggle(sport, selectedSports, setSelectedSports)}
-                    style={selectedSports.includes(sport) ? {
-                      background: 'linear-gradient(to right, #22c55e, #10b981)',
-                      color: 'white',
-                      border: '1px solid transparent'
-                    } : {
-                      background: 'white',
-                      color: '#475569',
-                      border: '1px solid #e2e8f0'
-                    }}
-                    className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:shadow-sm"
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                      selectedSports.includes(sport)
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                    }`}
                   >
                     {sport}
                   </button>
@@ -276,27 +274,29 @@ export default function PreferencesPage() {
         {/* Favorite States */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
           <h2 className="text-base font-bold text-slate-700 mb-1">📍 Favorite States</h2>
-          <p className="text-xs text-slate-400 mb-4">Select the states you&apos;re willing to travel to — leave empty for all states.</p>
+          <p className="text-xs text-slate-400 mb-3">Tap to select — leave empty for all states.</p>
+          <div className="flex gap-3 mb-3 text-xs">
+            <button onClick={() => { setSelectedStates([...STATES]); setSaved(false) }} className="text-blue-600 hover:underline">Select All</button>
+            <button onClick={() => { setSelectedStates([]); setSaved(false) }} className="text-slate-400 hover:underline">Clear All</button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {STATES.map(state => (
               <button
                 key={state}
                 onClick={() => toggle(state, selectedStates, setSelectedStates)}
-                style={selectedStates.includes(state) ? {
-                  background: 'linear-gradient(to right, #2563eb, #6366f1)',
-                  color: 'white',
-                  border: '1px solid transparent'
-                } : {
-                  background: 'white',
-                  color: '#475569',
-                  border: '1px solid #e2e8f0'
-                }}
-                className="px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:shadow-sm"
+                className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                  selectedStates.includes(state)
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                }`}
               >
                 {state}
               </button>
             ))}
           </div>
+          {selectedStates.length > 0 && (
+            <p className="text-xs text-blue-600 mt-3">{selectedStates.length} state{selectedStates.length !== 1 ? 's' : ''} selected: {selectedStates.join(', ')}</p>
+          )}
         </div>
 
         {/* Save Button */}

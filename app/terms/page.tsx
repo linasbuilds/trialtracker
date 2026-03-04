@@ -4,7 +4,7 @@ export default function TermsPage() {
       <div className="max-w-2xl mx-auto">
 
         <h1 className="text-3xl font-bold text-slate-800 mb-2">Terms of Service</h1>
-        <p className="text-slate-500 text-sm mb-8">Last updated: February 26, 2026</p>
+        <p className="text-slate-500 text-sm mb-8">Last updated: March 4, 2026</p>
 
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 space-y-8 text-slate-700 text-sm leading-relaxed">
 
@@ -65,6 +65,17 @@ export default function TermsPage() {
               <li>Attempt to gain unauthorized access to accounts or the platform infrastructure.</li>
               <li>Use the platform for any unlawful purpose.</li>
             </ul>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-bold text-slate-800 mb-2">8a. No Automated Scraping</h2>
+            <p className="mb-3">Automated scraping, crawling, or bulk extraction of TrialTracker content is strictly prohibited without prior written consent. This includes but is not limited to:</p>
+            <ul className="list-disc pl-5 space-y-1 mb-3">
+              <li>Using bots, spiders, or automated scripts to access or collect data from TrialTracker.</li>
+              <li>Bypassing or circumventing any technical measures used to prevent automated access.</li>
+              <li>Reproducing or redistributing scraped data in any form, commercial or otherwise.</li>
+            </ul>
+            <p>TrialTracker employs bot detection and rate-limiting technology. Suspected automated access may be blocked and reported. Confirmed violations will be reported to <a href="mailto:trialtrackerapp@gmail.com" className="text-blue-600 hover:underline">trialtrackerapp@gmail.com</a> and may result in permanent account suspension and legal action.</p>
           </section>
 
           <section>

@@ -65,7 +65,7 @@ export async function GET() {
 
       if (matchingTrials.length === 0) continue;
 
-      const trialsHtml = matchingTrials.map(trial => {
+      const trialsHtml = matchingTrials.filter(trial => !!trial.entry_opening_date).map(trial => {
         const openingDate = new Date(trial.entry_opening_date);
         const today2 = new Date();
         today2.setHours(0, 0, 0, 0);
@@ -75,7 +75,7 @@ export async function GET() {
         return `
           <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:16px;">
             <h3 style="margin:0 0 4px 0;color:#1e293b;">🐾 ${trial.trial_name}</h3>
-            <p style="margin:0 0 4px 0;color:#64748b;">📍 ${trial.host_club || ''} • ${trial.city}, ${trial.state}</p>
+            <p style="margin:0 0 4px 0;color:#64748b;">📍 ${trial.trial_host || ''} • ${trial.city}, ${trial.state}</p>
             <p style="margin:0 0 8px 0;font-weight:bold;color:#92400e;">${urgency}</p>
             <p style="margin:0 0 4px 0;color:#78350f;">Entry opens: ${openingDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
             <p style="margin:0 0 12px 0;color:#475569;">🗓️ Trial dates: ${new Date(trial.trial_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(trial.trial_end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>

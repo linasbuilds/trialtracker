@@ -82,6 +82,7 @@ interface Trial {
 
   entry_opening_date: string;
   entry_closing_date: string;
+  pre_entry_date?: string;
 
   official_link: string;
   club_website?: string;
@@ -291,14 +292,19 @@ export default function TrialsPage() {
             </select>
           </div>
 
-          <div className="flex gap-3 items-center">
-            <input
-              type="text"
-              placeholder="🔍 Search name, city, host club, level..."
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          <div className="flex gap-3 items-end">
+            <div className="flex-1">
+              <label className="block text-xs text-slate-500 mb-1 ml-0.5">
+                Search by trial name, city, host club, or level
+              </label>
+              <input
+                type="text"
+                placeholder="🔍 Search by trial name, city, host club, or level..."
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
 
             {hasActiveFilters && (
               <button
@@ -309,6 +315,11 @@ export default function TrialsPage() {
               </button>
             )}
           </div>
+        </div>
+
+        {/* 90-day notice */}
+        <div className="mb-4 bg-sky-50 border border-sky-200 rounded-lg px-4 py-2 text-sky-700 text-sm">
+          📅 TrialTracker shows trials opening in the next 90 days. Info comes from club pages — peek at your host club in case anything shifted.
         </div>
 
         {/* Results count */}
@@ -398,26 +409,27 @@ export default function TrialsPage() {
                   )}
                 </p>
 
-                {/* Entry dates */}
-                <p className="text-slate-600 text-sm mb-3">
-                  📋{" "}
-                  {trial.entry_opening_date ? (
-                    <>
-                      Trial Entry Opens:{" "}
-                      {formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
-                      {trial.entry_closing_date && (
-                        <span className="text-slate-400">
-                          {" "}— Trial Entry Closes:{" "}
-                          {formatDate(trial.entry_closing_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <span className="text-slate-400 italic">
-                      Entry dates TBD — check club site for details
-                    </span>
+                {/* Entry dates — always show both lines */}
+                <div className="text-slate-600 text-sm mb-3 space-y-0.5">
+                  <p>
+                    📋 <span className="font-medium">Trial Entry Opens:</span>{" "}
+                    {trial.entry_opening_date
+                      ? formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+                      : <span className="text-slate-400 italic">TBD</span>}
+                  </p>
+                  <p>
+                    📋 <span className="font-medium">Trial Entry Closes:</span>{" "}
+                    {trial.entry_closing_date
+                      ? formatDate(trial.entry_closing_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+                      : <span className="text-slate-400 italic">TBD</span>}
+                  </p>
+                  {trial.pre_entry_date && (
+                    <p>
+                      📋 <span className="font-medium">Pre-Entry Closes:</span>{" "}
+                      {formatDate(trial.pre_entry_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                    </p>
                   )}
-                </p>
+                </div>
 
                 {isOpeningSoon && !alreadyOpen && (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-amber-800 text-sm font-medium mb-3">
