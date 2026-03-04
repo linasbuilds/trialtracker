@@ -7,13 +7,15 @@
 //   PRE-CHECK  — robots.txt must allow automated access.
 //   STEP 1     — Land on the club website homepage; check TOS, then search for dates.
 //   STEP 2     — If nothing found, follow a relevant nav/menu link and search again.
-//   STEP 3     — Find a trial-related PDF, extract PAGE 2 ONLY, and search for dates.
-//               (NACSW premiums always have entry open/close dates at the top of page 2.)
+//   STEP 3     — Find a trial-related PDF and try THREE extraction methods in order:
+//                  A) pdf-parse on full document text (all pages)
+//                  B) pdfjs-dist page-by-page (page 2 first, then 1, then 3)
+//                  C) Raw buffer UTF-8 regex search
 //   STEP 4     — Log failure and move on; never crash.
 //
-// MATCHING RULES (before saving any dates):
-//   - Our trial's start date must appear in the page/PDF text ('confirmed').
-//   - If the date is not found, nothing is saved — no guessing, ever.
+// MATCHING RULES (pages 1 & 2):
+//   - Our trial's start date must appear in page text ('confirmed').
+//   - PDF extraction skips this check — the PDF was already filtered to this club/trial.
 //
 // DATE VALIDITY:
 //   - entry_opening_date must be today or in the future; stale dates are discarded.
@@ -32,8 +34,25 @@ const http  = require('http');
 const fs    = require('fs');
 const path  = require('path');
 
+// PDF extraction libraries — all optional, scraper degrades gracefully if missing
 let pdfParse = null;
 try { pdfParse = require('pdf-parse'); } catch {}
+
+let pdfjsLib = null;
+for (const p of [
+  'pdfjs-dist/legacy/build/pdf.js',   // pdfjs-dist v2/v3
+  'pdfjs-dist/build/pdf.cjs',          // pdfjs-dist v4
+  'pdfjs-dist',                         // generic fallback
+]) {
+  try { pdfjsLib = require(p); break; } catch {}
+}
+if (pdfjsLib && pdfjsLib.GlobalWorkerOptions) {
+  // Disable the browser worker — we are running in Node.js
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+}
+
+let axios = null;
+try { axios = require('axios'); } catch {}
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -51,8 +70,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 const BOT_UA = 'TrialTracker-Bot/1.0 (trial aggregator; contact: trialtrackerapp@gmail.com; info: trialtracker.app)';
 
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
-const MAX_SITES      = 50;   // cap per run to avoid overloading servers
-const VISIT_DELAY_MS = 3000; // polite delay between club website visits
+const MAX_SITES      = 50;
+const VISIT_DELAY_MS = 3000;
 
 const BLOCKED_DOMAINS = [
   'nacsw.net', 'facebook.com', 'google.com', 'instagram.com',
@@ -126,42 +145,75 @@ function parseEntryDate(str, refYear) {
   return null;
 }
 
-// Search text for entry open/close dates.
+// ── Entry date patterns (labeled, used by both findEntryDates and logged version) ──
+//
 // Every pattern requires an explicit keyword label — no bare date extraction.
+
+const DATE_PAT = '([A-Za-z]+\\.?\\s+\\d{1,2}(?:[,\\s]+\\d{4})?|\\d{1,2}/\\d{1,2}/\\d{4})';
+
+const OPEN_PATTERNS = [
+  { label: 'Trial Opens',          re: new RegExp(`trial\\s+opens?\\s*[:\\-]?\\s*${DATE_PAT}`, 'i') },
+  { label: 'Entry Open Date',      re: new RegExp(`entry\\s+open\\s+date\\s*[:\\-]?\\s*${DATE_PAT}`, 'i') },
+  { label: 'Entries Open',         re: new RegExp(`entr(?:y|ies)\\s+(?:open|opens|opening|available)[:\\s]+${DATE_PAT}`, 'i') },
+  { label: 'Registration Opens',   re: new RegExp(`registration\\s+(?:open|opens|opening|available|begin|begins)[:\\s]+${DATE_PAT}`, 'i') },
+  { label: 'Entries Accepted',     re: new RegExp(`entries?\\s+accepted\\s+(?:beginning|starting)[:\\s]*${DATE_PAT}`, 'i') },
+  { label: 'Open For Entries',     re: new RegExp(`open\\s+for\\s+entries?\\s+(?:on\\s+)?${DATE_PAT}`, 'i') },
+  { label: 'Entries Will Open',    re: new RegExp(`entries?\\s+will\\s+(?:open|be\\s+accepted)\\s+${DATE_PAT}`, 'i') },
+  { label: 'Opens',                re: new RegExp(`opens?[:\\s]+${DATE_PAT}`, 'i') },
+];
+
+const CLOSE_PATTERNS = [
+  { label: 'Trial Closes',         re: new RegExp(`trial\\s+closes?\\s*[:\\-]?\\s*${DATE_PAT}`, 'i') },
+  { label: 'Entry Close Date',     re: new RegExp(`entry\\s+close\\s+date\\s*[:\\-]?\\s*${DATE_PAT}`, 'i') },
+  { label: 'Entries Close',        re: new RegExp(`entr(?:y|ies)\\s+(?:close|closes|closing|deadline|due|cutoff)[:\\s]+${DATE_PAT}`, 'i') },
+  { label: 'Registration Closes',  re: new RegExp(`registration\\s+(?:close|closes|closing|deadline|ends)[:\\s]+${DATE_PAT}`, 'i') },
+  { label: 'Online Entries Close', re: new RegExp(`online\\s+entr(?:y|ies)\\s+(?:close|closes|due)[:\\s]+${DATE_PAT}`, 'i') },
+  { label: 'Entry Deadline',       re: new RegExp(`entry\\s+deadline[:\\s]+${DATE_PAT}`, 'i') },
+  { label: 'Entries By',           re: new RegExp(`entries?\\s+(?:must\\s+be\\s+)?(?:received|submitted|postmarked)\\s+by[:\\s]+${DATE_PAT}`, 'i') },
+  { label: 'Close Of Entries',     re: new RegExp(`close\\s+of\\s+entries?[:\\s]+${DATE_PAT}`, 'i') },
+  { label: 'Closes',               re: new RegExp(`closes?[:\\s]+${DATE_PAT}`, 'i') },
+  { label: 'Deadline',             re: new RegExp(`deadline[:\\s]+${DATE_PAT}`, 'i') },
+];
+
+// Silent version — used for pages (steps 1 & 2).
 function findEntryDates(text, refYear) {
   if (!text) return { entry_opening_date: null, entry_closing_date: null };
-
-  const DATE_PAT = '([A-Za-z]+\\.?\\s+\\d{1,2}(?:[,\\s]+\\d{4})?|\\d{1,2}/\\d{1,2}/\\d{4})';
-
-  const OPEN_PATS = [
-    new RegExp(`entr(?:y|ies)\\s+(?:open|opens|opening|available)[:\\s]+${DATE_PAT}`, 'i'),
-    new RegExp(`registration\\s+(?:open|opens|opening|available|begin|begins)[:\\s]+${DATE_PAT}`, 'i'),
-    new RegExp(`entries?\\s+accepted\\s+(?:beginning|starting)[:\\s]*${DATE_PAT}`, 'i'),
-    new RegExp(`open\\s+for\\s+entries?\\s+(?:on\\s+)?${DATE_PAT}`, 'i'),
-    new RegExp(`entries?\\s+will\\s+(?:open|be\\s+accepted)\\s+${DATE_PAT}`, 'i'),
-    new RegExp(`opens?[:\\s]+${DATE_PAT}`, 'i'),
-  ];
-
-  const CLOSE_PATS = [
-    new RegExp(`entr(?:y|ies)\\s+(?:close|closes|closing|deadline|due|cutoff)[:\\s]+${DATE_PAT}`, 'i'),
-    new RegExp(`registration\\s+(?:close|closes|closing|deadline|ends)[:\\s]+${DATE_PAT}`, 'i'),
-    new RegExp(`online\\s+entr(?:y|ies)\\s+(?:close|closes|due)[:\\s]+${DATE_PAT}`, 'i'),
-    new RegExp(`entry\\s+deadline[:\\s]+${DATE_PAT}`, 'i'),
-    new RegExp(`entries?\\s+(?:must\\s+be\\s+)?(?:received|submitted|postmarked)\\s+by[:\\s]+${DATE_PAT}`, 'i'),
-    new RegExp(`close\\s+of\\s+entries?[:\\s]+${DATE_PAT}`, 'i'),
-    new RegExp(`closes?[:\\s]+${DATE_PAT}`, 'i'),
-    new RegExp(`deadline[:\\s]+${DATE_PAT}`, 'i'),
-  ];
-
   let opening = null, closing = null;
-
-  for (const pat of OPEN_PATS) {
-    const m = text.match(pat);
+  for (const { re } of OPEN_PATTERNS) {
+    const m = text.match(re);
     if (m) { opening = parseEntryDate(m[1], refYear); if (opening) break; }
   }
-  for (const pat of CLOSE_PATS) {
-    const m = text.match(pat);
+  for (const { re } of CLOSE_PATTERNS) {
+    const m = text.match(re);
     if (m) { closing = parseEntryDate(m[1], refYear); if (closing) break; }
+  }
+  return { entry_opening_date: opening, entry_closing_date: closing };
+}
+
+// Verbose version — used for PDFs; logs exactly which keyword matched and what date.
+function findEntryDatesLogged(text, refYear, methodName) {
+  if (!text) return { entry_opening_date: null, entry_closing_date: null };
+  let opening = null, closing = null;
+
+  for (const { label, re } of OPEN_PATTERNS) {
+    const m = text.match(re);
+    if (m) {
+      opening = parseEntryDate(m[1], refYear);
+      if (opening) {
+        log(`    [${methodName}] Open  matched: "${label}" | captured: "${m[1]}" | parsed: ${opening}`);
+        break;
+      }
+    }
+  }
+  for (const { label, re } of CLOSE_PATTERNS) {
+    const m = text.match(re);
+    if (m) {
+      closing = parseEntryDate(m[1], refYear);
+      if (closing) {
+        log(`    [${methodName}] Close matched: "${label}" | captured: "${m[1]}" | parsed: ${closing}`);
+        break;
+      }
+    }
   }
 
   return { entry_opening_date: opening, entry_closing_date: closing };
@@ -169,8 +221,6 @@ function findEntryDates(text, refYear) {
 
 // ── Trial matching ────────────────────────────────────────────────────────────
 
-// Generate human-readable text variants of an ISO date so we can find it in
-// page text regardless of how a club formats it.
 function generateDateVariants(isoDate) {
   if (!isoDate) return [];
   const [year, mon, day] = isoDate.split('-');
@@ -182,29 +232,26 @@ function generateDateVariants(isoDate) {
   const mCapA = mAbbr.charAt(0).toUpperCase() + mAbbr.slice(1);
 
   return [
-    `${mCap} ${d}, ${year}`,    // April 18, 2026
-    `${mCap} ${d} ${year}`,     // April 18 2026
-    `${mCapA} ${d}, ${year}`,   // Apr 18, 2026
-    `${mCapA} ${d} ${year}`,    // Apr 18 2026
-    `${mCap}. ${d}, ${year}`,   // Apr. 18, 2026
-    `${m}/${d}/${year}`,        // 4/18/2026
-    `${mon}/${day}/${year}`,    // 04/18/2026
-    `${m}-${d}-${year}`,        // 4-18-2026
+    `${mCap} ${d}, ${year}`,
+    `${mCap} ${d} ${year}`,
+    `${mCapA} ${d}, ${year}`,
+    `${mCapA} ${d} ${year}`,
+    `${mCap}. ${d}, ${year}`,
+    `${m}/${d}/${year}`,
+    `${mon}/${day}/${year}`,
+    `${m}-${d}-${year}`,
   ];
 }
 
-// Check whether our trial's start date appears anywhere in the text.
-// Returns 'confirmed' or 'skip' — no middle ground.
-// Dates that are not explicitly confirmed are never saved.
+// Returns 'confirmed' (trial date found in text) or 'skip'.
 function checkTrialMatch(pageText, trial) {
   const variants = generateDateVariants(trial.trial_start_date);
   const lower    = pageText.toLowerCase();
   return variants.some(v => lower.includes(v.toLowerCase())) ? 'confirmed' : 'skip';
 }
 
-// When confirmed, extract a ±400/600-char window around the trial date so we
-// don't accidentally pick up entry dates belonging to a different trial on the
-// same page.
+// Extract a ±400/600-char window around the trial date to avoid picking up
+// entry dates belonging to a different trial on the same page.
 function extractContextWindow(pageText, trial) {
   const variants = generateDateVariants(trial.trial_start_date);
   const lower    = pageText.toLowerCase();
@@ -217,11 +264,12 @@ function extractContextWindow(pageText, trial) {
       return pageText.slice(start, end);
     }
   }
-  return pageText; // fallback — shouldn't reach here when confidence is 'confirmed'
+  return pageText;
 }
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
 
+// Plain text GET — used for robots.txt and TOS pages.
 function fetchText(url, timeoutMs = 10000, redirectCount = 0) {
   if (redirectCount > 5) return Promise.reject(new Error('Too many redirects'));
   return new Promise((resolve, reject) => {
@@ -244,52 +292,168 @@ function fetchText(url, timeoutMs = 10000, redirectCount = 0) {
   });
 }
 
-function downloadBuffer(url, redirectCount = 0) {
-  if (redirectCount > 5) return Promise.reject(new Error('Too many redirects'));
-  return new Promise((resolve, reject) => {
-    const proto = url.startsWith('https') ? https : http;
-    proto.get(url, { headers: { 'User-Agent': BOT_UA }, timeout: 20000 }, (res) => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        const next = res.headers.location.startsWith('http')
-          ? res.headers.location
-          : new URL(res.headers.location, url).href;
-        return downloadBuffer(next, redirectCount + 1).then(resolve).catch(reject);
-      }
-      const chunks = [];
-      res.on('data',  c => chunks.push(c));
-      res.on('end',   () => resolve(Buffer.concat(chunks)));
-      res.on('error', reject);
-    }).on('error', reject);
+// Binary download for PDFs via axios — handles redirects, cookies, and auth
+// challenges that plain https.get often fails on with club websites.
+async function downloadPDFBuffer(url) {
+  if (!axios) throw new Error('axios not available — install it with: npm install axios');
+  const response = await axios.get(url, {
+    responseType: 'arraybuffer',
+    headers: { 'User-Agent': BOT_UA },
+    timeout: 30000,
+    maxRedirects: 10,
+    validateStatus: (status) => status < 400,  // don't throw on 3xx
   });
+  return Buffer.from(response.data);
 }
 
-// Parse a PDF and return ONLY PAGE 2 text.
-// NACSW premiums always have entry open/close dates at the top of page 2.
-// Falls back to page 1 text if the PDF is single-page.
-async function extractPDFPage2Text(buffer) {
-  if (!pdfParse) return null;
+// ── PDF extraction — three methods with full debug logging ────────────────────
+//
+// Downloads the PDF with axios, then tries:
+//   Method A — pdf-parse on the full document (all pages merged)
+//   Method B — pdfjs-dist page-by-page (page 2 first, then 1, then 3)
+//   Method C — raw UTF-8 buffer regex search
+//
+// Returns { entry_opening_date, entry_closing_date } or null.
+// Logs first 800 chars of each method's output and exactly which keyword matched.
 
-  const pageTexts = [];
-
+async function extractDatesFromPDF(pdfUrl, refYear) {
+  // ── Download ──────────────────────────────────────────────────────────
+  let buffer;
   try {
-    await pdfParse(buffer, {
-      max: 2,   // never read beyond page 2
-      pagerender(pageData) {
-        return pageData.getTextContent().then(tc => {
-          // Join all text items for this page into a single string
-          const str = tc.items.map(item => item.str || '').join(' ');
-          pageTexts.push(str);
-          return str;
-        });
-      },
-    });
-  } catch {
+    buffer = await downloadPDFBuffer(pdfUrl);
+    log(`    📥 Downloading PDF: ${pdfUrl} — size: ${buffer.length} bytes`);
+  } catch (err) {
+    log(`    ❌ PDF download failed: ${err.message}`);
     return null;
   }
 
-  // pageTexts[0] = page 1, pageTexts[1] = page 2
-  // Return page 2; fall back to page 1 for single-page PDFs
-  return pageTexts[1] || pageTexts[0] || null;
+  if (!buffer || buffer.length < 200) {
+    log(`    ❌ PDF buffer too small (${buffer?.length ?? 0} bytes) — likely an error response, not a PDF`);
+    return null;
+  }
+
+  // ── Method A: pdf-parse (all pages merged into one text block) ────────
+  if (pdfParse) {
+    log(`    [Method A] pdf-parse — extracting full document...`);
+    try {
+      const data = await pdfParse(buffer);
+      const text = (data.text || '').trim();
+
+      if (text.length > 0) {
+        log(`    [Method A] Extracted ${text.length} chars. First 800:\n${'─'.repeat(40)}\n${text.slice(0, 800)}\n${'─'.repeat(40)}`);
+        const dates = findEntryDatesLogged(text, refYear, 'Method A');
+        if (dates.entry_opening_date || dates.entry_closing_date) {
+          log(`    ✅ Method A succeeded`);
+          return dates;
+        }
+        log(`    [Method A] No entry date keywords found`);
+      } else {
+        log(`    [Method A] Extracted empty text — PDF may be image-based`);
+      }
+    } catch (err) {
+      log(`    [Method A] Failed: ${err.message}`);
+    }
+  } else {
+    log(`    [Method A] Skipping — pdf-parse not installed`);
+  }
+
+  // ── Method B: pdfjs-dist (page 2 first, then 1, then 3) ──────────────
+  if (pdfjsLib) {
+    log(`    [Method B] pdfjs-dist — extracting page-by-page...`);
+    try {
+      const uint8    = new Uint8Array(buffer);
+      const loadTask = pdfjsLib.getDocument({ data: uint8 });
+      const doc      = await loadTask.promise;
+      const total    = doc.numPages;
+      log(`    [Method B] PDF has ${total} page(s)`);
+
+      // Try page 2 first (NACSW premiums), then page 1, then page 3
+      const pageOrder = [2, 1, 3].filter(n => n <= total);
+
+      for (const pageNum of pageOrder) {
+        const pg   = await doc.getPage(pageNum);
+        const tc   = await pg.getTextContent();
+        const text = tc.items.map(item => item.str || '').join(' ').trim();
+
+        log(`    [Method B] Page ${pageNum}: ${text.length} chars. First 800:\n${'─'.repeat(40)}\n${text.slice(0, 800)}\n${'─'.repeat(40)}`);
+
+        if (text.length > 0) {
+          const dates = findEntryDatesLogged(text, refYear, `Method B p${pageNum}`);
+          if (dates.entry_opening_date || dates.entry_closing_date) {
+            log(`    ✅ Method B succeeded on page ${pageNum}`);
+            return dates;
+          }
+          log(`    [Method B] Page ${pageNum}: no entry date keywords found`);
+        } else {
+          log(`    [Method B] Page ${pageNum}: empty text`);
+        }
+      }
+      log(`    [Method B] No entry date keywords found on any page`);
+    } catch (err) {
+      log(`    [Method B] Failed: ${err.message}`);
+    }
+  } else {
+    log(`    [Method B] Skipping — pdfjs-dist not installed`);
+  }
+
+  // ── Method C: raw buffer regex search ────────────────────────────────
+  // Some PDFs store text as plain strings without proper PDF structure,
+  // so the raw UTF-8 representation of the buffer is searchable directly.
+  log(`    [Method C] Raw buffer UTF-8 regex search...`);
+  try {
+    // Cap at 100 KB to avoid issues with large scanned PDFs
+    const rawText = buffer.toString('utf8', 0, Math.min(buffer.length, 100_000));
+    log(`    [Method C] Raw text (first 800 chars):\n${'─'.repeat(40)}\n${rawText.slice(0, 800)}\n${'─'.repeat(40)}`);
+
+    // Exact patterns specified for Method C
+    const RAW_OPEN = [
+      { label: 'Trial Opens (raw)',   re: /Trial\s+Opens?\s*[:\-]?\s*(\w+\s+\d{1,2},?\s+\d{4})/i },
+      { label: 'Entries Open (raw)',  re: /Entries?\s+Opens?\s*[:\-]?\s*(\w+\s+\d{1,2},?\s+\d{4})/i },
+      { label: 'Entry Opening (raw)', re: /Entry\s+Opening\s*[:\-]?\s*(\w+\s+\d{1,2},?\s+\d{4})/i },
+      { label: 'Opens (raw)',         re: /Opens?[:\s]+(\w+\s+\d{1,2},?\s+\d{4})/i },
+    ];
+    const RAW_CLOSE = [
+      { label: 'Trial Closes (raw)',  re: /Trial\s+Closes?\s*[:\-]?\s*(\w+\s+\d{1,2},?\s+\d{4})/i },
+      { label: 'Entries Close (raw)', re: /Entries?\s+Closes?\s*[:\-]?\s*(\w+\s+\d{1,2},?\s+\d{4})/i },
+      { label: 'Entry Closing (raw)', re: /Entry\s+Closing\s*[:\-]?\s*(\w+\s+\d{1,2},?\s+\d{4})/i },
+      { label: 'Closes (raw)',        re: /Closes?[:\s]+(\w+\s+\d{1,2},?\s+\d{4})/i },
+      { label: 'Deadline (raw)',      re: /Deadline[:\s]+(\w+\s+\d{1,2},?\s+\d{4})/i },
+    ];
+
+    let opening = null, closing = null;
+
+    for (const { label, re } of RAW_OPEN) {
+      const m = rawText.match(re);
+      if (m) {
+        opening = parseEntryDate(m[1], refYear);
+        if (opening) {
+          log(`    [Method C] Open  matched: "${label}" | captured: "${m[1]}" | parsed: ${opening}`);
+          break;
+        }
+      }
+    }
+    for (const { label, re } of RAW_CLOSE) {
+      const m = rawText.match(re);
+      if (m) {
+        closing = parseEntryDate(m[1], refYear);
+        if (closing) {
+          log(`    [Method C] Close matched: "${label}" | captured: "${m[1]}" | parsed: ${closing}`);
+          break;
+        }
+      }
+    }
+
+    if (opening || closing) {
+      log(`    ✅ Method C succeeded`);
+      return { entry_opening_date: opening, entry_closing_date: closing };
+    }
+    log(`    [Method C] No entry date keywords found in raw buffer`);
+  } catch (err) {
+    log(`    [Method C] Failed: ${err.message}`);
+  }
+
+  log(`    ❌ All three PDF extraction methods failed`);
+  return null;
 }
 
 // ── Legal compliance checks ───────────────────────────────────────────────────
@@ -321,13 +485,11 @@ function isAllowedByRobots(robotsText) {
 async function checkRobotsTxt(siteUrl) {
   let origin;
   try { origin = new URL(siteUrl).origin; } catch { return true; }
-
-  const robotsUrl = origin + '/robots.txt';
   try {
-    const text = await fetchText(robotsUrl, 8000);
+    const text = await fetchText(origin + '/robots.txt', 8000);
     return isAllowedByRobots(text);
   } catch {
-    return true; // can't fetch — default to allowed
+    return true;
   }
 }
 
@@ -346,10 +508,10 @@ async function tosProhibitsScrapers(page) {
   if (!tosUrl) return false;
 
   try {
-    const tosText = await fetchText(tosUrl, 10000);
-    const lower   = tosText.toLowerCase();
-    const prohibited = ['scraping', 'automated', 'robot', 'spider', 'crawler', 'bot'];
-    return prohibited.some(word => lower.includes(word));
+    const tosText  = await fetchText(tosUrl, 10000);
+    const lower    = tosText.toLowerCase();
+    const terms    = ['scraping', 'automated', 'robot', 'spider', 'crawler', 'bot'];
+    return terms.some(w => lower.includes(w));
   } catch {
     return false;
   }
@@ -418,15 +580,15 @@ async function findEntryDatesForTrial(page, trial) {
   const hostLabel = trial.trial_host || trial.trial_name || 'Unknown';
   const homeUrl   = trial.club_website.replace(/\/$/, '');
 
-  // Helper: run match check and return dates from the context window, or null.
+  // Helper for page-based extraction: requires trial date in the text.
   function tryExtract(text, source) {
     const confidence = checkTrialMatch(text, trial);
     if (confidence !== 'confirmed') {
       log(`    — trial date not found in ${source}, moving on`);
       return null;
     }
-    const window  = extractContextWindow(text, trial);
-    const dates   = findEntryDates(window, refYear);
+    const window = extractContextWindow(text, trial);
+    const dates  = findEntryDates(window, refYear);
     if (dates.entry_opening_date || dates.entry_closing_date) {
       log(`    ✅ ${source} success: open=${dates.entry_opening_date ?? 'n/a'} close=${dates.entry_closing_date ?? 'n/a'}`);
       return { ...dates, source, confidence: 'confirmed' };
@@ -448,7 +610,6 @@ async function findEntryDatesForTrial(page, trial) {
   }
 
   if (pageText) {
-    // TOS check — done here because TOS links appear on the loaded homepage.
     const tosBlocked = await tosProhibitsScrapers(page);
     if (tosBlocked) return { blocked: 'tos' };
     log(`    ✅ TOS: no scraping prohibition found`);
@@ -477,11 +638,10 @@ async function findEntryDatesForTrial(page, trial) {
     log(`    STEP 2 → no relevant nav link found`);
   }
 
-  // ── STEP 3: Find a PDF and read PAGE 2 ONLY ─────────────────────────────
+  // ── STEP 3: Find a PDF and try all three extraction methods ─────────────
   let pdfUrl = null;
   try {
     pdfUrl = await findPDFLink(page);
-    // If we navigated away in step 2, also check the homepage for PDFs
     if (!pdfUrl && page.url() !== homeUrl) {
       try {
         await page.goto(homeUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
@@ -492,20 +652,15 @@ async function findEntryDatesForTrial(page, trial) {
   } catch {}
 
   if (pdfUrl) {
-    log(`    STEP 3 → PDF: ${pdfUrl}`);
+    log(`    STEP 3 → PDF found: ${pdfUrl}`);
     try {
-      const buf      = await downloadBuffer(pdfUrl);
-      const page2    = await extractPDFPage2Text(buf);
-
-      if (page2) {
-        log(`    📄 PDF page 2 extracted (${page2.length} chars)`);
-        const result = tryExtract(page2, 'pdf-page2');
-        if (result) return result;
-      } else {
-        log(`    📄 PDF page 2 could not be extracted`);
+      const pdfDates = await extractDatesFromPDF(pdfUrl, refYear);
+      if (pdfDates) {
+        log(`    ✅ STEP 3 success: open=${pdfDates.entry_opening_date ?? 'n/a'} close=${pdfDates.entry_closing_date ?? 'n/a'}`);
+        return { ...pdfDates, source: 'pdf', confidence: 'confirmed' };
       }
-    } catch (pdfErr) {
-      log(`    ⚠️  PDF error: ${pdfErr.message}`);
+    } catch (err) {
+      log(`    ⚠️  PDF processing error: ${err.message}`);
     }
   } else {
     log(`    STEP 3 → no PDF found`);
@@ -530,9 +685,11 @@ async function main() {
   log('🐾 NACSW Entry Date Backfill starting...');
   log(`📅 Looking for trials between ${todayStr} and ${limitStr}`);
   log(`🤖 User-Agent: ${BOT_UA}`);
+  log(`📦 pdf-parse: ${pdfParse ? 'available' : 'NOT installed'}`);
+  log(`📦 pdfjs-dist: ${pdfjsLib ? 'available' : 'NOT installed'}`);
+  log(`📦 axios: ${axios ? 'available' : 'NOT installed'}`);
   log(`📋 Max sites per run: ${MAX_SITES}\n`);
 
-  // ── Query Supabase ─────────────────────────────────────────────────────────
   const { data: allTrials, error: queryError } = await supabase
     .from('trials')
     .select('id, trial_name, trial_host, trial_start_date, club_website, entry_opening_date, entry_closing_date, claimed')
@@ -559,7 +716,6 @@ async function main() {
     : '';
   log(`🔎 Found ${allTrials.length} trial(s) — processing ${trials.length}${cappedNote}\n`);
 
-  // ── Launch Puppeteer ───────────────────────────────────────────────────────
   const browser = await puppeteer.launch({
     headless: 'new',
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
@@ -569,7 +725,6 @@ async function main() {
   await page.setUserAgent(BOT_UA);
   await page.setViewport({ width: 1280, height: 800 });
 
-  // ── Per-trial stats ────────────────────────────────────────────────────────
   let updated = 0, partialUpdated = 0, notFound = 0,
       skipped = 0, stale = 0, errors = 0;
 
@@ -586,7 +741,6 @@ async function main() {
       continue;
     }
 
-    // ── PRE-CHECK: robots.txt ────────────────────────────────────────────
     const robotsAllowed = await checkRobotsTxt(trial.club_website);
     if (!robotsAllowed) {
       log(`    🚫 Skipping ${trial.club_website} — robots.txt disallows automated access`);
@@ -596,9 +750,7 @@ async function main() {
     }
     log(`    ✅ robots.txt: allowed`);
 
-    // ── 4-step date hunt ─────────────────────────────────────────────────
     let result = null;
-
     try {
       result = await findEntryDatesForTrial(page, trial);
     } catch (err) {
@@ -621,9 +773,7 @@ async function main() {
       continue;
     }
 
-    // ── STALE DATE FILTER ────────────────────────────────────────────────
-    // If the entry opening date is already in the past, the info is outdated.
-    // Discard it rather than writing a date that has already passed.
+    // Stale date filter — don't save an entry opening date that has already passed
     if (result.entry_opening_date) {
       const openDate = new Date(result.entry_opening_date + 'T00:00:00');
       if (openDate < today) {
@@ -634,7 +784,7 @@ async function main() {
       }
     }
 
-    // ── Build update payload — never overwrite fields already set ────────
+    // Build update payload — never overwrite fields already set
     const updatePayload = {};
     if (result.entry_opening_date) {
       updatePayload.entry_opening_date = result.entry_opening_date;
@@ -678,7 +828,6 @@ async function main() {
 
   await browser.close();
 
-  // ── Summary ────────────────────────────────────────────────────────────────
   const summary = [
     '\n══════════════════════════════════════════',
     '📊 Run summary:',
@@ -693,7 +842,6 @@ async function main() {
     '══════════════════════════════════════════',
   ];
   summary.forEach(line => log(line));
-
   if (logFilePath) log(`\n📁 Log saved to: ${logFilePath}`);
 }
 
