@@ -318,8 +318,8 @@ export default function TrialsPage() {
         </div>
 
         {/* 90-day notice */}
-        <div className="mb-4 bg-sky-50 border border-sky-200 rounded-lg px-4 py-2 text-sky-700 text-sm">
-          📅 TrialTracker shows trials opening in the next 90 days. Info comes from club pages — peek at your host club in case anything shifted.
+        <div className="mb-4 bg-sky-50 border border-sky-200 rounded-lg px-4 py-3 text-sky-700 text-sm leading-relaxed">
+          📅 TrialTracker shows trials opening in the next 90 days — peek at your host club in case anything shifted. We only aggregate trial information from publicly accessible websites, respect all organization terms of service, and never access protected or private data. This is a community platform, built for handlers, by a handler.
         </div>
 
         {/* Results count */}

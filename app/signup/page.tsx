@@ -274,6 +274,13 @@ export default function SignUpPage() {
           {" "}Clubs are always free. Handlers free during beta (est. through May 2026).
         </p>
 
+        {/* Data practices disclaimer */}
+        <p className="text-xs text-slate-400 text-center leading-relaxed">
+          TrialTracker only aggregates trial information from publicly accessible websites.
+          We respect all organization terms of service and never access protected or private data.
+          This is a community platform built to help handlers — not to compete with or circumvent any organization.
+        </p>
+
         <button
           type="submit"
           disabled={loading || (role === "handler" && spotsLeft !== null && spotsLeft <= 0)}

@@ -65,8 +65,11 @@ export default function Home() {
           <p>
             We&apos;re in beta and growing! Clubs and organizations are always free — claim
             your trials, add entry dates, and help us build the most complete dog sport
-            trial finder out there. This is a community platform, built for handlers,
-            by a handler.
+            trial finder out there. TrialTracker only aggregates trial information from
+            publicly accessible websites, shows trials opening within the next 90 days,
+            and respects all organization terms of service. We never access protected or
+            private data. This is a community platform, built for handlers, by a handler
+            — peek at your host club in case anything shifted.
           </p>
         </div>
 

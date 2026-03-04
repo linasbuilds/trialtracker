@@ -106,7 +106,7 @@ export default function PreferencesPage() {
 
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-800">Your Preferences</h1>
-          <p className="text-slate-500 mt-1 text-sm">We&apos;ll filter trials to match what you care about and send alerts when entries open.</p>
+          <p className="text-slate-500 mt-1 text-sm">Set your preferences to filter trials by organization, sport, and location. Email alerts are coming soon as we expand our entry date coverage.</p>
         </div>
 
         {/* Home Base & Travel */}
