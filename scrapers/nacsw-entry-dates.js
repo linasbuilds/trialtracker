@@ -7,14 +7,16 @@
 //   PRE-CHECK  — robots.txt must allow automated access.
 //   STEP 1     — Land on the club website homepage; check TOS, then search for dates.
 //   STEP 2     — If nothing found, follow a relevant nav/menu link and search again.
-//   STEP 3     — If still nothing, find a trial-related PDF and parse pages 1–2.
+//   STEP 3     — Find a trial-related PDF, extract PAGE 2 ONLY, and search for dates.
+//               (NACSW premiums always have entry open/close dates at the top of page 2.)
 //   STEP 4     — Log failure and move on; never crash.
 //
-// CRITICAL MATCHING RULES (before saving any dates):
-//   - Trial date (trial_start_date ± 2 days) must appear in the page/PDF text,
-//     OR the page must clearly be about a single trial only.
-//   - If multiple trial dates are present but ours is not found → SKIP.
-//   - Accuracy over coverage: when in doubt, do not save.
+// MATCHING RULES (before saving any dates):
+//   - Our trial's start date must appear in the page/PDF text ('confirmed').
+//   - If the date is not found, nothing is saved — no guessing, ever.
+//
+// DATE VALIDITY:
+//   - entry_opening_date must be today or in the future; stale dates are discarded.
 //
 // LEGAL SAFEGUARDS:
 //   - Honest bot User-Agent (never disguised as a browser).
@@ -66,14 +68,12 @@ const NAV_SELECTORS = [
 ];
 
 // ── Log file ──────────────────────────────────────────────────────────────────
-// A daily log is written to logs/nacsw-entry-dates-YYYY-MM-DD.log.
-// Each line is timestamped so it forms a paper trail for compliance review.
 
-let logFilePath = null;  // set in main() once we know todayStr
+let logFilePath = null;
 
 function log(msg) {
   const line = `[${new Date().toISOString()}] ${msg}`;
-  console.log(msg);   // console output without timestamp (cleaner CI output)
+  console.log(msg);
   if (logFilePath) {
     try { fs.appendFileSync(logFilePath, line + '\n'); } catch { /* non-fatal */ }
   }
@@ -126,6 +126,8 @@ function parseEntryDate(str, refYear) {
   return null;
 }
 
+// Search text for entry open/close dates.
+// Every pattern requires an explicit keyword label — no bare date extraction.
 function findEntryDates(text, refYear) {
   if (!text) return { entry_opening_date: null, entry_closing_date: null };
 
@@ -167,6 +169,8 @@ function findEntryDates(text, refYear) {
 
 // ── Trial matching ────────────────────────────────────────────────────────────
 
+// Generate human-readable text variants of an ISO date so we can find it in
+// page text regardless of how a club formats it.
 function generateDateVariants(isoDate) {
   if (!isoDate) return [];
   const [year, mon, day] = isoDate.split('-');
@@ -189,46 +193,18 @@ function generateDateVariants(isoDate) {
   ];
 }
 
-function extractAllDatesFromText(text) {
-  const dates = new Set();
-
-  const namedRe = /\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\.?\s+(\d{1,2}),?\s+(\d{4})\b/gi;
-  for (const m of text.matchAll(namedRe)) {
-    const month = MONTH_MAP[m[1].toLowerCase().replace(/\.$/, '')];
-    if (month) dates.add(`${m[3]}-${month}-${m[2].padStart(2, '0')}`);
-  }
-
-  const mdyRe = /\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/g;
-  for (const m of text.matchAll(mdyRe)) {
-    const mo = parseInt(m[1], 10), dy = parseInt(m[2], 10), yr = parseInt(m[3], 10);
-    if (mo >= 1 && mo <= 12 && dy >= 1 && dy <= 31 && yr >= 2020) {
-      dates.add(`${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`);
-    }
-  }
-
-  return [...dates];
-}
-
-function isNearTrialDate(isoPageDate, trialStartDate) {
-  const a = new Date(isoPageDate    + 'T00:00:00');
-  const b = new Date(trialStartDate + 'T00:00:00');
-  return Math.abs(a - b) <= 2 * 24 * 60 * 60 * 1000;
-}
-
-// Returns 'confirmed', 'assumed', or 'ambiguous'.
+// Check whether our trial's start date appears anywhere in the text.
+// Returns 'confirmed' or 'skip' — no middle ground.
+// Dates that are not explicitly confirmed are never saved.
 function checkTrialMatch(pageText, trial) {
-  const variants   = generateDateVariants(trial.trial_start_date);
-  const lower      = pageText.toLowerCase();
-  const ourDate    = variants.some(v => lower.includes(v.toLowerCase()));
-  if (ourDate) return 'confirmed';
-
-  const allDates   = extractAllDatesFromText(pageText);
-  const otherDates = allDates.filter(d => !isNearTrialDate(d, trial.trial_start_date));
-  if (otherDates.length >= 2) return 'ambiguous';
-
-  return 'assumed';
+  const variants = generateDateVariants(trial.trial_start_date);
+  const lower    = pageText.toLowerCase();
+  return variants.some(v => lower.includes(v.toLowerCase())) ? 'confirmed' : 'skip';
 }
 
+// When confirmed, extract a ±400/600-char window around the trial date so we
+// don't accidentally pick up entry dates belonging to a different trial on the
+// same page.
 function extractContextWindow(pageText, trial) {
   const variants = generateDateVariants(trial.trial_start_date);
   const lower    = pageText.toLowerCase();
@@ -241,12 +217,11 @@ function extractContextWindow(pageText, trial) {
       return pageText.slice(start, end);
     }
   }
-  return pageText;
+  return pageText; // fallback — shouldn't reach here when confidence is 'confirmed'
 }
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
 
-// Plain text fetch (for robots.txt and TOS pages) — uses BOT_UA, never Chrome UA.
 function fetchText(url, timeoutMs = 10000, redirectCount = 0) {
   if (redirectCount > 5) return Promise.reject(new Error('Too many redirects'));
   return new Promise((resolve, reject) => {
@@ -269,7 +244,6 @@ function fetchText(url, timeoutMs = 10000, redirectCount = 0) {
   });
 }
 
-// Binary download for PDFs — uses BOT_UA.
 function downloadBuffer(url, redirectCount = 0) {
   if (redirectCount > 5) return Promise.reject(new Error('Too many redirects'));
   return new Promise((resolve, reject) => {
@@ -289,21 +263,37 @@ function downloadBuffer(url, redirectCount = 0) {
   });
 }
 
-// Parse only pages 1–2 from a PDF buffer.
-async function extractPDFText(buffer) {
+// Parse a PDF and return ONLY PAGE 2 text.
+// NACSW premiums always have entry open/close dates at the top of page 2.
+// Falls back to page 1 text if the PDF is single-page.
+async function extractPDFPage2Text(buffer) {
   if (!pdfParse) return null;
+
+  const pageTexts = [];
+
   try {
-    const data = await pdfParse(buffer, { max: 2 });
-    return data.text || null;
+    await pdfParse(buffer, {
+      max: 2,   // never read beyond page 2
+      pagerender(pageData) {
+        return pageData.getTextContent().then(tc => {
+          // Join all text items for this page into a single string
+          const str = tc.items.map(item => item.str || '').join(' ');
+          pageTexts.push(str);
+          return str;
+        });
+      },
+    });
   } catch {
     return null;
   }
+
+  // pageTexts[0] = page 1, pageTexts[1] = page 2
+  // Return page 2; fall back to page 1 for single-page PDFs
+  return pageTexts[1] || pageTexts[0] || null;
 }
 
 // ── Legal compliance checks ───────────────────────────────────────────────────
 
-// Parse a robots.txt body and return true if our bot is allowed, false if blocked.
-// Respects both 'User-agent: *' and 'User-agent: TrialTracker-Bot' blocks.
 function isAllowedByRobots(robotsText) {
   const lines = robotsText.split('\n');
   let inRelevantBlock = false;
@@ -311,7 +301,6 @@ function isAllowedByRobots(robotsText) {
   for (const rawLine of lines) {
     const line  = rawLine.trim();
     if (!line || line.startsWith('#')) continue;
-
     const lower = line.toLowerCase();
 
     if (lower.startsWith('user-agent:')) {
@@ -323,15 +312,12 @@ function isAllowedByRobots(robotsText) {
       );
     } else if (inRelevantBlock && lower.startsWith('disallow:')) {
       const disallowPath = line.slice('disallow:'.length).trim();
-      if (disallowPath === '/') return false;  // disallow all — skip this site
+      if (disallowPath === '/') return false;
     }
   }
   return true;
 }
 
-// Fetch and check robots.txt for the given site URL.
-// Returns true (allowed) or false (blocked).
-// Defaults to allowed if robots.txt cannot be fetched (404, timeout, etc.)
 async function checkRobotsTxt(siteUrl) {
   let origin;
   try { origin = new URL(siteUrl).origin; } catch { return true; }
@@ -341,16 +327,11 @@ async function checkRobotsTxt(siteUrl) {
     const text = await fetchText(robotsUrl, 8000);
     return isAllowedByRobots(text);
   } catch {
-    // Can't fetch robots.txt — assume allowed (conservative default)
-    return true;
+    return true; // can't fetch — default to allowed
   }
 }
 
-// After loading the homepage with Puppeteer, look for a TOS/legal link,
-// fetch its content, and check for keywords that prohibit automated access.
-// Returns true if TOS prohibits scrapers, false if clean or no TOS found.
 async function tosProhibitsScrapers(page) {
-  // Find a TOS / terms / legal / privacy link on the current page
   const tosUrl = await page.evaluate(() => {
     const KEYWORDS = ['terms of service', 'terms of use', 'terms', 'legal', 'privacy'];
     for (const a of Array.from(document.querySelectorAll('a[href]'))) {
@@ -367,11 +348,10 @@ async function tosProhibitsScrapers(page) {
   try {
     const tosText = await fetchText(tosUrl, 10000);
     const lower   = tosText.toLowerCase();
-    // These are the exact keywords specified — if they appear in TOS, skip.
     const prohibited = ['scraping', 'automated', 'robot', 'spider', 'crawler', 'bot'];
     return prohibited.some(word => lower.includes(word));
   } catch {
-    return false;  // can't read TOS, default to allowed
+    return false;
   }
 }
 
@@ -429,14 +409,31 @@ async function getPageText(page) {
 // ── Core: 4-step date hunt for one trial ─────────────────────────────────────
 //
 // Returns one of:
-//   { blocked: 'tos' }                                          — TOS check failed
+//   { blocked: 'tos' }                                           — TOS check failed
 //   { entry_opening_date, entry_closing_date, source, confidence } — dates found
-//   null                                                         — nothing found
+//   null                                                          — nothing found
 
 async function findEntryDatesForTrial(page, trial) {
   const refYear   = (trial.trial_start_date || String(new Date().getFullYear())).slice(0, 4);
   const hostLabel = trial.trial_host || trial.trial_name || 'Unknown';
   const homeUrl   = trial.club_website.replace(/\/$/, '');
+
+  // Helper: run match check and return dates from the context window, or null.
+  function tryExtract(text, source) {
+    const confidence = checkTrialMatch(text, trial);
+    if (confidence !== 'confirmed') {
+      log(`    — trial date not found in ${source}, moving on`);
+      return null;
+    }
+    const window  = extractContextWindow(text, trial);
+    const dates   = findEntryDates(window, refYear);
+    if (dates.entry_opening_date || dates.entry_closing_date) {
+      log(`    ✅ ${source} success: open=${dates.entry_opening_date ?? 'n/a'} close=${dates.entry_closing_date ?? 'n/a'}`);
+      return { ...dates, source, confidence: 'confirmed' };
+    }
+    log(`    — trial date confirmed in ${source} but no labeled entry date patterns found`);
+    return null;
+  }
 
   // ── STEP 1: Homepage ────────────────────────────────────────────────────
   log(`    STEP 1 → ${homeUrl}`);
@@ -451,27 +448,13 @@ async function findEntryDatesForTrial(page, trial) {
   }
 
   if (pageText) {
-    // ── TOS CHECK ──────────────────────────────────────────────────────
-    // Done here (after the first page load) so we can find the TOS link.
+    // TOS check — done here because TOS links appear on the loaded homepage.
     const tosBlocked = await tosProhibitsScrapers(page);
-    if (tosBlocked) {
-      return { blocked: 'tos' };
-    }
+    if (tosBlocked) return { blocked: 'tos' };
     log(`    ✅ TOS: no scraping prohibition found`);
 
-    const confidence = checkTrialMatch(pageText, trial);
-    if (confidence === 'ambiguous') {
-      log(`    ⚠️  Homepage has multiple trial dates — our date not found. Checking nav...`);
-    } else {
-      const searchText = confidence === 'confirmed'
-        ? extractContextWindow(pageText, trial)
-        : pageText;
-      const dates = findEntryDates(searchText, refYear);
-      if (dates.entry_opening_date || dates.entry_closing_date) {
-        log(`    ✅ STEP 1 success [${confidence}]: open=${dates.entry_opening_date ?? 'n/a'} close=${dates.entry_closing_date ?? 'n/a'}`);
-        return { ...dates, source: 'homepage', confidence };
-      }
-    }
+    const result = tryExtract(pageText, 'homepage');
+    if (result) return result;
   }
 
   // ── STEP 2: Follow a nav/menu link ──────────────────────────────────────
@@ -485,19 +468,8 @@ async function findEntryDatesForTrial(page, trial) {
       await sleep(2000);
       pageText = await getPageText(page);
 
-      const confidence = checkTrialMatch(pageText, trial);
-      if (confidence === 'ambiguous') {
-        log(`    ⚠️  Nav page has multiple trial dates — our date not found. Checking PDFs...`);
-      } else {
-        const searchText = confidence === 'confirmed'
-          ? extractContextWindow(pageText, trial)
-          : pageText;
-        const dates = findEntryDates(searchText, refYear);
-        if (dates.entry_opening_date || dates.entry_closing_date) {
-          log(`    ✅ STEP 2 success [${confidence}]: open=${dates.entry_opening_date ?? 'n/a'} close=${dates.entry_closing_date ?? 'n/a'}`);
-          return { ...dates, source: 'nav-page', confidence };
-        }
-      }
+      const result = tryExtract(pageText, 'nav-page');
+      if (result) return result;
     } catch (err) {
       log(`    ⚠️  Nav page failed: ${err.message}`);
     }
@@ -505,10 +477,11 @@ async function findEntryDatesForTrial(page, trial) {
     log(`    STEP 2 → no relevant nav link found`);
   }
 
-  // ── STEP 3: Look for a PDF on the current page (and homepage fallback) ──
+  // ── STEP 3: Find a PDF and read PAGE 2 ONLY ─────────────────────────────
   let pdfUrl = null;
   try {
     pdfUrl = await findPDFLink(page);
+    // If we navigated away in step 2, also check the homepage for PDFs
     if (!pdfUrl && page.url() !== homeUrl) {
       try {
         await page.goto(homeUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
@@ -521,25 +494,15 @@ async function findEntryDatesForTrial(page, trial) {
   if (pdfUrl) {
     log(`    STEP 3 → PDF: ${pdfUrl}`);
     try {
-      const buf     = await downloadBuffer(pdfUrl);
-      const pdfText = await extractPDFText(buf);
+      const buf      = await downloadBuffer(pdfUrl);
+      const page2    = await extractPDFPage2Text(buf);
 
-      if (pdfText) {
-        const confidence = checkTrialMatch(pdfText, trial);
-        if (confidence === 'ambiguous') {
-          log(`    ⚠️  PDF has multiple trial dates — our date not found`);
-        } else {
-          const searchText = confidence === 'confirmed'
-            ? extractContextWindow(pdfText, trial)
-            : pdfText;
-          const dates = findEntryDates(searchText, refYear);
-          if (dates.entry_opening_date || dates.entry_closing_date) {
-            log(`    ✅ STEP 3 success [${confidence}]: open=${dates.entry_opening_date ?? 'n/a'} close=${dates.entry_closing_date ?? 'n/a'}`);
-            return { ...dates, source: 'pdf', confidence };
-          } else {
-            log(`    📄 PDF parsed but no entry date patterns found`);
-          }
-        }
+      if (page2) {
+        log(`    📄 PDF page 2 extracted (${page2.length} chars)`);
+        const result = tryExtract(page2, 'pdf-page2');
+        if (result) return result;
+      } else {
+        log(`    📄 PDF page 2 could not be extracted`);
       }
     } catch (pdfErr) {
       log(`    ⚠️  PDF error: ${pdfErr.message}`);
@@ -590,12 +553,11 @@ async function main() {
     return;
   }
 
-  // Apply the per-run site cap
-  const trials       = allTrials.slice(0, MAX_SITES);
-  const cappedNote   = allTrials.length > MAX_SITES
+  const trials     = allTrials.slice(0, MAX_SITES);
+  const cappedNote = allTrials.length > MAX_SITES
     ? ` (capped at ${MAX_SITES}; ${allTrials.length - MAX_SITES} deferred to next run)`
     : '';
-  log(`🔎 Found ${allTrials.length} trial(s) to check — processing ${trials.length}${cappedNote}\n`);
+  log(`🔎 Found ${allTrials.length} trial(s) — processing ${trials.length}${cappedNote}\n`);
 
   // ── Launch Puppeteer ───────────────────────────────────────────────────────
   const browser = await puppeteer.launch({
@@ -604,13 +566,12 @@ async function main() {
   });
 
   const page = await browser.newPage();
-  // Identify ourselves honestly to every server we contact.
   await page.setUserAgent(BOT_UA);
   await page.setViewport({ width: 1280, height: 800 });
 
   // ── Per-trial stats ────────────────────────────────────────────────────────
   let updated = 0, partialUpdated = 0, notFound = 0,
-      skipped = 0, ambiguous = 0, errors = 0;
+      skipped = 0, stale = 0, errors = 0;
 
   for (let i = 0; i < trials.length; i++) {
     const trial = trials[i];
@@ -619,7 +580,6 @@ async function main() {
     log(`\n${label}`);
     log(`    🌐 ${trial.club_website}`);
 
-    // Claimed trials — club controls their own dates, hands off
     if (trial.claimed) {
       log(`    ⏭️  Skipping — trial is claimed by club`);
       skipped++;
@@ -648,7 +608,6 @@ async function main() {
       continue;
     }
 
-    // TOS block
     if (result && result.blocked === 'tos') {
       log(`    🚫 Skipping ${trial.club_website} — TOS prohibits automated access`);
       skipped++;
@@ -656,23 +615,23 @@ async function main() {
       continue;
     }
 
-    // No dates found
     if (!result) {
       notFound++;
       await sleep(VISIT_DELAY_MS);
       continue;
     }
 
-    // Ambiguous match — refuse to guess
-    if (result.confidence === 'ambiguous') {
-      log(`    ⏭️  Could not confirm correct trial match for ${trial.trial_host} ${trial.trial_start_date} — skipping to avoid saving wrong dates`);
-      ambiguous++;
-      await sleep(VISIT_DELAY_MS);
-      continue;
-    }
-
-    if (result.confidence === 'assumed') {
-      log(`    ℹ️  Saving on assumed match (no conflicting trial dates on page)`);
+    // ── STALE DATE FILTER ────────────────────────────────────────────────
+    // If the entry opening date is already in the past, the info is outdated.
+    // Discard it rather than writing a date that has already passed.
+    if (result.entry_opening_date) {
+      const openDate = new Date(result.entry_opening_date + 'T00:00:00');
+      if (openDate < today) {
+        log(`    ⏭️  Skipping stale date: ${result.entry_opening_date} is already past`);
+        stale++;
+        await sleep(VISIT_DELAY_MS);
+        continue;
+      }
     }
 
     // ── Build update payload — never overwrite fields already set ────────
@@ -725,8 +684,8 @@ async function main() {
     '📊 Run summary:',
     `   ✅ Fully saved (open + close):    ${updated}`,
     `   📋 Partially saved (one date):   ${partialUpdated}`,
-    `   🔍 No entry dates found:          ${notFound}`,
-    `   ⚠️  Ambiguous match — skipped:    ${ambiguous}`,
+    `   🔍 No confirmed dates found:      ${notFound}`,
+    `   📆 Stale dates discarded:         ${stale}`,
     `   ⏭️  Skipped (robots/TOS/claimed): ${skipped}`,
     `   ❌ Errors:                        ${errors}`,
     `   📦 Total processed:               ${trials.length}`,
@@ -735,9 +694,7 @@ async function main() {
   ];
   summary.forEach(line => log(line));
 
-  if (logFilePath) {
-    log(`\n📁 Log saved to: ${logFilePath}`);
-  }
+  if (logFilePath) log(`\n📁 Log saved to: ${logFilePath}`);
 }
 
 main().catch(err => {
