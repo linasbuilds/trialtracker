@@ -540,27 +540,49 @@ async function findNavLink(page) {
 }
 
 async function findPDFLink(page) {
+  // Returns { url: string|null, totalLinks: number }
   return await page.evaluate((blocked) => {
-    const pdfs = Array.from(document.querySelectorAll('a[href]')).filter(a => {
-      const href = (a.href || '').toLowerCase();
-      return (href.endsWith('.pdf') || href.includes('.pdf?')) &&
-             !blocked.some(b => a.href.includes(b));
-    });
-    if (pdfs.length === 0) return null;
+    const allLinks = Array.from(document.querySelectorAll('a[href]'));
+    const totalLinks = allLinks.length;
 
-    const preferred = pdfs.find(a => {
+    // Match links by ANY of: href ends .pdf, href has "premium",
+    // link text has "premium" / "download" / "entry form"
+    const matches = allLinks.filter(a => {
+      if (!a.href || blocked.some(b => a.href.includes(b))) return false;
       const href = (a.href || '').toLowerCase();
-      const text = (a.textContent || '').toLowerCase();
-      return href.includes('premium') || href.includes('nosework') ||
-             href.includes('scent')   || href.includes('trial')   ||
-             href.includes('entry')   || href.includes('_nw')     ||
-             href.includes('_sw')     ||
-             text.includes('premium') || text.includes('entry form') ||
-             text.includes('trial info') || text.includes('nosework') ||
-             text.includes('nacsw');
+      const text = (a.textContent || '').toLowerCase().trim();
+      return (
+        href.endsWith('.pdf')     ||
+        href.includes('.pdf?')    ||
+        href.includes('premium')  ||
+        text.includes('premium')  ||
+        text.includes('download') ||
+        text.includes('entry form')
+      );
     });
 
-    return (preferred || pdfs[0]).href;
+    if (matches.length === 0) return { url: null, totalLinks };
+
+    // Prefer "premium" text or href first, then other trial-related keywords
+    const preferred =
+      matches.find(a => {
+        const href = (a.href || '').toLowerCase();
+        const text = (a.textContent || '').toLowerCase();
+        return text.includes('premium') || href.includes('premium');
+      }) ||
+      matches.find(a => {
+        const href = (a.href || '').toLowerCase();
+        const text = (a.textContent || '').toLowerCase();
+        return href.endsWith('.pdf') || href.includes('.pdf?') ||
+               href.includes('nosework') || href.includes('scent') ||
+               href.includes('trial')    || href.includes('entry') ||
+               href.includes('_nw')      || href.includes('_sw')   ||
+               text.includes('entry form') || text.includes('trial info') ||
+               text.includes('nosework')   || text.includes('nacsw');
+      }) ||
+      matches[0];
+
+    return { url: preferred.href, totalLinks };
   }, BLOCKED_DOMAINS);
 }
 
@@ -639,20 +661,35 @@ async function findEntryDatesForTrial(page, trial) {
   }
 
   // ── STEP 3: Find a PDF and try all three extraction methods ─────────────
+  // Search current page (Step 2 nav page if visited, otherwise homepage),
+  // then fall back to homepage if needed.
   let pdfUrl = null;
   try {
-    pdfUrl = await findPDFLink(page);
+    const r1 = await findPDFLink(page);
+    if (r1.url) {
+      log(`    🔗 Found PDF link: ${r1.url}`);
+      pdfUrl = r1.url;
+    } else {
+      log(`    🔎 Searched ${r1.totalLinks} links on page, none matched PDF patterns`);
+    }
+
     if (!pdfUrl && page.url() !== homeUrl) {
       try {
         await page.goto(homeUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
         await sleep(1000);
-        pdfUrl = await findPDFLink(page);
+        const r2 = await findPDFLink(page);
+        if (r2.url) {
+          log(`    🔗 Found PDF link (homepage retry): ${r2.url}`);
+          pdfUrl = r2.url;
+        } else {
+          log(`    🔎 Searched ${r2.totalLinks} links on homepage, none matched PDF patterns`);
+        }
       } catch {}
     }
   } catch {}
 
   if (pdfUrl) {
-    log(`    STEP 3 → PDF found: ${pdfUrl}`);
+    log(`    STEP 3 → PDF: ${pdfUrl}`);
     try {
       const pdfDates = await extractDatesFromPDF(pdfUrl, refYear);
       if (pdfDates) {
