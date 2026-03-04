@@ -29,3 +29,11 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node scrapers/nacsw-entry-dates.js
+
+      - name: Upload compliance log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: entry-dates-log-${{ github.run_id }}
+          path: logs/
+          retention-days: 90
