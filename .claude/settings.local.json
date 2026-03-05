@@ -8,7 +8,9 @@
       "WebFetch(domain:www.mydogentry.com)",
       "WebSearch",
       "WebFetch(domain:www.infodog.com)",
-      "WebFetch(domain:mydogentry.com)"
+      "WebFetch(domain:mydogentry.com)",
+      "WebFetch(domain:www.k9cpe.com)",
+      "WebFetch(domain:cpe.dog)"
     ]
   }
 }
