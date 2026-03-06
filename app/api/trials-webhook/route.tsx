@@ -6,6 +6,24 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+function toIsoDate(input: unknown): string | null {
+  if (!input) return null;
+  const raw = String(input).trim();
+  if (!raw) return null;
+  const direct = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (direct) return direct[1];
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString().split('T')[0];
+}
+
+function oneYearAgoIso(): string {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - 365);
+  return d.toISOString().split('T')[0];
+}
+
 export async function POST(req: NextRequest) {
   // Verify secret key
   const secret = req.headers.get('x-browse-ai-secret');
@@ -14,6 +32,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
+  const cutoff = oneYearAgoIso();
 
   // Validate required fields
   const required = ['organization', 'sport', 'trial_host', 'city', 'state', 'trial_start_date', 'official_link'];
@@ -21,6 +40,19 @@ export async function POST(req: NextRequest) {
     if (!body[field]) {
       return NextResponse.json({ error: `Missing required field: ${field}` }, { status: 422 });
     }
+  }
+
+  const trialStartDate = toIsoDate(body.trial_start_date);
+  const entryOpeningDate = toIsoDate(body.entry_opening_date);
+  const entryClosingDate = toIsoDate(body.entry_closing_date);
+  const trialEndDate = toIsoDate(body.trial_end_date);
+
+  if (!trialStartDate) {
+    return NextResponse.json({ error: 'Invalid trial_start_date' }, { status: 422 });
+  }
+
+  if (trialStartDate < cutoff || (entryOpeningDate && entryOpeningDate < cutoff)) {
+    return NextResponse.json({ message: 'Skipped — trial is older than 1 year' }, { status: 200 });
   }
 
   // Build the trial record
@@ -34,10 +66,10 @@ export async function POST(req: NextRequest) {
     city:               body.city,
     state:              body.state,
     zip:                body.zip || null,
-    trial_start_date:   body.trial_start_date,
-    trial_end_date:     body.trial_end_date || null,
-    entry_opening_date: body.entry_opening_date || null,
-    entry_closing_date: body.entry_closing_date || null,
+    trial_start_date:   trialStartDate,
+    trial_end_date:     trialEndDate,
+    entry_opening_date: entryOpeningDate,
+    entry_closing_date: entryClosingDate,
     official_link:      body.official_link,
     data_source:        'browse_ai',
     claimed:            false,
@@ -61,9 +93,9 @@ export async function POST(req: NextRequest) {
   if (existing) {
     // Update only null fields with fresh scraped data
     const updates: Record<string, unknown> = {};
-    if (body.entry_opening_date) updates.entry_opening_date = body.entry_opening_date;
-    if (body.entry_closing_date) updates.entry_closing_date = body.entry_closing_date;
-    if (body.trial_end_date)     updates.trial_end_date     = body.trial_end_date;
+    if (entryOpeningDate && entryOpeningDate >= cutoff) updates.entry_opening_date = entryOpeningDate;
+    if (entryClosingDate) updates.entry_closing_date = entryClosingDate;
+    if (trialEndDate)     updates.trial_end_date     = trialEndDate;
     if (body.location_name)      updates.location_name      = body.location_name;
     if (body.street)             updates.street             = body.street;
     if (body.zip)                updates.zip                = body.zip;

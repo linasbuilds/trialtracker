@@ -58,6 +58,7 @@ const MONTH_MAP = {
 };
 
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+const ONE_YEAR_DAYS_MS = 365 * 24 * 60 * 60 * 1000;
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -91,6 +92,18 @@ function isWithin90Days(dateStr) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const limit = new Date(today.getTime() + NINETY_DAYS_MS);
   return d >= today && d <= limit;
+}
+
+function oneYearAgoIso() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setTime(d.getTime() - ONE_YEAR_DAYS_MS);
+  return d.toISOString().split('T')[0];
+}
+
+function isOlderThanOneYear(dateStr) {
+  if (!dateStr) return false;
+  return dateStr < oneYearAgoIso();
 }
 
 // ── Per-sport calendar scraper ────────────────────────────────────────────────
@@ -223,14 +236,19 @@ async function main() {
     return true;
   });
 
-  console.log(`\n🎯 Total: ${unique.length} UKC trials within 90 days`);
-  unique.forEach((t, i) =>
+  const freshnessFiltered = unique.filter((t) =>
+    !isOlderThanOneYear(t.trial_start_date) &&
+    !isOlderThanOneYear(t.entry_opening_date)
+  );
+
+  console.log(`\n🎯 Total: ${freshnessFiltered.length} UKC trials within 90 days`);
+  freshnessFiltered.forEach((t, i) =>
     console.log(`  [${i + 1}] ${t.trial_start_date}${t.trial_end_date ? ' – ' + t.trial_end_date : ''} | ${t.sport.padEnd(10)} | ${t.trial_host} | ${t.city}, ${t.state}`)
   );
 
   // ── Save JSON ──────────────────────────────────────────────────────────────
-  fs.writeFileSync(OUTPUT_FILE, JSON.stringify(unique, null, 2), 'utf8');
-  console.log(`\n✨ Saved ${unique.length} trials to ukc-trials.json`);
+  fs.writeFileSync(OUTPUT_FILE, JSON.stringify(freshnessFiltered, null, 2), 'utf8');
+  console.log(`\n✨ Saved ${freshnessFiltered.length} trials to ukc-trials.json`);
 
   // ── Upload to Supabase ─────────────────────────────────────────────────────
   if (supabase) {
@@ -251,7 +269,7 @@ async function main() {
     }
 
     let success = 0, skipped = 0, failed = 0;
-    for (const t of unique) {
+    for (const t of freshnessFiltered) {
       if (claimedLinks.has(t.official_link)) {
         skipped++;
         continue;
@@ -300,3 +318,4 @@ main().catch(err => {
   console.error('Fatal error:', err);
   process.exit(1);
 });
+

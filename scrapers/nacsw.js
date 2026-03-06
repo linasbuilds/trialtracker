@@ -37,6 +37,7 @@ const NACSW_URL   = 'https://www.nacsw.net/calendar/trials';
 const OUTPUT_FILE = path.join(__dirname, '..', 'trials.json');
 
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+const ONE_YEAR_DAYS_MS = 365 * 24 * 60 * 60 * 1000;
 
 const BLOCKED = [
   'nacsw.net', 'facebook.com', 'google.com', 'instagram.com',
@@ -99,6 +100,18 @@ function isWithin90Days(dateStr) {
   today.setHours(0, 0, 0, 0);
   const limit = new Date(today.getTime() + NINETY_DAYS_MS);
   return trialDate >= today && trialDate <= limit;
+}
+
+function oneYearAgoIso() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setTime(d.getTime() - ONE_YEAR_DAYS_MS);
+  return d.toISOString().split('T')[0];
+}
+
+function isOlderThanOneYear(dateStr) {
+  if (!dateStr) return false;
+  return dateStr < oneYearAgoIso();
 }
 
 function parseEntryDate(str, refYear) {
@@ -171,7 +184,7 @@ async function extractPDFText(buffer) {
 // ── Club website scraper ──────────────────────────────────────────────────────
 
 async function scrapeClub(page, clubUrl, refYear) {
-  const result = { premium_link: null, entry_opening_date: null, entry_closing_date: null };
+  const result = { premium_url: null, entry_opening_date: null, entry_closing_date: null };
   if (!clubUrl) return result;
 
   const base  = clubUrl.replace(/\/$/, '');
@@ -186,19 +199,19 @@ async function scrapeClub(page, clubUrl, refYear) {
       const pdfUrl = await page.evaluate((blocked) => {
         const all = Array.from(document.querySelectorAll('a[href]'))
           .map(a => a.href)
-          .filter(h => h && h.toLowerCase().endsWith('.pdf'))
-          .filter(h => !blocked.some(b => h.includes(b)));
-        const preferred = all.find(h => {
+          .filter(h => h && !blocked.some(b => h.includes(b)));
+
+        const matching = all.filter((h) => {
           const lo = h.toLowerCase();
-          return lo.includes('premium') || lo.includes('nosework') ||
-                 lo.includes('scent')   || lo.includes('trial')   ||
-                 lo.includes('_nw')     || lo.includes('_sw');
+          return lo.includes('premium') || lo.includes('trial') || lo.includes('.pdf');
         });
-        return preferred || all[0] || null;
+
+        const preferredPdf = matching.find((h) => h.toLowerCase().includes('.pdf'));
+        return preferredPdf || matching[0] || null;
       }, BLOCKED);
 
       if (pdfUrl) {
-        result.premium_link = pdfUrl;
+        result.premium_url = pdfUrl;
         console.log(`    📄 PDF: ${pdfUrl}`);
         try {
           const buf  = await downloadBuffer(pdfUrl);
@@ -431,29 +444,34 @@ async function main() {
       entry_opening_date: null,
       entry_closing_date: null,
       club_website:       t.clubWebsite   || null,
-      premium_link:       null,
+      premium_url:        null,
       official_link:      t.eventId ? `${NACSW_URL}#event${t.eventId}` : NACSW_URL,
     };
   });
 
+  const freshnessFiltered = trials.filter((t) =>
+    !isOlderThanOneYear(t.trial_start_date) &&
+    !isOlderThanOneYear(t.entry_opening_date)
+  );
+
   // Log what we found
-  trials.forEach((t, i) =>
+  freshnessFiltered.forEach((t, i) =>
     console.log(`  [${i+1}] ${t.trial_start_date}${t.trial_end_date ? ' – '+t.trial_end_date : ''} | ${t.trial_host || '?'} | ${t.city || '?'}, ${t.state || '?'}`)
   );
 
   // ── Scrape club websites for entry dates ──────────────────────────────────
-  console.log(`\n📋 Scraping ${trials.filter(t => t.club_website).length} club websites...`);
+  console.log(`\n📋 Scraping ${freshnessFiltered.filter(t => t.club_website).length} club websites...`);
 
-  for (let i = 0; i < trials.length; i++) {
-    const t = trials[i];
+  for (let i = 0; i < freshnessFiltered.length; i++) {
+    const t = freshnessFiltered[i];
     if (!t.club_website) continue;
 
     const refYear = (t.trial_start_date || String(new Date().getFullYear())).slice(0, 4);
-    console.log(`\n[Club ${i+1}/${trials.length}] ${t.club_website}`);
+    console.log(`\n[Club ${i+1}/${freshnessFiltered.length}] ${t.club_website}`);
 
     try {
       const clubData       = await scrapeClub(page, t.club_website, refYear);
-      t.premium_link       = clubData.premium_link;
+      t.premium_url        = clubData.premium_url;
       t.entry_opening_date = clubData.entry_opening_date;
       t.entry_closing_date = clubData.entry_closing_date;
     } catch (err) {
@@ -462,14 +480,14 @@ async function main() {
   }
 
   // ── Save output ───────────────────────────────────────────────────────────
-  fs.writeFileSync(OUTPUT_FILE, JSON.stringify(trials, null, 2), 'utf8');
-  console.log(`\n✨ Done! Saved ${trials.length} trials to trials.json`);
+  fs.writeFileSync(OUTPUT_FILE, JSON.stringify(freshnessFiltered, null, 2), 'utf8');
+  console.log(`\n✨ Done! Saved ${freshnessFiltered.length} trials to trials.json`);
 
   // ── Upload to Supabase ────────────────────────────────────────────────────
   if (supabase) {
     console.log('\n☁️  Uploading to Supabase...');
     let success = 0, failed = 0;
-    for (const t of trials) {
+    for (const t of freshnessFiltered) {
       try {
         const { error } = await supabase.from('trials').upsert(
           {
@@ -486,6 +504,7 @@ async function main() {
             trial_end_date:      t.trial_end_date,
             entry_opening_date:  t.entry_opening_date,
             entry_closing_date:  t.entry_closing_date,
+            premium_url:         t.premium_url,
             official_link:       t.official_link,
             club_website:        t.club_website,
             cancelled:           false,
@@ -512,3 +531,4 @@ main().catch(err => {
   console.error('Fatal error:', err);
   process.exit(1);
 });
+

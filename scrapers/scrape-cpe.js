@@ -36,6 +36,7 @@ const CPE_ORIGIN   = 'https://cpe.dog';
 const BOT_UA = 'TrialTracker-Bot/1.0 (trial aggregator; contact: trialtrackerapp@gmail.com; info: trialtracker.app)';
 
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+const ONE_YEAR_DAYS_MS = 365 * 24 * 60 * 60 * 1000;
 const DELAY_MS       = 2500;
 
 // External domains to skip when looking for a club website link
@@ -121,6 +122,18 @@ function isWithin90Days(dateStr) {
   today.setHours(0, 0, 0, 0);
   const limit = new Date(today.getTime() + NINETY_DAYS_MS);
   return trialDate >= today && trialDate <= limit;
+}
+
+function oneYearAgoIso() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setTime(d.getTime() - ONE_YEAR_DAYS_MS);
+  return d.toISOString().split('T')[0];
+}
+
+function isOlderThanOneYear(dateStr) {
+  if (!dateStr) return false;
+  return dateStr < oneYearAgoIso();
 }
 
 // ── robots.txt check ──────────────────────────────────────────────────────────
@@ -468,6 +481,12 @@ async function main() {
       cancelled:          false,
       data_source:        'cpe',
     };
+
+    if (isOlderThanOneYear(trial.trial_start_date) || isOlderThanOneYear(trial.entry_opening_date)) {
+      console.log(`  ⏭️  Skipping ${trial.trial_host || ev.titleText} — older than 1 year`);
+      skippedDetail++;
+      continue;
+    }
 
     trials.push(trial);
     console.log(

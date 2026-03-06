@@ -16,6 +16,13 @@ const US_STATES = [
   "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"
 ];
 
+const getOneYearAgoIso = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - 365);
+  return d.toISOString().split("T")[0];
+};
+
 export default function SubmitPage() {
   const [form, setForm] = useState({
     organization: "",
@@ -102,8 +109,16 @@ export default function SubmitPage() {
     if (!form.trial_host.trim()) { setMessage("Please enter the trial host."); setMessageType("error"); setLoading(false); return; }
     if (!form.state) { setMessage("Please select a state."); setMessageType("error"); setLoading(false); return; }
     if (!form.trial_start_date) { setMessage("Please enter a trial start date."); setMessageType("error"); setLoading(false); return; }
-    if (!form.entry_opening_date) { setMessage("Please enter an entry opening date."); setMessageType("error"); setLoading(false); return; }
-    if (!form.entry_closing_date) { setMessage("Please enter an entry closing date."); setMessageType("error"); setLoading(false); return; }
+    if (!form.entry_opening_date) { setMessage("Please enter a Trial Entry Opens date."); setMessageType("error"); setLoading(false); return; }
+    if (!form.entry_closing_date) { setMessage("Please enter a Trial Entry Closes date."); setMessageType("error"); setLoading(false); return; }
+
+    const cutoffDate = getOneYearAgoIso();
+    if (form.trial_start_date < cutoffDate || form.entry_opening_date < cutoffDate) {
+      setMessage("Trials older than 1 year cannot be submitted.");
+      setMessageType("error");
+      setLoading(false);
+      return;
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setMessage("You must be logged in to submit a trial."); setMessageType("error"); setLoading(false); return; }
@@ -304,12 +319,12 @@ export default function SubmitPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Entry Opens *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Trial Entry Opens *</label>
                 <input type="date" name="entry_opening_date" value={form.entry_opening_date} onChange={handleChange} required
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Entry Closes *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Trial Entry Closes *</label>
                 <input type="date" name="entry_closing_date" value={form.entry_closing_date} onChange={handleChange} required
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>

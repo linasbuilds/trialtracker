@@ -16,6 +16,13 @@ const US_STATES = [
   "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"
 ];
 
+const getOneYearAgoIso = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - 365);
+  return d.toISOString().split("T")[0];
+};
+
 interface Trial {
   id: string;
   organization: string;
@@ -30,6 +37,7 @@ interface Trial {
   entry_opening_date: string;
   entry_closing_date: string;
   official_link: string;
+  premium_url?: string;
   cancelled: boolean;
   claimed: boolean;
   claimed_by: string | null;
@@ -60,6 +68,7 @@ export default function ClubTrialsPage() {
 
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error">("success");
+  const oneYearAgo = getOneYearAgoIso();
 
   useEffect(() => {
     fetchTrials();
@@ -88,6 +97,7 @@ export default function ClubTrialsPage() {
     let query = supabase
       .from("trials")
       .select("*")
+      .gte("trial_start_date", oneYearAgo)
       .order("trial_start_date", { ascending: true });
 
     if (name) {
@@ -97,7 +107,13 @@ export default function ClubTrialsPage() {
     }
 
     const { data, error } = await query;
-    if (!error && data) setTrials(data as Trial[]);
+    if (!error && data) {
+      const filtered = (data as Trial[]).filter((t) =>
+        (!t.trial_start_date || t.trial_start_date >= oneYearAgo) &&
+        (!t.entry_opening_date || t.entry_opening_date >= oneYearAgo)
+      );
+      setTrials(filtered);
+    }
     setLoading(false);
   };
 
@@ -413,18 +429,24 @@ export default function ClubTrialsPage() {
                         : ""}
                     </div>
                     <div>
-                      <span className="font-medium text-slate-700">Entry opens: </span>
+                      <span className="font-medium text-slate-700">Trial Entry Opens: </span>
                       {formatDate(trial.entry_opening_date)}
                     </div>
                     <div>
-                      <span className="font-medium text-slate-700">Entry closes: </span>
+                      <span className="font-medium text-slate-700">Trial Entry Closes: </span>
                       {formatDate(trial.entry_closing_date)}
                     </div>
-                    <div>
+                    <div className="flex items-center gap-3 flex-wrap">
                       {trial.official_link && (
                         <a href={trial.official_link} target="_blank" rel="noopener noreferrer"
                           className="text-blue-600 hover:underline font-medium">
-                          View official link ↗
+                          View official link ?
+                        </a>
+                      )}
+                      {trial.premium_url && (
+                        <a href={trial.premium_url} target="_blank" rel="noopener noreferrer"
+                          className="text-slate-700 hover:underline font-medium">
+                          View Premium
                         </a>
                       )}
                     </div>
@@ -465,7 +487,7 @@ export default function ClubTrialsPage() {
                   <p className="text-sm font-semibold text-slate-700">Update entry dates</p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Entry Opens</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Trial Entry Opens</label>
                       <input
                         type="date"
                         value={claimEditForm.entry_opening_date}
@@ -474,7 +496,7 @@ export default function ClubTrialsPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Entry Closes</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Trial Entry Closes</label>
                       <input
                         type="date"
                         value={claimEditForm.entry_closing_date}
@@ -595,12 +617,12 @@ export default function ClubTrialsPage() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Entry Opens</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Trial Entry Opens</label>
                       <input type="date" name="entry_opening_date" value={editForm.entry_opening_date || ""} onChange={handleEditChange}
                         className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Entry Closes</label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Trial Entry Closes</label>
                       <input type="date" name="entry_closing_date" value={editForm.entry_closing_date || ""} onChange={handleEditChange}
                         className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
@@ -636,3 +658,4 @@ export default function ClubTrialsPage() {
     </div>
   );
 }
+

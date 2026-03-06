@@ -58,6 +58,13 @@ const buildAddress = (trial: Trial) => {
   return parts.join(" · ");
 };
 
+const getOneYearAgoIso = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - 365);
+  return d.toISOString().split("T")[0];
+};
+
 interface Trial {
   id: string;
   organization: string;
@@ -83,7 +90,10 @@ interface Trial {
   entry_opening_date: string;
   entry_closing_date: string;
   pre_entry_date?: string;
+  premium_url?: string;
 
+  trial_url?: string;
+  club_url?: string;
   official_link: string;
   club_website?: string;
   claimed?: boolean;
@@ -101,6 +111,7 @@ export default function TrialsPage() {
 
   const [keyword, setKeyword] = useState("");
   const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const oneYearAgo = getOneYearAgoIso();
 
   // Load saved preferences and apply to filters
   useEffect(() => {
@@ -151,6 +162,7 @@ export default function TrialsPage() {
     const { data, error } = await supabase
       .from("trials")
       .select("*")
+      .gte("trial_start_date", oneYearAgo)
       .order("trial_start_date", { ascending: true });
 
     if (!error && data) setTrials(data as Trial[]);
@@ -171,6 +183,9 @@ export default function TrialsPage() {
   const getHostName = (trial: Trial) => trial.trial_host || trial.host_club || "";
 
   const filteredTrials = trials.filter((trial) => {
+    if (trial.trial_start_date && trial.trial_start_date < oneYearAgo) return false;
+    if (trial.entry_opening_date && trial.entry_opening_date < oneYearAgo) return false;
+
     if (selectedSport !== "All Sports" && trial.sport !== selectedSport) return false;
     if (selectedOrg !== "All Orgs" && trial.organization !== selectedOrg) return false;
     if (selectedState !== "All States" && trial.state !== selectedState) return false;
@@ -343,6 +358,7 @@ export default function TrialsPage() {
             const isOpeningToday = daysUntil === 0;
             const isOpeningTomorrow = daysUntil === 1;
             const alreadyOpen = trial.entry_opening_date && daysUntil < 0;
+            const trialCardLink = trial.trial_url || trial.club_url;
 
             const level = normalizeLevel(trial.level || "");
 
@@ -450,16 +466,31 @@ export default function TrialsPage() {
                   </div>
                 )}
 
-                {(trial.club_website || trial.official_link) && (
+                {trialCardLink ? (
                   <a
-                    href={trial.club_website || trial.official_link}
+                    href={trialCardLink}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-block bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
                   >
-                    View &amp; Register →
+                    View &amp; Register ?
                   </a>
+                ) : (
+                  <span className="inline-block text-sm font-medium text-slate-600">
+                    View Club Website
+                  </span>
                 )}
+
+                {trial.premium_url ? (
+                  <a
+                    href={trial.premium_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block bg-slate-700 hover:bg-slate-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                  >
+                    View Premium
+                  </a>
+                ) : null}
               </div>
             );
           })}
@@ -468,3 +499,4 @@ export default function TrialsPage() {
     </div>
   );
 }
+
