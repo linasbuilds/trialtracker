@@ -1,0 +1,86 @@
+=== NACSW Entry Date Backfill â€” 2026-03-05 ===
+[2026-03-06T00:28:36.811Z] ðŸ¾ NACSW Entry Date Backfill starting...
+[2026-03-06T00:28:36.812Z] ðŸ“… Looking for trials between 2026-03-05 and 2026-06-03
+[2026-03-06T00:28:36.812Z] ðŸ¤– User-Agent: TrialTracker-Bot/1.0 (trial aggregator; contact: trialtrackerapp@gmail.com; info: trialtracker.app)
+[2026-03-06T00:28:36.833Z] ðŸ“¦ pdf-parse: available
+[2026-03-06T00:28:36.834Z] ðŸ“¦ pdfjs-dist: available
+[2026-03-06T00:28:36.834Z] mammoth: available
+[2026-03-06T00:28:36.834Z] ðŸ“¦ axios: available
+[2026-03-06T00:28:36.834Z] ðŸ“‹ Max sites per run: 5
+
+[2026-03-06T00:28:38.337Z] ðŸ”Ž Found 133 trial(s) â€” processing 5 (capped at 5; 128 deferred to next run)
+
+[2026-03-06T00:28:38.820Z] 
+[1/5] 2026-03-06 | Paws Plus Training, LLC
+[2026-03-06T00:28:38.823Z]     ðŸŒ https://pawsplustraining.com/upcoming-events/march-2026-official-nacsw-trials/
+[2026-03-06T00:28:39.187Z]     âœ… robots.txt: allowed
+[2026-03-06T00:28:39.188Z]     STEP 1 â†’ https://pawsplustraining.com/upcoming-events/march-2026-official-nacsw-trials
+[2026-03-06T00:28:43.562Z]     âœ… TOS: no scraping prohibition found
+[2026-03-06T00:28:43.563Z]     â€” trial date not found in homepage, moving on
+[2026-03-06T00:28:43.566Z]     STEP 2 â†’ https://pawsplustraining.com/nosework/
+[2026-03-06T00:28:47.593Z]     â€” trial date not found in nav-page, moving on
+[2026-03-06T00:28:47.600Z]     ðŸ”Ž Searched 68 links on page, none matched PDF patterns
+[2026-03-06T00:28:49.026Z]     ðŸ”Ž Searched 26 links on homepage, none matched PDF patterns
+[2026-03-06T00:28:49.027Z]     STEP 3 â†’ no PDF found
+[2026-03-06T00:28:49.028Z]     ðŸ” Could not find entry dates for Paws Plus Training, LLC at https://pawsplustraining.com/upcoming-events/march-2026-official-nacsw-trials/
+[2026-03-06T00:28:52.041Z] 
+[2/5] 2026-03-06 | For Your K9, Inc
+[2026-03-06T00:28:52.042Z]     ðŸŒ https://foryourk9.com/trials/
+[2026-03-06T00:28:52.464Z]     âœ… robots.txt: allowed
+[2026-03-06T00:28:52.465Z]     STEP 1 â†’ https://foryourk9.com/trials
+[2026-03-06T00:29:00.264Z]     ðŸš« Skipping https://foryourk9.com/trials/ â€” TOS prohibits automated access
+[2026-03-06T00:29:03.274Z] 
+[3/5] 2026-03-06 | JavaK9s, LLC
+[2026-03-06T00:29:03.275Z]     ðŸŒ https://www.javak9s.com/
+[2026-03-06T00:29:03.623Z]     âœ… robots.txt: allowed
+[2026-03-06T00:29:03.624Z]     STEP 1 â†’ https://www.javak9s.com
+[2026-03-06T00:29:06.880Z]     âœ… TOS: no scraping prohibition found
+[2026-03-06T00:29:06.881Z]     â€” trial date not found in homepage, moving on
+[2026-03-06T00:29:06.886Z]     STEP 2 â†’ https://www.javak9s.com/trial-site-information.html
+[2026-03-06T00:29:09.126Z]     â€” trial date not found in nav-page, moving on
+[2026-03-06T00:29:09.130Z]     ðŸ”Ž Searched 12 links on page, none matched PDF patterns
+[2026-03-06T00:29:10.260Z]     ðŸ”Ž Searched 21 links on homepage, none matched PDF patterns
+[2026-03-06T00:29:10.261Z]     STEP 3 â†’ no PDF found
+[2026-03-06T00:29:10.262Z]     ðŸ” Could not find entry dates for JavaK9s, LLC at https://www.javak9s.com/
+[2026-03-06T00:29:13.274Z] 
+[4/5] 2026-03-07 | Dog Gone Right
+[2026-03-06T00:29:13.275Z]     ðŸŒ https://doggoneright.net/
+[2026-03-06T00:29:13.634Z]     âœ… robots.txt: allowed
+[2026-03-06T00:29:13.635Z]     STEP 1 â†’ https://doggoneright.net
+[2026-03-06T00:29:21.611Z]     âœ… TOS: no scraping prohibition found
+[2026-03-06T00:29:21.612Z]     â€” trial date not found in homepage, moving on
+[2026-03-06T00:29:21.618Z]     STEP 2 â†’ https://doggoneright.net//k9-nose-work-trialsorts-html/
+[2026-03-06T00:29:27.535Z]     â€” trial date not found in nav-page, moving on
+[2026-03-06T00:29:27.538Z]     ðŸ”— Found PDF link: https://acrobat.adobe.com/id/urn:aaid:sc:US:40be4caa-2f24-4b38-846a-9ab5f15741bf
+[2026-03-06T00:29:27.539Z]     STEP 3 â†’ PDF: https://acrobat.adobe.com/id/urn:aaid:sc:US:40be4caa-2f24-4b38-846a-9ab5f15741bf
+[2026-03-06T00:29:28.619Z]     ?? Downloading PDF: https://acrobat.adobe.com/id/urn:aaid:sc:US:40be4caa-2f24-4b38-846a-9ab5f15741bf — size: 713655 bytes
+[2026-03-06T00:29:28.620Z]     ?? Sniffed file type: html (content-type: text/html)
+[2026-03-06T00:29:28.625Z]     ?? HTML response found nested PDF URL: https://acp-aep-cs-blobstore-prod-va6-data.adobe.io/ede7b1c5-4358-41f9-9a5d-02bc8b5b5111?response-content-disposition=attachment%3B%20filename%3D%22Summit%2520Premium%2520LaRenFest%2520%25282%2529.pdf
+[2026-03-06T00:29:29.159Z]     ? PDF download failed: Request failed with status code 400
+[2026-03-06T00:29:29.160Z]     ðŸ” Could not find entry dates for Dog Gone Right at https://doggoneright.net/
+[2026-03-06T00:29:32.174Z] 
+[5/5] 2026-03-07 | Your Dog's Place, LLC
+[2026-03-06T00:29:32.175Z]     ðŸŒ https://yourdogsplace.com/nacsw-trials/
+[2026-03-06T00:29:32.635Z]     âœ… robots.txt: allowed
+[2026-03-06T00:29:32.636Z]     STEP 1 â†’ https://yourdogsplace.com/nacsw-trials
+[2026-03-06T00:29:36.609Z]     âœ… TOS: no scraping prohibition found
+[2026-03-06T00:29:36.610Z]     â€” trial date not found in homepage, moving on
+[2026-03-06T00:29:36.614Z]     STEP 2 â†’ no relevant nav link found
+[2026-03-06T00:29:36.616Z]     ðŸ”Ž Searched 29 links on page, none matched PDF patterns
+[2026-03-06T00:29:37.692Z]     ðŸ”Ž Searched 29 links on homepage, none matched PDF patterns
+[2026-03-06T00:29:37.693Z]     STEP 3 â†’ no PDF found
+[2026-03-06T00:29:37.695Z]     ðŸ” Could not find entry dates for Your Dog's Place, LLC at https://yourdogsplace.com/nacsw-trials/
+[2026-03-06T00:29:41.039Z] 
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+[2026-03-06T00:29:41.039Z] ðŸ“Š Run summary:
+[2026-03-06T00:29:41.040Z]    âœ… Fully saved (open + close):    0
+[2026-03-06T00:29:41.040Z]    ðŸ“‹ Partially saved (one date):   0
+[2026-03-06T00:29:41.040Z]    ðŸ” No confirmed dates found:      4
+[2026-03-06T00:29:41.041Z]    ðŸ“† Stale dates discarded:         0
+[2026-03-06T00:29:41.041Z]    â­ï¸  Skipped (robots/TOS/claimed): 1
+[2026-03-06T00:29:41.041Z]    âŒ Errors:                        0
+[2026-03-06T00:29:41.042Z]    ðŸ“¦ Total processed:               5
+[2026-03-06T00:29:41.042Z]    ðŸ“¦ Total in queue:                133
+[2026-03-06T00:29:41.042Z] â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+[2026-03-06T00:29:41.043Z] 
+ðŸ“ Log saved to: C:\Users\linas\trialtracker\logs\nacsw-entry-dates-2026-03-05.log

@@ -34,6 +34,7 @@ export default function PreferencesPage() {
   const [dayTripMiles, setDayTripMiles] = useState('150')
   const [overnightMiles, setOvernightMiles] = useState('300')
   const [alertTiming, setAlertTiming] = useState('day_of')
+  const [isFoundingHandler, setIsFoundingHandler] = useState(false)
 
   useEffect(() => {
     const loadPreferences = async () => {
@@ -42,7 +43,7 @@ export default function PreferencesPage() {
 
       const { data: profile, error } = await supabase
         .from('user_profiles')
-        .select('preferred_venues, preferred_states, preferred_orgs, preferred_levels, home_zip, day_trip_miles, overnight_miles, alert_timing')
+        .select('preferred_venues, preferred_states, preferred_orgs, preferred_levels, home_zip, day_trip_miles, overnight_miles, alert_timing, role, created_at')
         .eq('user_id', user.id)
         .single()
 
@@ -60,6 +61,9 @@ export default function PreferencesPage() {
         setDayTripMiles(profile.day_trip_miles || '150')
         setOvernightMiles(profile.overnight_miles || '300')
         setAlertTiming(profile.alert_timing || 'day_of')
+        if (profile.role === 'handler' && profile.created_at) {
+          setIsFoundingHandler(new Date(profile.created_at) < new Date('2026-07-01'))
+        }
       }
       setLoading(false)
     }
@@ -105,7 +109,15 @@ export default function PreferencesPage() {
       <div className="max-w-2xl mx-auto space-y-4">
 
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">Your Preferences</h1>
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="text-2xl font-bold text-slate-800">Your Preferences</h1>
+            {isFoundingHandler && (
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold"
+                style={{ background: '#fffbeb', color: '#92400e', border: '1px solid #fcd34d' }}>
+                ⭐ Founding Handler · Beta 2026
+              </span>
+            )}
+          </div>
           <p className="text-slate-500 mt-1 text-sm">Set your preferences to filter trials by organization, sport, and location. Email alerts are coming soon as we expand our entry date coverage.</p>
         </div>
 

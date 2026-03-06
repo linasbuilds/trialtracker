@@ -31,15 +31,33 @@ interface Trial {
   entry_closing_date: string;
   official_link: string;
   cancelled: boolean;
+  claimed: boolean;
+  claimed_by: string | null;
+  user_id: string | null;
+  data_source: string | null;
 }
 
 export default function ClubTrialsPage() {
   const [trials, setTrials] = useState<Trial[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [clubName, setClubName] = useState("");
+
+  // Full-edit state (for club's own submitted trials)
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Trial>>({});
   const [saving, setSaving] = useState(false);
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
+
+  // Claim state (for scraped trials)
+  const [claimConfirmId, setClaimConfirmId] = useState<string | null>(null);
+  const [claimEditId, setClaimEditId] = useState<string | null>(null);
+  const [claimEditForm, setClaimEditForm] = useState<{ entry_opening_date: string; entry_closing_date: string }>({
+    entry_opening_date: "",
+    entry_closing_date: "",
+  });
+  const [claimSaving, setClaimSaving] = useState(false);
+
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error">("success");
 
@@ -50,37 +68,36 @@ export default function ClubTrialsPage() {
   const fetchTrials = async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setLoading(false);
-      return;
-    }
+    if (!user) { setLoading(false); return; }
 
-    // Get the club's club_name from their profile
+    setUserId(user.id);
+
     const { data: profile } = await supabase
       .from("user_profiles")
-      .select("club_name")
+      .select("club_name, role")
       .eq("user_id", user.id)
       .single();
 
-    const clubName = profile?.club_name || "";
+    // Security: only club accounts can use this page
+    if (profile?.role !== "club") { setLoading(false); return; }
 
-    // Fetch trials submitted by this user OR where trial_host matches their club name
+    const name = profile?.club_name || "";
+    setClubName(name);
+
+    // Fetch trials submitted by this user, claimed by this user, or matching club name
     let query = supabase
       .from("trials")
       .select("*")
       .order("trial_start_date", { ascending: true });
 
-    if (clubName) {
-      query = query.or(`user_id.eq.${user.id},trial_host.eq.${clubName}`);
+    if (name) {
+      query = query.or(`user_id.eq.${user.id},claimed_by.eq.${user.id},trial_host.eq.${name}`);
     } else {
-      query = query.eq("user_id", user.id);
+      query = query.or(`user_id.eq.${user.id},claimed_by.eq.${user.id}`);
     }
 
     const { data, error } = await query;
-
-    if (!error && data) {
-      setTrials(data);
-    }
+    if (!error && data) setTrials(data as Trial[]);
     setLoading(false);
   };
 
@@ -90,26 +107,22 @@ export default function ClubTrialsPage() {
     setTimeout(() => setMessage(""), 5000);
   };
 
+  // ── Full edit (submitted trials only) ──────────────────────────────────────
+
   const startEdit = (trial: Trial) => {
     setEditingId(trial.id);
     setEditForm({ ...trial });
   };
 
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditForm({});
-  };
+  const cancelEdit = () => { setEditingId(null); setEditForm({}); };
 
-  const handleEditChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
+  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setEditForm({ ...editForm, [e.target.name]: e.target.value });
   };
 
   const saveEdit = async () => {
     if (!editingId) return;
     setSaving(true);
-
     const { error } = await supabase
       .from("trials")
       .update({
@@ -126,7 +139,8 @@ export default function ClubTrialsPage() {
         entry_closing_date: editForm.entry_closing_date,
         official_link: editForm.official_link,
       })
-      .eq("id", editingId);
+      .eq("id", editingId)
+      .eq("user_id", userId!);   // security: can only edit own submissions
 
     if (error) {
       showMessage("Error saving changes. Please try again.", "error");
@@ -143,8 +157,8 @@ export default function ClubTrialsPage() {
     const { error } = await supabase
       .from("trials")
       .update({ cancelled: true })
-      .eq("id", id);
-
+      .eq("id", id)
+      .eq("user_id", userId!);   // security: can only cancel own submissions
     if (error) {
       showMessage("Error cancelling trial. Please try again.", "error");
     } else {
@@ -158,8 +172,8 @@ export default function ClubTrialsPage() {
     const { error } = await supabase
       .from("trials")
       .update({ cancelled: false })
-      .eq("id", id);
-
+      .eq("id", id)
+      .eq("user_id", userId!);
     if (error) {
       showMessage("Error restoring trial. Please try again.", "error");
     } else {
@@ -168,11 +182,70 @@ export default function ClubTrialsPage() {
     }
   };
 
+  // ── Claim flow (scraped trials) ────────────────────────────────────────────
+
+  const confirmClaim = async (trialId: string) => {
+    if (!userId) return;
+    const { error } = await supabase
+      .from("trials")
+      .update({ claimed: true, claimed_by: userId })
+      .eq("id", trialId)
+      .eq("trial_host", clubName);   // security: can only claim own club's trials
+
+    if (error) {
+      showMessage("Error claiming trial. Please try again.", "error");
+    } else {
+      showMessage("Trial claimed! You can now add entry dates. ✅", "success");
+      setClaimConfirmId(null);
+      fetchTrials();
+    }
+  };
+
+  const startClaimEdit = (trial: Trial) => {
+    setClaimEditId(trial.id);
+    setClaimEditForm({
+      entry_opening_date: trial.entry_opening_date || "",
+      entry_closing_date: trial.entry_closing_date || "",
+    });
+  };
+
+  const cancelClaimEdit = () => { setClaimEditId(null); };
+
+  const saveClaimEdit = async () => {
+    if (!claimEditId || !userId) return;
+    setClaimSaving(true);
+    const { error } = await supabase
+      .from("trials")
+      .update({
+        entry_opening_date: claimEditForm.entry_opening_date || null,
+        entry_closing_date: claimEditForm.entry_closing_date || null,
+      })
+      .eq("id", claimEditId)
+      .eq("claimed_by", userId);   // security: can only update own claimed trials
+
+    if (error) {
+      showMessage("Error saving entry dates. Please try again.", "error");
+    } else {
+      showMessage("Entry dates saved! Handlers will see them right away. ✅", "success");
+      setClaimEditId(null);
+      fetchTrials();
+    }
+    setClaimSaving(false);
+  };
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
   const formatDate = (dateStr: string) => {
     if (!dateStr) return "—";
-    const d = new Date(dateStr + "T12:00:00");
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    return new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", {
+      month: "short", day: "numeric", year: "numeric",
+    });
   };
+
+  // Determine how to render a given trial
+  const isOwnSubmission = (t: Trial) => t.user_id === userId;
+  const isClaimedByMe = (t: Trial) => t.claimed && t.claimed_by === userId;
+  const isClaimedByOther = (t: Trial) => t.claimed && t.claimed_by !== null && t.claimed_by !== userId;
 
   if (loading) {
     return (
@@ -190,7 +263,9 @@ export default function ClubTrialsPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-slate-800 mb-1">My Trials</h1>
-            <p className="text-slate-500">Manage your submitted trials — edit details or mark as cancelled.</p>
+            <p className="text-slate-500">
+              Manage your submitted trials, or claim scraped ones to add entry dates.
+            </p>
           </div>
           <a
             href="/submit"
@@ -215,8 +290,11 @@ export default function ClubTrialsPage() {
         {trials.length === 0 && (
           <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
             <div className="text-5xl mb-4">🐾</div>
-            <h2 className="text-xl font-semibold text-slate-700 mb-2">No trials yet</h2>
-            <p className="text-slate-500 mb-6">Submit your first trial and it'll appear here.</p>
+            <h2 className="text-xl font-semibold text-slate-700 mb-2">No trials found</h2>
+            <p className="text-slate-500 mb-6">
+              Submit a trial manually, or make sure your club name in your profile
+              matches the host name on any scraped trials.
+            </p>
             <a href="/submit" className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700">
               Submit a Trial
             </a>
@@ -236,27 +314,47 @@ export default function ClubTrialsPage() {
               {trial.cancelled && (
                 <div className="bg-red-50 border-b border-red-200 px-5 py-2 flex items-center justify-between">
                   <span className="text-red-700 text-sm font-semibold">🚫 Cancelled — hidden from handlers</span>
-                  <button
-                    onClick={() => restoreTrial(trial.id)}
-                    className="text-xs text-blue-600 hover:underline font-medium"
-                  >
-                    Restore trial
-                  </button>
+                  {isOwnSubmission(trial) && (
+                    <button
+                      onClick={() => restoreTrial(trial.id)}
+                      className="text-xs text-blue-600 hover:underline font-medium"
+                    >
+                      Restore trial
+                    </button>
+                  )}
                 </div>
               )}
 
-              {/* Trial summary */}
+              {/* Verified / claimed banner */}
+              {isClaimedByMe(trial) && (
+                <div className="bg-green-50 border-b border-green-200 px-5 py-2 flex items-center gap-2">
+                  <span className="text-green-700 text-sm font-semibold">✓ Verified — claimed by you</span>
+                  <span className="text-xs text-green-600">Scrapers will never overwrite your entry dates.</span>
+                </div>
+              )}
+              {isClaimedByOther(trial) && (
+                <div className="bg-green-50 border-b border-green-200 px-5 py-2">
+                  <span className="text-green-700 text-sm font-semibold">✓ Verified by Club</span>
+                </div>
+              )}
+
+              {/* Trial summary (always visible unless in full-edit mode) */}
               {editingId !== trial.id && (
                 <div className="p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
                         <span className="text-xs font-bold uppercase tracking-wide text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
                           {trial.organization}
                         </span>
                         <span className="text-xs font-bold uppercase tracking-wide text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
                           {trial.sport}
                         </span>
+                        {trial.data_source && !isOwnSubmission(trial) && (
+                          <span className="text-xs text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200">
+                            scraped · {trial.data_source}
+                          </span>
+                        )}
                       </div>
                       <h3 className="text-lg font-bold text-slate-800">{trial.trial_name}</h3>
                       <p className="text-sm text-slate-500">{trial.trial_host}</p>
@@ -266,8 +364,8 @@ export default function ClubTrialsPage() {
                       </p>
                     </div>
 
-                    {/* Action buttons */}
-                    {!trial.cancelled && (
+                    {/* Action buttons — full edit for own submissions */}
+                    {isOwnSubmission(trial) && !trial.cancelled && (
                       <div className="flex gap-2 flex-shrink-0">
                         <button
                           onClick={() => startEdit(trial)}
@@ -283,6 +381,26 @@ export default function ClubTrialsPage() {
                         </button>
                       </div>
                     )}
+
+                    {/* Claim button — scraped, unclaimed, host matches */}
+                    {!isOwnSubmission(trial) && !trial.claimed && (
+                      <button
+                        onClick={() => setClaimConfirmId(trial.id)}
+                        className="flex-shrink-0 text-sm bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-1.5 rounded-lg transition-all"
+                      >
+                        Claim This Trial
+                      </button>
+                    )}
+
+                    {/* Edit entry dates — claimed by me */}
+                    {isClaimedByMe(trial) && claimEditId !== trial.id && (
+                      <button
+                        onClick={() => startClaimEdit(trial)}
+                        className="flex-shrink-0 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-1.5 rounded-lg transition-all"
+                      >
+                        ✏️ Edit Dates
+                      </button>
+                    )}
                   </div>
 
                   {/* Dates row */}
@@ -290,7 +408,9 @@ export default function ClubTrialsPage() {
                     <div>
                       <span className="font-medium text-slate-700">Trial dates: </span>
                       {formatDate(trial.trial_start_date)}
-                      {trial.trial_end_date !== trial.trial_start_date && ` – ${formatDate(trial.trial_end_date)}`}
+                      {trial.trial_end_date && trial.trial_end_date !== trial.trial_start_date
+                        ? ` – ${formatDate(trial.trial_end_date)}`
+                        : ""}
                     </div>
                     <div>
                       <span className="font-medium text-slate-700">Entry opens: </span>
@@ -301,16 +421,87 @@ export default function ClubTrialsPage() {
                       {formatDate(trial.entry_closing_date)}
                     </div>
                     <div>
-                      <a href={trial.official_link} target="_blank" rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline font-medium">
-                        View official link ↗
-                      </a>
+                      {trial.official_link && (
+                        <a href={trial.official_link} target="_blank" rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline font-medium">
+                          View official link ↗
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Cancel confirmation */}
+              {/* ── Claim confirmation ── */}
+              {claimConfirmId === trial.id && (
+                <div className="bg-emerald-50 border-t border-emerald-200 px-5 py-4">
+                  <p className="text-sm font-semibold text-emerald-900 mb-1">
+                    Claim this trial as yours?
+                  </p>
+                  <p className="text-xs text-emerald-700 mb-3">
+                    This confirms it belongs to <strong>{clubName || "your club"}</strong>.
+                    You&apos;ll be able to add entry dates, and scrapers will never overwrite your data.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => confirmClaim(trial.id)}
+                      className="bg-emerald-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-emerald-700 font-semibold"
+                    >
+                      ✓ Yes, claim this trial
+                    </button>
+                    <button
+                      onClick={() => setClaimConfirmId(null)}
+                      className="text-slate-600 text-sm px-4 py-2 rounded-lg hover:bg-slate-100"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Entry date edit (claimed trials) ── */}
+              {claimEditId === trial.id && (
+                <div className="border-t border-slate-100 px-5 py-4 bg-slate-50 space-y-3">
+                  <p className="text-sm font-semibold text-slate-700">Update entry dates</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Entry Opens</label>
+                      <input
+                        type="date"
+                        value={claimEditForm.entry_opening_date}
+                        onChange={(e) => setClaimEditForm({ ...claimEditForm, entry_opening_date: e.target.value })}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Entry Closes</label>
+                      <input
+                        type="date"
+                        value={claimEditForm.entry_closing_date}
+                        onChange={(e) => setClaimEditForm({ ...claimEditForm, entry_closing_date: e.target.value })}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-3 pt-1">
+                    <button
+                      onClick={saveClaimEdit}
+                      disabled={claimSaving}
+                      className="bg-emerald-600 text-white text-sm px-5 py-2 rounded-xl font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      {claimSaving ? "Saving..." : "Save Dates"}
+                    </button>
+                    <button
+                      onClick={cancelClaimEdit}
+                      className="text-slate-600 text-sm px-5 py-2 rounded-xl hover:bg-slate-100"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Cancel confirmation ── */}
               {cancelConfirmId === trial.id && (
                 <div className="bg-red-50 border-t border-red-200 px-5 py-4">
                   <p className="text-sm font-semibold text-red-800 mb-3">
@@ -333,7 +524,7 @@ export default function ClubTrialsPage() {
                 </div>
               )}
 
-              {/* Edit form */}
+              {/* ── Full edit form (own submissions) ── */}
               {editingId === trial.id && (
                 <div className="p-5 space-y-4">
                   <h3 className="font-bold text-slate-800 text-base">Editing: {trial.trial_name}</h3>

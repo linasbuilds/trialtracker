@@ -86,6 +86,7 @@ interface Trial {
 
   official_link: string;
   club_website?: string;
+  claimed?: boolean;
 }
 
 export default function TrialsPage() {
@@ -366,12 +367,17 @@ export default function TrialsPage() {
                       {trial.sport}
                     </span>
 
-                    {/* NEW: show level badge if present */}
                     {level ? (
                       <span className="text-xs px-2 py-1 rounded-full font-medium bg-slate-100 text-slate-700 border border-slate-200">
                         {level}
                       </span>
                     ) : null}
+
+                    {trial.claimed && (
+                      <span className="text-xs px-2 py-1 rounded-full font-medium bg-green-100 text-green-700 border border-green-200">
+                        ✓ Verified by Club
+                      </span>
+                    )}
                   </div>
                 </div>
 
