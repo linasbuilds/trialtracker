@@ -9,23 +9,30 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+// "null"      = not yet checked (auth loading in background)
+// "guest"     = no logged-in user
+// "handler"   = logged-in handler
+// "club"      = logged-in club
+type AuthState = "null" | "guest" | "handler" | "club";
+
 export default function Home() {
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [authState, setAuthState] = useState<AuthState>("null");
 
+  // Background-only auth check — NEVER redirects, only sets button state
   useEffect(() => {
-    const checkUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (!data.user) return;
-
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setAuthState("guest");
+        return;
+      }
       const { data: profile } = await supabase
         .from("user_profiles")
         .select("role")
-        .eq("user_id", data.user.id)
+        .eq("user_id", user.id)
         .single();
-
-      if (profile?.role) setUserRole(profile.role);
-    };
-    checkUser();
+      setAuthState((profile?.role as AuthState) ?? "guest");
+    })();
   }, []);
 
   return (
@@ -51,7 +58,7 @@ export default function Home() {
         </p>
 
         {/* Beta / community note */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-6 py-5 text-sm text-slate-600 leading-relaxed mb-8 text-left">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-6 py-5 text-sm text-slate-600 leading-relaxed mb-6 text-left">
           <p>
             We&apos;re in beta and growing! Clubs and organizations are always free — claim
             your trials, add entry dates, and help us build the most complete dog sport
@@ -63,16 +70,33 @@ export default function Home() {
           </p>
         </div>
 
-        {/* CTA buttons */}
-        <div className="flex flex-col items-center gap-3 mb-12">
-          {userRole === "club" ? (
+        {/* Clubs section */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-6 py-5 text-left mb-8">
+          <h2 className="text-base font-bold text-slate-700 mb-2">🏟️ Are you a club or trial secretary?</h2>
+          <p className="text-sm text-slate-600 leading-relaxed mb-4">
+            TrialTracker is always free for clubs — forever. Sign up as a club to claim
+            your trials, add entry opening and closing dates, and make sure handlers can
+            find you. Verified club listings show a ✓ badge.
+          </p>
+          <Link
+            href="/signup"
+            className="inline-block bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold py-2 px-5 rounded-lg transition-all"
+          >
+            Sign Up as a Club — It&apos;s Free
+          </Link>
+        </div>
+
+        {/* CTA buttons — auth-aware, renders immediately as guest buttons,
+            swaps after background auth check resolves */}
+        <div className="flex flex-col items-center gap-3">
+          {authState === "club" ? (
             <Link
               href="/club-trials"
               className="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-sm text-base transition-all text-center"
             >
               Go to My Dashboard →
             </Link>
-          ) : userRole === "handler" ? (
+          ) : authState === "handler" ? (
             <Link
               href="/trials"
               className="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-sm text-base transition-all text-center"
@@ -95,21 +119,6 @@ export default function Home() {
               </Link>
             </>
           )}
-        </div>
-
-        {/* Clubs section */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-6 py-5 text-left">
-          <h2 className="text-base font-bold text-slate-700 mb-2">🏆 Are you a club?</h2>
-          <p className="text-sm text-slate-600 leading-relaxed mb-4">
-            Claim your trials and add entry dates directly — so your competitors never miss
-            an opening. It&apos;s free, takes two minutes, and puts you in control of your listing.
-          </p>
-          <Link
-            href="/signup"
-            className="inline-block bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold py-2 px-5 rounded-lg transition-all"
-          >
-            Claim Your Trials →
-          </Link>
         </div>
 
       </div>
