@@ -109,7 +109,7 @@ export default function Home() {
                 href="/signup"
                 className="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-sm text-base transition-all text-center"
               >
-                Find Trials — Sign Up Free
+                Find Trials — Sign Up as a Handler
               </Link>
               <Link
                 href="/login"
