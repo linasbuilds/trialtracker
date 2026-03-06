@@ -76,8 +76,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 // Honest, transparent User-Agent �?" never disguise the bot as a human browser.
 const BOT_UA = 'TrialTracker-Bot/1.0 (trial aggregator; contact: trialtrackerapp@gmail.com; info: trialtracker.app)';
 
-const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
-const MAX_SITES      = Number.parseInt(process.env.MAX_SITES || '50', 10);
+const NINETY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
+const MAX_SITES      = Number.parseInt(process.env.MAX_SITES || '134', 10);
 const VISIT_DELAY_MS = 3000;
 
 const BLOCKED_DOMAINS = [
