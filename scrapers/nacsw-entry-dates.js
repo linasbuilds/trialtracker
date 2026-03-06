@@ -133,9 +133,12 @@ const MONTH_ABBR = [
   '', 'jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec',
 ];
 
-// Handles "April 18, 2026", "Apr 18 2026", "04/18/2026", "4/18/2026"
+// Handles "April 18, 2026", "Apr 18 2026", "04/18/2026", "4/18/2026",
+// and "Wednesday, March 4, 2026" (day-of-week prefix stripped automatically).
 function parseEntryDate(str, refYear) {
   if (!str) return null;
+  // Strip leading day-of-week: "Wednesday, March 4, 2026" → "March 4, 2026"
+  str = str.replace(/^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+/i, '').trim();
 
   const mdy = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (mdy) {
@@ -158,6 +161,14 @@ function parseEntryDate(str, refYear) {
 
 const DATE_PAT = '([A-Za-z]+\\.?\\s+\\d{1,2}(?:[,\\s]+\\d{4})?|\\d{1,2}/\\d{1,2}/\\d{4})';
 
+// Extended pattern that also captures "Wednesday, March 4, 2026" (day-of-week optional prefix).
+// Used for sentence-style NACSW premium patterns.
+const LONG_DATE_PAT =
+  '(?:(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\\s+)?' +
+  '(?:January|February|March|April|May|June|July|August|September|' +
+  'October|November|December)\\s+\\d{1,2},?\\s+\\d{4}';
+const LONG_DATE_CAP = `(${LONG_DATE_PAT})`;
+
 const OPEN_PATTERNS = [
   { label: 'Trial Opens',          re: new RegExp(`trial\\s+opens?\\s*[:\\-]?\\s*${DATE_PAT}`, 'i') },
   { label: 'Entry Open Date',      re: new RegExp(`entry\\s+open\\s+date\\s*[:\\-]?\\s*${DATE_PAT}`, 'i') },
@@ -167,6 +178,12 @@ const OPEN_PATTERNS = [
   { label: 'Open For Entries',     re: new RegExp(`open\\s+for\\s+entries?\\s+(?:on\\s+)?${DATE_PAT}`, 'i') },
   { label: 'Entries Will Open',    re: new RegExp(`entries?\\s+will\\s+(?:open|be\\s+accepted)\\s+${DATE_PAT}`, 'i') },
   { label: 'Opens',                re: new RegExp(`opens?[:\\s]+${DATE_PAT}`, 'i') },
+  // Sentence-style patterns used in NACSW premiums
+  { label: 'Will Open On',        re: new RegExp(`will\\s+open\\s+on\\s+${LONG_DATE_CAP}`, 'i') },
+  { label: 'Draw Period Open',    re: new RegExp(`draw\\s+period[^.\\n]*?open[^.\\n]*?${LONG_DATE_CAP}`, 'i') },
+  { label: 'Entries Open On',     re: new RegExp(`entries?\\s+open\\s+on\\s+${LONG_DATE_CAP}`, 'i') },
+  { label: 'Open For Entries On', re: new RegExp(`open\\s+for\\s+entries?\\s+on\\s+${LONG_DATE_CAP}`, 'i') },
+  { label: 'Opens On',            re: new RegExp(`opens?\\s+on\\s+${LONG_DATE_CAP}`, 'i') },
 ];
 
 const CLOSE_PATTERNS = [
@@ -180,19 +197,65 @@ const CLOSE_PATTERNS = [
   { label: 'Close Of Entries',     re: new RegExp(`close\\s+of\\s+entries?[:\\s]+${DATE_PAT}`, 'i') },
   { label: 'Closes',               re: new RegExp(`closes?[:\\s]+${DATE_PAT}`, 'i') },
   { label: 'Deadline',             re: new RegExp(`deadline[:\\s]+${DATE_PAT}`, 'i') },
+  // Sentence-style patterns used in NACSW premiums
+  { label: 'Draw Period Close',   re: new RegExp(`draw\\s+period[^.\\n]*?close[^.\\n]*?${LONG_DATE_CAP}`, 'i') },
+  { label: 'Entry Will Close',    re: new RegExp(`entr(?:y|ies)\\s+will\\s+close[^.\\n]*?${LONG_DATE_CAP}`, 'i') },
+  { label: 'Open Until',          re: new RegExp(`open\\s+until\\s+${LONG_DATE_CAP}`, 'i') },
+  { label: 'Close At The End',    re: new RegExp(`close\\s+at\\s+the\\s+end[^.\\n]*?${LONG_DATE_CAP}`, 'i') },
 ];
 
 // Silent version �?" used for pages (steps 1 & 2).
+// Extracts BOTH dates from "entries received between [date] and [date]" sentences.
+// Returns { entry_opening_date, entry_closing_date, matchedLabel } or null.
+function findBetweenAndDates(text, refYear) {
+  if (!text) return null;
+  // Find a sentence containing "received between" or "draw period...between"
+  const sentenceRe = /(?:received|draw\s+period)\s[^.]*?between\s[^.]*/i;
+  const sentenceMatch = text.match(sentenceRe);
+  if (!sentenceMatch) return null;
+
+  const sentence = sentenceMatch[0];
+  const longDateRe = new RegExp(
+    '(?:(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\\s+)?' +
+    '(?:January|February|March|April|May|June|July|August|September|' +
+    'October|November|December)\\s+\\d{1,2},?\\s+\\d{4}',
+    'gi'
+  );
+
+  const dates = [];
+  let m;
+  while ((m = longDateRe.exec(sentence)) !== null) {
+    const parsed = parseEntryDate(m[0], refYear);
+    if (parsed) dates.push(parsed);
+  }
+
+  if (dates.length >= 2) {
+    return { entry_opening_date: dates[0], entry_closing_date: dates[1], matchedLabel: 'between...and' };
+  } else if (dates.length === 1) {
+    return { entry_opening_date: dates[0], entry_closing_date: null, matchedLabel: 'between (single date)' };
+  }
+  return null;
+}
+
 function findEntryDates(text, refYear) {
   if (!text) return { entry_opening_date: null, entry_closing_date: null };
-  let opening = null, closing = null;
-  for (const { re } of OPEN_PATTERNS) {
-    const m = text.match(re);
-    if (m) { opening = parseEntryDate(m[1], refYear); if (opening) break; }
+
+  // Check "between X and Y" first — extracts both dates from one sentence
+  const between = findBetweenAndDates(text, refYear);
+  let opening = between?.entry_opening_date || null;
+  let closing  = between?.entry_closing_date || null;
+
+  if (!opening) {
+    for (const { re } of OPEN_PATTERNS) {
+      const m = text.match(re);
+      if (m) { opening = parseEntryDate(m[1], refYear); if (opening) break; }
+    }
   }
-  for (const { re } of CLOSE_PATTERNS) {
-    const m = text.match(re);
-    if (m) { closing = parseEntryDate(m[1], refYear); if (closing) break; }
+  if (!closing) {
+    for (const { re } of CLOSE_PATTERNS) {
+      const m = text.match(re);
+      if (m) { closing = parseEntryDate(m[1], refYear); if (closing) break; }
+    }
   }
   return { entry_opening_date: opening, entry_closing_date: closing };
 }
@@ -200,25 +263,37 @@ function findEntryDates(text, refYear) {
 // Verbose version �?" used for PDFs; logs exactly which keyword matched and what date.
 function findEntryDatesLogged(text, refYear, methodName) {
   if (!text) return { entry_opening_date: null, entry_closing_date: null };
-  let opening = null, closing = null;
 
-  for (const { label, re } of OPEN_PATTERNS) {
-    const m = text.match(re);
-    if (m) {
-      opening = parseEntryDate(m[1], refYear);
-      if (opening) {
-        log(`    [${methodName}] Open  matched: "${label}" | captured: "${m[1]}" | parsed: ${opening}`);
-        break;
+  // Check "between X and Y" first — extracts both dates from one sentence
+  const between = findBetweenAndDates(text, refYear);
+  if (between?.entry_opening_date || between?.entry_closing_date) {
+    log(`    [${methodName}] between...and matched: open=${between.entry_opening_date ?? 'n/a'} close=${between.entry_closing_date ?? 'n/a'}`);
+  }
+
+  let opening = between?.entry_opening_date || null;
+  let closing  = between?.entry_closing_date || null;
+
+  if (!opening) {
+    for (const { label, re } of OPEN_PATTERNS) {
+      const m = text.match(re);
+      if (m) {
+        opening = parseEntryDate(m[1], refYear);
+        if (opening) {
+          log(`    [${methodName}] Open  matched: "${label}" | captured: "${m[1]}" | parsed: ${opening}`);
+          break;
+        }
       }
     }
   }
-  for (const { label, re } of CLOSE_PATTERNS) {
-    const m = text.match(re);
-    if (m) {
-      closing = parseEntryDate(m[1], refYear);
-      if (closing) {
-        log(`    [${methodName}] Close matched: "${label}" | captured: "${m[1]}" | parsed: ${closing}`);
-        break;
+  if (!closing) {
+    for (const { label, re } of CLOSE_PATTERNS) {
+      const m = text.match(re);
+      if (m) {
+        closing = parseEntryDate(m[1], refYear);
+        if (closing) {
+          log(`    [${methodName}] Close matched: "${label}" | captured: "${m[1]}" | parsed: ${closing}`);
+          break;
+        }
       }
     }
   }
@@ -572,33 +647,46 @@ async function extractDatesFromPDF(pdfUrl, refYear, depth = 0) {
     const rawText = buffer.toString('utf8', 0, Math.min(buffer.length, 100_000));
     log(`    [Method C] Raw text (first 800 chars):\n${'-'.repeat(40)}\n${rawText.slice(0, 800)}\n${'-'.repeat(40)}`);
 
+    // Long date: optionally prefixed by day-of-week
+    const RD = '(?:(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\\s+)?(?:January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{1,2},?\\s+\\d{4}';
     const RAW_OPEN = [
-      { label: 'Trial Opens (raw)',   re: /Trial\s+Opens?\s*[:\-]?\s*(\w+\s+\d{1,2},?\s+\d{4})/i },
-      { label: 'Entries Open (raw)',  re: /Entries?\s+Opens?\s*[:\-]?\s*(\w+\s+\d{1,2},?\s+\d{4})/i },
-      { label: 'Entry Opening (raw)', re: /Entry\s+Opening\s*[:\-]?\s*(\w+\s+\d{1,2},?\s+\d{4})/i },
-      { label: 'Opens (raw)',         re: /Opens?[:\s]+(\w+\s+\d{1,2},?\s+\d{4})/i },
+      { label: 'Trial Opens (raw)',    re: new RegExp('Trial\\s+Opens?\\s*[:\\-]?\\s*(' + RD + ')', 'i') },
+      { label: 'Entries Open (raw)',   re: new RegExp('Entries?\\s+Opens?\\s*[:\\-]?\\s*(' + RD + ')', 'i') },
+      { label: 'Entry Opening (raw)',  re: new RegExp('Entry\\s+Opening\\s*[:\\-]?\\s*(' + RD + ')', 'i') },
+      { label: 'Will Open On (raw)',   re: new RegExp('will\\s+open\\s+on\\s+(' + RD + ')', 'i') },
+      { label: 'Opens On (raw)',       re: new RegExp('opens?\\s+on\\s+(' + RD + ')', 'i') },
+      { label: 'Opens (raw)',          re: new RegExp('Opens?[:\\s]+(' + RD + ')', 'i') },
     ];
     const RAW_CLOSE = [
-      { label: 'Trial Closes (raw)',  re: /Trial\s+Closes?\s*[:\-]?\s*(\w+\s+\d{1,2},?\s+\d{4})/i },
-      { label: 'Entries Close (raw)', re: /Entries?\s+Closes?\s*[:\-]?\s*(\w+\s+\d{1,2},?\s+\d{4})/i },
-      { label: 'Entry Closing (raw)', re: /Entry\s+Closing\s*[:\-]?\s*(\w+\s+\d{1,2},?\s+\d{4})/i },
-      { label: 'Closes (raw)',        re: /Closes?[:\s]+(\w+\s+\d{1,2},?\s+\d{4})/i },
-      { label: 'Deadline (raw)',      re: /Deadline[:\s]+(\w+\s+\d{1,2},?\s+\d{4})/i },
+      { label: 'Trial Closes (raw)',   re: new RegExp('Trial\\s+Closes?\\s*[:\\-]?\\s*(' + RD + ')', 'i') },
+      { label: 'Entries Close (raw)',  re: new RegExp('Entries?\\s+Closes?\\s*[:\\-]?\\s*(' + RD + ')', 'i') },
+      { label: 'Entry Closing (raw)',  re: new RegExp('Entry\\s+Closing\\s*[:\\-]?\\s*(' + RD + ')', 'i') },
+      { label: 'Entry Will Close (raw)', re: new RegExp('entr(?:y|ies)\\s+will\\s+close[^.\\n]*?(' + RD + ')', 'i') },
+      { label: 'Closes (raw)',         re: new RegExp('Closes?[:\\s]+(' + RD + ')', 'i') },
+      { label: 'Deadline (raw)',       re: new RegExp('Deadline[:\\s]+(' + RD + ')', 'i') },
     ];
 
-    let opening = null, closing = null;
+    // Check "between X and Y" sentence pattern first
+    const rawBetween = findBetweenAndDates(rawText, refYear);
+    if (rawBetween?.entry_opening_date || rawBetween?.entry_closing_date) {
+      log(`    [Method C] between...and matched: open=${rawBetween.entry_opening_date ?? 'n/a'} close=${rawBetween.entry_closing_date ?? 'n/a'}`);
+    }
+    let opening = rawBetween?.entry_opening_date || null;
+    let closing  = rawBetween?.entry_closing_date || null;
 
-    for (const { label, re } of RAW_OPEN) {
-      const m = rawText.match(re);
-      if (m) {
-        opening = parseEntryDate(m[1], refYear);
-        if (opening) {
-          log(`    [Method C] Open  matched: "${label}" | captured: "${m[1]}" | parsed: ${opening}`);
-          break;
+    if (!opening) {
+      for (const { label, re } of RAW_OPEN) {
+        const m = rawText.match(re);
+        if (m) {
+          opening = parseEntryDate(m[1], refYear);
+          if (opening) {
+            log(`    [Method C] Open  matched: "${label}" | captured: "${m[1]}" | parsed: ${opening}`);
+            break;
+          }
         }
       }
     }
-    for (const { label, re } of RAW_CLOSE) {
+    if (!closing) for (const { label, re } of RAW_CLOSE) {
       const m = rawText.match(re);
       if (m) {
         closing = parseEntryDate(m[1], refYear);
