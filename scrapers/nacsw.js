@@ -249,8 +249,9 @@ async function scrapeClub(page, clubUrl, refYear) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
+  const todayStr = new Date().toISOString().split('T')[0];
   console.log('🐾 NACSW Scraper starting...');
-  console.log(`📅 Today: ${new Date().toISOString().split('T')[0]}`);
+  console.log(`📅 Today: ${todayStr}`);
 
   const browser = await chromium.launch({
     headless: true,
@@ -486,8 +487,13 @@ async function main() {
   // ── Upload to Supabase ────────────────────────────────────────────────────
   if (supabase) {
     console.log('\n☁️  Uploading to Supabase...');
-    let success = 0, failed = 0;
+    let success = 0, skipped = 0, failed = 0;
     for (const t of freshnessFiltered) {
+      if (t.trial_start_date < todayStr) {
+        console.log(`  ⏭️  Skipping past trial: ${t.trial_host || '?'} ${t.trial_start_date}`);
+        skipped++;
+        continue;
+      }
       try {
         const { error } = await supabase.from('trials').upsert(
           {
@@ -519,7 +525,7 @@ async function main() {
         console.log(`  ❌ Upsert error: ${err.message}`);
       }
     }
-    console.log(`  ✅ Supabase: ${success} upserted, ${failed} failed`);
+    console.log(`  ✅ Supabase: ${success} upserted, ${skipped} skipped (past), ${failed} failed`);
   } else {
     console.log('\nℹ️  No Supabase credentials — skipping upload.');
   }

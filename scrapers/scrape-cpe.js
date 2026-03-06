@@ -509,9 +509,14 @@ async function main() {
   // ── Upsert to Supabase ────────────────────────────────────────────────────
   if (supabase && trials.length > 0) {
     console.log('\n☁️  Uploading to Supabase...');
-    let success = 0, failed = 0;
+    let success = 0, skipped = 0, failed = 0;
 
     for (const t of trials) {
+      if (t.trial_start_date < todayStr) {
+        console.log(`  ⏭️  Skipping past trial: ${t.trial_host || '?'} ${t.trial_start_date}`);
+        skipped++;
+        continue;
+      }
       try {
         const { error } = await supabase
           .from('trials')
@@ -524,7 +529,7 @@ async function main() {
       }
     }
 
-    console.log(`  ✅ Supabase: ${success} upserted, ${failed} failed`);
+    console.log(`  ✅ Supabase: ${success} upserted, ${skipped} skipped (past), ${failed} failed`);
   } else if (!supabase) {
     console.log('\nℹ️  No Supabase credentials — skipping upload.');
     console.log('   Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to enable.');

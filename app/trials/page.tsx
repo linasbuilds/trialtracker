@@ -159,10 +159,12 @@ export default function TrialsPage() {
   const fetchTrials = async () => {
     setLoading(true);
 
+    const todayStr = new Date().toISOString().split("T")[0];
+
     const { data, error } = await supabase
       .from("trials")
       .select("*")
-      .gte("trial_start_date", oneYearAgo)
+      .gte("trial_start_date", todayStr)
       .order("trial_start_date", { ascending: true });
 
     if (!error && data) setTrials(data as Trial[]);

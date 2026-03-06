@@ -171,8 +171,9 @@ async function scrapeSportCalendar(page, sportSlug) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
+  const todayStr = new Date().toISOString().split('T')[0];
   console.log('🐾 UKC Scraper starting...');
-  console.log(`📅 Today: ${new Date().toISOString().split('T')[0]}`);
+  console.log(`📅 Today: ${todayStr}`);
 
   const browser = await chromium.launch({
     headless: true,
@@ -270,6 +271,11 @@ async function main() {
 
     let success = 0, skipped = 0, failed = 0;
     for (const t of freshnessFiltered) {
+      if (t.trial_start_date < todayStr) {
+        console.log(`  ⏭️  Skipping past trial: ${t.trial_host || '?'} ${t.trial_start_date}`);
+        skipped++;
+        continue;
+      }
       if (claimedLinks.has(t.official_link)) {
         skipped++;
         continue;
@@ -306,7 +312,7 @@ async function main() {
         console.log(`  ❌ Upsert error (${t.trial_host}): ${err.message}`);
       }
     }
-    console.log(`  ✅ Supabase: ${success} upserted, ${skipped} skipped (claimed), ${failed} failed`);
+    console.log(`  ✅ Supabase: ${success} upserted, ${skipped} skipped (past/claimed), ${failed} failed`);
   } else {
     console.log('\nℹ️  No Supabase credentials — skipping upload.');
   }
