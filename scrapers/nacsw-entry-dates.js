@@ -839,8 +839,150 @@ async function findPDFLink(page) {
   }, BLOCKED_DOMAINS);
 }
 
+async function expandExpandableContent(page) {
+  const result = await page.evaluate(() => {
+    const KEYWORDS = ['accordion', 'collapse', 'expandable'];
+    const CLICK_SELECTORS = [
+      'summary',
+      'button',
+      'a[href="#"]',
+      '[role="button"]',
+      '[data-toggle]',
+      '[data-bs-toggle]',
+      '[aria-expanded]',
+      '[aria-controls]',
+      '.accordion',
+      '.accordion-toggle',
+      '.accordion-button',
+      '.collapse-toggle',
+      '.expandable',
+      '.expand',
+    ];
+    const PANEL_SELECTORS = [
+      '[hidden]',
+      '[aria-hidden="true"]',
+      '.collapse',
+      '.collapsed',
+      '.accordion-content',
+      '.accordion-body',
+      '.expandable',
+      '.expandable-content',
+    ];
+
+    const hasKeyword = (value = '') => KEYWORDS.some(k => String(value).toLowerCase().includes(k));
+    const attrContainsKeyword = (el) => {
+      if (!el) return false;
+      const values = [
+        el.className,
+        el.id,
+        el.getAttribute('role'),
+        el.getAttribute('aria-label'),
+        el.getAttribute('data-toggle'),
+        el.getAttribute('data-bs-toggle'),
+        el.getAttribute('data-target'),
+        el.getAttribute('data-bs-target'),
+      ];
+      return values.some(v => hasKeyword(v));
+    };
+
+    let detailsOpened = 0;
+    let clicked = 0;
+    let panelsUnhidden = 0;
+
+    for (const d of Array.from(document.querySelectorAll('details'))) {
+      if (!d.open) {
+        d.open = true;
+        detailsOpened += 1;
+      }
+    }
+
+    const candidates = new Set();
+    for (const sel of CLICK_SELECTORS) {
+      for (const node of Array.from(document.querySelectorAll(sel))) {
+        candidates.add(node);
+      }
+    }
+
+    for (const el of candidates) {
+      const text = (el.textContent || '').toLowerCase();
+      const expandableText = text.includes('expand') || text.includes('show') || text.includes('more');
+      if (!attrContainsKeyword(el) && !expandableText) continue;
+
+      try {
+        if (el.tagName === 'DETAILS') {
+          if (!el.open) {
+            el.open = true;
+            clicked += 1;
+          }
+          continue;
+        }
+        if (el.tagName === 'SUMMARY') {
+          const parent = el.closest('details');
+          if (parent && !parent.open) {
+            parent.open = true;
+            clicked += 1;
+            continue;
+          }
+        }
+
+        if (typeof el.click === 'function') {
+          el.click();
+          clicked += 1;
+        } else {
+          el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+          clicked += 1;
+        }
+      } catch {
+        // Non-fatal: keep trying other expanders.
+      }
+    }
+
+    for (const sel of PANEL_SELECTORS) {
+      for (const panel of Array.from(document.querySelectorAll(sel))) {
+        const rel = attrContainsKeyword(panel) || hasKeyword(panel.parentElement?.className || '') || hasKeyword(panel.parentElement?.id || '');
+        if (!rel) continue;
+        try {
+          if (panel.hasAttribute('hidden')) panel.removeAttribute('hidden');
+          if (panel.getAttribute('aria-hidden') === 'true') panel.setAttribute('aria-hidden', 'false');
+          panel.classList.remove('collapsed');
+          panel.classList.add('show');
+          panel.style.display = panel.style.display === 'none' ? 'block' : panel.style.display || 'block';
+          panel.style.visibility = 'visible';
+          panel.style.maxHeight = panel.style.maxHeight === '0px' ? 'none' : panel.style.maxHeight || 'none';
+          panel.style.height = panel.style.height === '0px' ? 'auto' : panel.style.height || 'auto';
+          panel.style.opacity = panel.style.opacity === '0' ? '1' : panel.style.opacity || '1';
+          panelsUnhidden += 1;
+        } catch {
+          // Non-fatal.
+        }
+      }
+    }
+
+    return { detailsOpened, clicked, panelsUnhidden };
+  });
+
+  await sleep(500);
+  return result;
+}
+
 async function getPageText(page) {
-  return await page.evaluate(() => document.body.innerText || '');
+  return await page.evaluate(() => {
+    const body = document.body;
+    if (!body) return '';
+
+    const visibleText = body.innerText || '';
+    const hiddenTextBits = [];
+    const hiddenCandidates = Array.from(
+      document.querySelectorAll('[hidden], [aria-hidden="true"], .collapse, .collapsed, .accordion-content, .expandable, details')
+    );
+
+    for (const node of hiddenCandidates) {
+      const text = (node.textContent || '').trim();
+      if (text.length >= 20) hiddenTextBits.push(text);
+    }
+
+    return `${visibleText}\n${hiddenTextBits.join('\n')}`;
+  });
 }
 
 // �"?�"? Core: 4-step date hunt for one trial �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
@@ -879,6 +1021,8 @@ async function findEntryDatesForTrial(page, trial) {
   try {
     await page.goto(homeUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
     await sleep(2000);
+    const expanded = await expandExpandableContent(page);
+    log(`    [expand] homepage details=${expanded.detailsOpened} clicked=${expanded.clicked} unhidden=${expanded.panelsUnhidden}`);
     pageText = await getPageText(page);
   } catch (err) {
     log(`    �s�️  Homepage failed to load: ${err.message}`);
@@ -902,6 +1046,8 @@ async function findEntryDatesForTrial(page, trial) {
     try {
       await page.goto(navUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
       await sleep(2000);
+      const expanded = await expandExpandableContent(page);
+      log(`    [expand] nav-page details=${expanded.detailsOpened} clicked=${expanded.clicked} unhidden=${expanded.panelsUnhidden}`);
       pageText = await getPageText(page);
 
       const result = tryExtract(pageText, 'nav-page');
@@ -918,6 +1064,7 @@ async function findEntryDatesForTrial(page, trial) {
   // then fall back to homepage if needed.
   let pdfUrl = null;
   try {
+    await expandExpandableContent(page);
     const r1 = await findPDFLink(page);
     if (r1.url) {
       log(`    �Y"- Found PDF link: ${r1.url}`);
@@ -930,6 +1077,7 @@ async function findEntryDatesForTrial(page, trial) {
       try {
         await page.goto(homeUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
         await sleep(1000);
+        await expandExpandableContent(page);
         const r2 = await findPDFLink(page);
         if (r2.url) {
           log(`    �Y"- Found PDF link (homepage retry): ${r2.url}`);
@@ -1141,7 +1289,6 @@ main().catch(err => {
   console.error('Fatal error:', err);
   process.exit(1);
 });
-
 
 
 
