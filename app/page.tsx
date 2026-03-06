@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -10,16 +10,12 @@ const supabase = createClient(
 );
 
 export default function Home() {
-  const router = useRouter();
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     const checkUser = async () => {
       const { data } = await supabase.auth.getUser();
-
-      if (!data.user) {
-        router.push("/signup");
-        return;
-      }
+      if (!data.user) return;
 
       const { data: profile } = await supabase
         .from("user_profiles")
@@ -27,16 +23,10 @@ export default function Home() {
         .eq("user_id", data.user.id)
         .single();
 
-      if (profile) {
-        if (profile.role === "club") {
-          router.push("/submit-trial");
-        } else {
-          router.push("/trials");
-        }
-      }
+      if (profile?.role) setUserRole(profile.role);
     };
     checkUser();
-  }, [router]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
@@ -73,7 +63,55 @@ export default function Home() {
           </p>
         </div>
 
-        <p className="text-slate-400 text-sm">Loading your account...</p>
+        {/* CTA buttons */}
+        <div className="flex flex-col items-center gap-3 mb-12">
+          {userRole === "club" ? (
+            <Link
+              href="/club-trials"
+              className="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-sm text-base transition-all text-center"
+            >
+              Go to My Dashboard →
+            </Link>
+          ) : userRole === "handler" ? (
+            <Link
+              href="/trials"
+              className="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-sm text-base transition-all text-center"
+            >
+              Go to My Trials →
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/signup"
+                className="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-sm text-base transition-all text-center"
+              >
+                Find Trials — Sign Up Free
+              </Link>
+              <Link
+                href="/login"
+                className="text-slate-500 hover:text-slate-700 text-sm font-medium"
+              >
+                Already have an account? Log in
+              </Link>
+            </>
+          )}
+        </div>
+
+        {/* Clubs section */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-6 py-5 text-left">
+          <h2 className="text-base font-bold text-slate-700 mb-2">🏆 Are you a club?</h2>
+          <p className="text-sm text-slate-600 leading-relaxed mb-4">
+            Claim your trials and add entry dates directly — so your competitors never miss
+            an opening. It&apos;s free, takes two minutes, and puts you in control of your listing.
+          </p>
+          <Link
+            href="/signup"
+            className="inline-block bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold py-2 px-5 rounded-lg transition-all"
+          >
+            Claim Your Trials →
+          </Link>
+        </div>
+
       </div>
     </div>
   );
