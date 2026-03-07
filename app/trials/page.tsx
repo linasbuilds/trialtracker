@@ -108,11 +108,8 @@ export default function TrialsPage() {
   const [prefsLoaded, setPrefsLoaded] = useState(false);
   const oneYearAgo = getOneYearAgoIso();
 
-  // Load saved preferences and apply to filters
+  // Load saved preferences and apply to filters, then fetch trials
   useEffect(() => {
-    // Always fetch trials on mount — independent of preferences
-    fetchTrials();
-
     const loadPrefs = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -150,6 +147,8 @@ export default function TrialsPage() {
       } catch (err) {
         console.warn("Failed to load user preferences:", err);
       }
+
+      fetchTrials();
     };
 
     loadPrefs();
