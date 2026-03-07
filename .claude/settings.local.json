@@ -11,7 +11,11 @@
       "WebFetch(domain:mydogentry.com)",
       "WebFetch(domain:www.k9cpe.com)",
       "WebFetch(domain:cpe.dog)",
-      "WebFetch(domain:entries.ukagilityinternational.com)"
+      "WebFetch(domain:entries.ukagilityinternational.com)",
+      "Bash(for f in app/auth-callback/page.tsx app/club-trials/page.tsx app/layout.tsx app/login/page.tsx app/page.tsx app/preferences/page.tsx app/reset-password/page.tsx app/signup/page.tsx app/submit/page.tsx app/trials/page.tsx)",
+      "Bash(do echo \"=== $f ===\")",
+      "Read(//c/Users/linas/trialtracker/**)",
+      "Bash(done)"
     ]
   }
 }

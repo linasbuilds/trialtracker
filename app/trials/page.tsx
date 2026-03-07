@@ -1,16 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabaseClient";
 import {
   ALL_ORGS,
   getSportsForOrg, getLevelsForOrgSport, normalizeLevel,
 } from "../lib/catalog";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 const ALL_STATES = [
   "All States",
@@ -115,41 +110,46 @@ export default function TrialsPage() {
 
   // Load saved preferences and apply to filters
   useEffect(() => {
+    // Always fetch trials on mount — independent of preferences
+    fetchTrials();
+
     const loadPrefs = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
 
-      if (user) {
-        const { data: profile } = await supabase
-          .from("user_profiles")
-          .select("preferred_venues, preferred_states, preferred_orgs")
-          .eq("user_id", user.id)
-          .single();
+        if (user) {
+          const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("preferred_venues, preferred_states, preferred_orgs")
+            .eq("user_id", user.id)
+            .single();
 
-        if (profile) {
-          // If they have exactly 1 sport saved, pre-filter to it
-          if (profile.preferred_venues?.length === 1) {
-            setSelectedSport(profile.preferred_venues[0]);
-          }
-          // If they have exactly 1 org saved, pre-filter to it
-          if (profile.preferred_orgs?.length === 1) {
-            setSelectedOrg(profile.preferred_orgs[0]);
-          }
-          // If they have exactly 1 state saved, pre-filter to it
-          if (profile.preferred_states?.length === 1) {
-            setSelectedState(profile.preferred_states[0]);
-          }
+          if (profile) {
+            // If they have exactly 1 sport saved, pre-filter to it
+            if (profile.preferred_venues?.length === 1) {
+              setSelectedSport(profile.preferred_venues[0]);
+            }
+            // If they have exactly 1 org saved, pre-filter to it
+            if (profile.preferred_orgs?.length === 1) {
+              setSelectedOrg(profile.preferred_orgs[0]);
+            }
+            // If they have exactly 1 state saved, pre-filter to it
+            if (profile.preferred_states?.length === 1) {
+              setSelectedState(profile.preferred_states[0]);
+            }
 
-          if (
-            profile.preferred_venues?.length ||
-            profile.preferred_orgs?.length ||
-            profile.preferred_states?.length
-          ) {
-            setPrefsLoaded(true);
+            if (
+              profile.preferred_venues?.length ||
+              profile.preferred_orgs?.length ||
+              profile.preferred_states?.length
+            ) {
+              setPrefsLoaded(true);
+            }
           }
         }
+      } catch (err) {
+        console.warn("Failed to load user preferences:", err);
       }
-
-      fetchTrials();
     };
 
     loadPrefs();
@@ -167,6 +167,7 @@ export default function TrialsPage() {
       .gte("trial_start_date", todayStr)
       .order("trial_start_date", { ascending: true });
 
+    if (error) console.error("Supabase trials query error:", error);
     if (!error && data) setTrials(data as Trial[]);
     setLoading(false);
   };

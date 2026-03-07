@@ -2,13 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabaseClient'
 import { ALL_ORGS, ALL_SPORTS, getSportsForOrgs, getLevelsForPrefs } from '../lib/catalog'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 const STATES = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
