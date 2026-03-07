@@ -159,12 +159,13 @@ export default function TrialsPage() {
     setLoading(true);
 
     const d = new Date();
-    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    d.setDate(d.getDate() - 7);
+    const sevenDaysAgoStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
     const { data, error } = await supabase
       .from("trials")
       .select("*")
-      .gte("trial_start_date", todayStr)
+      .gte("trial_start_date", sevenDaysAgoStr)
       .order("trial_start_date", { ascending: true });
 
     if (error) console.error("Supabase trials query error:", error);
