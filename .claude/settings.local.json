@@ -10,7 +10,8 @@
       "WebFetch(domain:www.infodog.com)",
       "WebFetch(domain:mydogentry.com)",
       "WebFetch(domain:www.k9cpe.com)",
-      "WebFetch(domain:cpe.dog)"
+      "WebFetch(domain:cpe.dog)",
+      "WebFetch(domain:entries.ukagilityinternational.com)"
     ]
   }
 }
