@@ -389,7 +389,6 @@ async function main() {
             trial_end_date:     t.trial_end_date,
             entry_opening_date: t.entry_opening_date,
             entry_closing_date: t.entry_closing_date,
-            premium_url:        t.premium_url,
             official_link:      t.official_link,
             club_website:       t.club_website,
             cancelled:          t.cancelled,
