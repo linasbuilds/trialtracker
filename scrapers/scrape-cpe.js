@@ -273,7 +273,7 @@ async function scrapeEventDetail(page, url) {
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
   await sleep(1000);
 
-  return await page.evaluate((pageUrl, ignoreDomains) => {
+  return await page.evaluate(({ pageUrl, ignoreDomains }) => {
     // ── JSON-LD structured data ──────────────────────────────────────────
     let startDate = null, endDate = null;
     const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
@@ -348,7 +348,7 @@ async function scrapeEventDetail(page, url) {
       closingDate, city, state, cancelled, clubWebsite,
       officialLink: pageUrl,
     };
-  }, url, IGNORE_DOMAINS);
+  }, { pageUrl: url, ignoreDomains: IGNORE_DOMAINS });
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
