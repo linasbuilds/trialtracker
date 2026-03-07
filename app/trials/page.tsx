@@ -1,11 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@supabase/supabase-js";
 import {
   ALL_ORGS,
   getSportsForOrg, getLevelsForOrgSport, normalizeLevel,
 } from "../lib/catalog";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 const ALL_STATES = [
   "All States",
@@ -362,7 +367,7 @@ export default function TrialsPage() {
             const isOpeningToday = daysUntil === 0;
             const isOpeningTomorrow = daysUntil === 1;
             const alreadyOpen = trial.entry_opening_date && daysUntil < 0;
-            const trialCardLink = trial.trial_url || trial.club_url;
+            const trialCardLink = trial.trial_url || trial.club_url || trial.club_website;
 
             const level = normalizeLevel(trial.level || "");
 
@@ -477,7 +482,7 @@ export default function TrialsPage() {
                     rel="noopener noreferrer"
                     className="inline-block bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
                   >
-                    View &amp; Register ?
+                    View &amp; Register
                   </a>
                 ) : (
                   <span className="inline-block text-sm font-medium text-slate-600">
