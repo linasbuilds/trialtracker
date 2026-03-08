@@ -34,7 +34,7 @@ export const SPORT_LEVELS: Record<string, string[]> = {
 };
 
 export const ALL_ORGS = [
-  'NACSW', 'AKC', 'UKI', 'CPE', 'NADAC', 'UKC',
+  'NACSW', 'UKI', 'CPE', 'NADAC', 'UKC',
   'WCRL', 'NAFA', 'USDAA', 'TDAA', 'ASCA', 'BHA', 'Other',
 ];
 

@@ -175,7 +175,6 @@ export default function SubmitPage() {
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">Select org</option>
                   <option>NACSW</option>
-                  <option>AKC</option>
                   <option>UKI</option>
                   <option>CPE</option>
                   <option>NADAC</option>
