@@ -59,6 +59,21 @@ const MONTHS = {
   aug:'08', sep:'09', oct:'10', nov:'11', dec:'12',
 };
 
+// Returns YYYY-MM-DD using LOCAL date parts — avoids UTC-shift bugs.
+function localDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function getTodayStr() {
+  return localDateStr(new Date());
+}
+
+function getLimitStr() {
+  const d = new Date();
+  d.setDate(d.getDate() + 90);
+  return localDateStr(d);
+}
+
 // MM/DD/YYYY → YYYY-MM-DD
 function parseMDY(str) {
   if (!str) return null;
@@ -115,25 +130,25 @@ function parseDateRange(text) {
 }
 
 // Returns true if dateStr (YYYY-MM-DD) is today or within the next 90 days.
+// Uses LOCAL date string comparison — no Date objects, no timezone bugs.
 function isWithin90Days(dateStr) {
   if (!dateStr) return false;
-  const trialDate = new Date(dateStr + 'T00:00:00');
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const limit = new Date(today.getTime() + NINETY_DAYS_MS);
-  return trialDate >= today && trialDate <= limit;
+  // Validate that dateStr looks like YYYY-MM-DD before comparing
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+  const today = getTodayStr();
+  const limit = getLimitStr();
+  return dateStr >= today && dateStr <= limit;
 }
 
-function oneYearAgoIso() {
+function oneYearAgoStr() {
   const d = new Date();
-  d.setHours(0, 0, 0, 0);
   d.setTime(d.getTime() - ONE_YEAR_DAYS_MS);
-  return d.toISOString().split('T')[0];
+  return localDateStr(d);
 }
 
 function isOlderThanOneYear(dateStr) {
   if (!dateStr) return false;
-  return dateStr < oneYearAgoIso();
+  return dateStr < oneYearAgoStr();
 }
 
 // ── robots.txt check ──────────────────────────────────────────────────────────
@@ -199,6 +214,10 @@ async function checkRobotsTxt(siteUrl) {
 //
 // We collect all of these here so we can filter by date BEFORE visiting
 // any individual detail pages.
+//
+// For each event we also capture rawDateText — visible date text from the
+// container (e.g. "March 5-8, 2026"). If the <time[datetime]> attribute is
+// missing or empty, rawDateText is parsed by parseDateRange() in Node.js.
 
 async function extractEventList(page) {
   console.log(`🌐 Loading CPE events list: ${CPE_LIST_URL}`);
@@ -208,6 +227,16 @@ async function extractEventList(page) {
   const events = await page.evaluate((origin) => {
     const results = [];
     const seenUrls = new Set();
+
+    // Regex to capture visible date text: "March 5-8, 2026", "Mar 30 - Apr 2, 2026", etc.
+    const DATE_RE = /\b(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}(?:\s*[-–]\s*(?:(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+)?\d{1,2})?,?\s*\d{4}/i;
+
+    // Helper: extract a visible date string from a DOM element's text content
+    function extractRawDate(el) {
+      const text = el ? (el.textContent || '') : '';
+      const m = text.match(DATE_RE);
+      return m ? m[0].trim() : null;
+    }
 
     // Primary: The Events Calendar list articles
     const articles = Array.from(
@@ -224,14 +253,18 @@ async function extractEventList(page) {
         seenUrls.add(url);
 
         // Start date from <time datetime="YYYY-MM-DDT...">
-        const timeEl    = article.querySelector('time[datetime]');
-        const dtAttr    = timeEl ? (timeEl.getAttribute('datetime') || '') : '';
-        const startDate = dtAttr ? dtAttr.slice(0, 10) : null;
+        const timeEl = article.querySelector('time[datetime]');
+        const dtAttr = timeEl ? (timeEl.getAttribute('datetime') || '') : '';
+        // Only use dtAttr if it looks like an ISO date (starts with 4 digits)
+        const startDate = /^\d{4}-\d{2}-\d{2}/.test(dtAttr) ? dtAttr.slice(0, 10) : null;
+
+        // Fallback: visible date text in the article
+        const rawDateText = startDate ? null : extractRawDate(article);
 
         // Title text for logging
         const titleText = titleLink ? titleLink.textContent.trim() : url;
 
-        results.push({ url, startDate, titleText });
+        results.push({ url, startDate, rawDateText, titleText });
       }
     } else {
       // Fallback: collect all /event/ links on the page
@@ -241,22 +274,45 @@ async function extractEventList(page) {
         if (!url || seenUrls.has(url)) continue;
         seenUrls.add(url);
 
-        // Look for a nearby <time> element
+        // Walk up to 8 parent levels looking for a <time[datetime]> or visible date text
         let startDate = null;
+        let rawDateText = null;
         let el = a.parentElement;
-        for (let i = 0; i < 6 && el; i++) {
+        for (let i = 0; i < 8 && el; i++) {
           const t = el.querySelector('time[datetime]');
-          if (t) { startDate = (t.getAttribute('datetime') || '').slice(0, 10); break; }
+          if (t) {
+            const dtAttr = t.getAttribute('datetime') || '';
+            if (/^\d{4}-\d{2}-\d{2}/.test(dtAttr)) {
+              startDate = dtAttr.slice(0, 10);
+              break;
+            }
+          }
+          // Try visible date text in this container
+          if (!rawDateText) {
+            const m = (el.textContent || '').match(DATE_RE);
+            if (m) rawDateText = m[0].trim();
+          }
           el = el.parentElement;
         }
 
         const titleText = a.textContent.trim() || url;
-        results.push({ url, startDate, titleText });
+        results.push({ url, startDate, rawDateText, titleText });
       }
     }
 
     return results;
   }, CPE_ORIGIN);
+
+  // Parse rawDateText in Node.js for events that had no <time[datetime]>
+  for (const ev of events) {
+    if (!ev.startDate && ev.rawDateText) {
+      const parsed = parseDateRange(ev.rawDateText);
+      if (parsed.start) {
+        ev.startDate = parsed.start;
+        console.log(`  📅 Parsed list-page date from text: "${ev.rawDateText}" → ${parsed.start}`);
+      }
+    }
+  }
 
   return events;
 }
@@ -283,8 +339,15 @@ async function scrapeEventDetail(page, url) {
         const events = Array.isArray(data) ? data : [data];
         for (const ev of events) {
           if (ev['@type'] === 'Event' || ev['@type'] === 'SportsEvent') {
-            if (ev.startDate) startDate = ev.startDate.slice(0, 10);
-            if (ev.endDate)   endDate   = ev.endDate.slice(0, 10);
+            if (ev.startDate) {
+              const s = ev.startDate.slice(0, 10);
+              // Only accept if it looks like YYYY-MM-DD
+              if (/^\d{4}-\d{2}-\d{2}$/.test(s)) startDate = s;
+            }
+            if (ev.endDate) {
+              const s = ev.endDate.slice(0, 10);
+              if (/^\d{4}-\d{2}-\d{2}$/.test(s)) endDate = s;
+            }
           }
         }
       } catch {}
@@ -343,8 +406,15 @@ async function scrapeEventDetail(page, url) {
       break;
     }
 
+    // Visible date text from body — returned as fallback if JSON-LD date is missing.
+    // Look for patterns like "March 5-8, 2026" or "March 30 - April 2, 2026".
+    const DATE_RE = /\b(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}(?:\s*[-–]\s*(?:(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+)?\d{1,2})?,?\s*\d{4}/i;
+    const dateBodyMatch = bodyText.match(DATE_RE);
+    const rawDateText = dateBodyMatch ? dateBodyMatch[0].trim() : null;
+
     return {
-      startDate, endDate, hostClub, trialName,
+      startDate, endDate, rawDateText,
+      hostClub, trialName,
       closingDate, city, state, cancelled, clubWebsite,
       officialLink: pageUrl,
     };
@@ -354,11 +424,8 @@ async function scrapeEventDetail(page, url) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().split('T')[0];
-  const limit    = new Date(today.getTime() + NINETY_DAYS_MS);
-  const limitStr = limit.toISOString().split('T')[0];
+  const todayStr = getTodayStr();
+  const limitStr = getLimitStr();
 
   console.log('🐾 CPE Scraper starting...');
   console.log(`📅 Today: ${todayStr} — window closes ${limitStr} (90 days)`);
@@ -404,23 +471,27 @@ async function main() {
 
   // ── 90-day filter — applied HERE before visiting any detail pages ──────────
   // Events whose start date is known and outside the window are dropped now.
-  // Events with no parseable start date are kept for a second filter after
-  // visiting the detail page (where JSON-LD gives us a reliable date).
+  // Events with no parseable start date are kept so the detail page can
+  // provide a definitive date from JSON-LD or body text.
   const qualifying = [];
   let skippedEarly = 0;
 
   for (const ev of eventList) {
-    if (ev.startDate && !isWithin90Days(ev.startDate)) {
-      console.log(`⏭️  Skipping ${ev.titleText || ev.url} — outside 90-day window`);
-      skippedEarly++;
+    if (ev.startDate) {
+      if (isWithin90Days(ev.startDate)) {
+        qualifying.push(ev);
+      } else {
+        console.log(`⏭️  Skipping ${ev.titleText || ev.url} (${ev.startDate}) — outside 90-day window`);
+        skippedEarly++;
+      }
     } else {
+      // No date found on list page — visit detail page to confirm
       qualifying.push(ev);
     }
   }
 
   console.log(
-    `📅 ${qualifying.length} events within the 90-day window` +
-    ` (${skippedEarly} skipped without visiting their pages)\n`
+    `📅 ${qualifying.length} events to visit (${skippedEarly} skipped from list page alone)\n`
   );
 
   if (qualifying.length === 0) {
@@ -454,10 +525,19 @@ async function main() {
       continue;
     }
 
-    // Second 90-day filter using the authoritative JSON-LD start date
-    // (catches events that had no date on the list page)
+    // If JSON-LD didn't give us a valid ISO date, fall back to body text
+    if (!detail.startDate && detail.rawDateText) {
+      const parsed = parseDateRange(detail.rawDateText);
+      if (parsed.start) {
+        detail.startDate = parsed.start;
+        detail.endDate   = detail.endDate || parsed.end;
+        console.log(`  📅 Date from page body: "${detail.rawDateText}" → ${parsed.start}`);
+      }
+    }
+
+    // Second 90-day filter using the authoritative detail-page date
     if (!isWithin90Days(detail.startDate)) {
-      console.log(`  ⏭️  Skipping ${detail.hostClub || ev.titleText} — outside 90-day window`);
+      console.log(`  ⏭️  Skipping ${detail.hostClub || ev.titleText} (${detail.startDate || 'no date'}) — outside 90-day window`);
       skippedDetail++;
       continue;
     }
