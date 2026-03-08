@@ -70,7 +70,6 @@ interface Trial {
   organization: string;
   sport: string;
 
-  // NEW: for level filtering (make sure your table has this column)
   level?: string;
 
   trial_name: string;
@@ -94,7 +93,7 @@ interface Trial {
 
   trial_url?: string;
   club_url?: string;
-  official_link: string;
+  official_link?: string;
   club_website?: string;
   claimed?: boolean;
 }
@@ -127,15 +126,12 @@ export default function TrialsPage() {
             .single();
 
           if (profile) {
-            // If they have exactly 1 sport saved, pre-filter to it
             if (profile.preferred_venues?.length === 1) {
               setSelectedSport(profile.preferred_venues[0]);
             }
-            // If they have exactly 1 org saved, pre-filter to it
             if (profile.preferred_orgs?.length === 1) {
               setSelectedOrg(profile.preferred_orgs[0]);
             }
-            // If they have exactly 1 state saved, pre-filter to it
             if (profile.preferred_states?.length === 1) {
               setSelectedState(profile.preferred_states[0]);
             }
@@ -238,6 +234,9 @@ export default function TrialsPage() {
 
   const selectClass =
     "border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer";
+
+  const btnClass =
+    "inline-block bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors";
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -367,7 +366,9 @@ export default function TrialsPage() {
             const isOpeningToday = daysUntil === 0;
             const isOpeningTomorrow = daysUntil === 1;
             const alreadyOpen = trial.entry_opening_date && daysUntil < 0;
-            const trialCardLink = trial.trial_url || trial.club_url || trial.club_website;
+
+            // official_link takes priority; club_website is the fallback
+            const trialLink = trial.official_link || trial.club_website || null;
 
             const level = normalizeLevel(trial.level || "");
 
@@ -406,12 +407,12 @@ export default function TrialsPage() {
                   </div>
                 </div>
 
-                {/* Host + city/state line (keep your existing style) */}
+                {/* Host + city/state */}
                 <p className="text-slate-500 text-sm mb-2">
                   📍 {getHostName(trial)}{getHostName(trial) && trial.city ? " • " : ""}{trial.city}{trial.city && trial.state ? ", " : ""}{trial.state}
                 </p>
 
-                {/* NEW: Trial Location + Full Address */}
+                {/* Trial Location + Full Address */}
                 <div className="text-slate-600 text-sm mb-2">
                   <div className="mb-1">
                     <span className="font-semibold">Trial Location:</span>{" "}
@@ -440,7 +441,7 @@ export default function TrialsPage() {
                   )}
                 </p>
 
-                {/* Entry dates — always show both lines */}
+                {/* Entry dates */}
                 <div className="text-slate-600 text-sm mb-3 space-y-0.5">
                   <p>
                     📋 <span className="font-medium">Trial Entry Opens:</span>{" "}
@@ -475,31 +476,16 @@ export default function TrialsPage() {
                   </div>
                 )}
 
-                {trialCardLink ? (
+                {trialLink && (
                   <a
-                    href={trialCardLink}
+                    href={trialLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-block bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                    className={btnClass}
                   >
                     View &amp; Register
                   </a>
-                ) : (
-                  <span className="inline-block text-sm font-medium text-slate-600">
-                    View Club Website
-                  </span>
                 )}
-
-                {trial.premium_url ? (
-                  <a
-                    href={trial.premium_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block bg-slate-700 hover:bg-slate-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-                  >
-                    View Premium
-                  </a>
-                ) : null}
               </div>
             );
           })}
@@ -508,4 +494,3 @@ export default function TrialsPage() {
     </div>
   );
 }
-
