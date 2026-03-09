@@ -1,20 +1,18 @@
 // scrapers/scrape-cpe.js
 // CPE (Canine Performance Events) Agility Trial Scraper — Playwright
 //
-// Two-pass approach:
-//   Pass 1 — Load https://cpe.dog/events-list/ and collect all event URLs
-//             with their start dates. Anything outside the 90-day window is
-//             skipped immediately — no detail page visit, no upload.
-//   Pass 2 — Visit each qualifying event's detail page to extract:
-//             host club, city/state, start/end dates (JSON-LD), entry
-//             closing date, and club website.
+// Single-page approach:
+//   Load https://cpe.dog/events-list/ which shows ALL events with full details
+//   inline: date range, title, city/state, closing date, website, Details link.
+//   All data is extracted in one page.evaluate() call — no detail page visits,
+//   no + button clicking needed (textContent reads CSS-hidden content directly).
+//   Events outside the 90-day window are skipped immediately from list data.
 //
 // LEGAL SAFEGUARDS:
 //   - Honest bot User-Agent — never disguised as a browser.
 //   - robots.txt respected before any scraping begins.
-//   - 2-3 second delay between page visits.
 //   - organization = 'CPE', sport = 'Agility', data_source = 'cpe'
-//   - Upsert on official_link (the CPE detail page URL) — no duplicates.
+//   - Upsert on official_link — no duplicates.
 
 const { chromium } = require('playwright');
 const { createClient } = require('@supabase/supabase-js');
@@ -31,13 +29,8 @@ const supabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
   : null;
 
 const CPE_LIST_URL = 'https://cpe.dog/events-list/';
-const CPE_ORIGIN   = 'https://cpe.dog';
 
-const BOT_UA = 'TrialTracker-Bot/1.0 (trial aggregator; contact: trialtrackerapp@gmail.com; info: trialtracker.app)';
-
-const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
-const ONE_YEAR_DAYS_MS = 365 * 24 * 60 * 60 * 1000;
-const DELAY_MS       = 2500;
+const BOT_UA = 'TrialTracker-Bot/1.0 (contact: trialtrackerapp@gmail.com; info: trialtracker.app)';
 
 // External domains to skip when looking for a club website link
 const IGNORE_DOMAINS = [
@@ -52,14 +45,7 @@ function sleep(ms) {
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
-const MONTHS = {
-  january:'01', february:'02', march:'03', april:'04', may:'05', june:'06',
-  july:'07', august:'08', september:'09', october:'10', november:'11', december:'12',
-  jan:'01', feb:'02', mar:'03', apr:'04', jun:'06', jul:'07',
-  aug:'08', sep:'09', oct:'10', nov:'11', dec:'12',
-};
-
-// Returns YYYY-MM-DD using LOCAL date parts — avoids UTC-shift bugs.
+// Returns YYYY-MM-DD using LOCAL date parts — avoids UTC-shift bugs entirely.
 function localDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -82,73 +68,13 @@ function parseMDY(str) {
   return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
 }
 
-// Parses text like "March 5-8, 2026", "March 5 - April 2, 2026",
-// "March 5, 2026", "03/05/2026 - 03/08/2026"
-function parseDateRange(text) {
-  if (!text) return { start: null, end: null };
-
-  // MM/DD/YYYY - MM/DD/YYYY
-  const mdy2 = text.match(/(\d{1,2}\/\d{1,2}\/\d{4})\s*[-–]\s*(\d{1,2}\/\d{1,2}\/\d{4})/);
-  if (mdy2) return { start: parseMDY(mdy2[1]), end: parseMDY(mdy2[2]) };
-
-  // Single MM/DD/YYYY
-  const mdy1 = text.match(/\d{1,2}\/\d{1,2}\/\d{4}/);
-  if (mdy1) return { start: parseMDY(mdy1[0]), end: null };
-
-  // "March 5-8, 2026" (same month, day range)
-  const same = text.match(/(\w+)\s+(\d{1,2})\s*[-–]\s*(\d{1,2}),?\s*(\d{4})/i);
-  if (same) {
-    const m = MONTHS[same[1].toLowerCase()];
-    if (m) return {
-      start: `${same[4]}-${m}-${same[2].padStart(2, '0')}`,
-      end:   `${same[4]}-${m}-${same[3].padStart(2, '0')}`,
-    };
-  }
-
-  // "March 30 - April 2, 2026" (cross-month)
-  const cross = text.match(/(\w+)\s+(\d{1,2})\s*[-–]\s*(\w+)\s+(\d{1,2}),?\s*(\d{4})/i);
-  if (cross) {
-    const m1 = MONTHS[cross[1].toLowerCase()];
-    const m2 = MONTHS[cross[3].toLowerCase()];
-    if (m1 && m2) return {
-      start: `${cross[5]}-${m1}-${cross[2].padStart(2, '0')}`,
-      end:   `${cross[5]}-${m2}-${cross[4].padStart(2, '0')}`,
-    };
-  }
-
-  // "March 5, 2026" (single named date)
-  const single = text.match(/(\w+)\s+(\d{1,2}),?\s*(\d{4})/i);
-  if (single) {
-    const m = MONTHS[single[1].toLowerCase()];
-    if (m) return {
-      start: `${single[3]}-${m}-${single[2].padStart(2, '0')}`,
-      end:   null,
-    };
-  }
-
-  return { start: null, end: null };
-}
-
-// Returns true if dateStr (YYYY-MM-DD) is today or within the next 90 days.
-// Uses LOCAL date string comparison — no Date objects, no timezone bugs.
+// Returns true if dateStr (YYYY-MM-DD) falls between today and today+90 days.
+// Pure string comparison — no Date objects, no timezone conversion bugs.
 function isWithin90Days(dateStr) {
-  if (!dateStr) return false;
-  // Validate that dateStr looks like YYYY-MM-DD before comparing
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
   const today = getTodayStr();
   const limit = getLimitStr();
   return dateStr >= today && dateStr <= limit;
-}
-
-function oneYearAgoStr() {
-  const d = new Date();
-  d.setTime(d.getTime() - ONE_YEAR_DAYS_MS);
-  return localDateStr(d);
-}
-
-function isOlderThanOneYear(dateStr) {
-  if (!dateStr) return false;
-  return dateStr < oneYearAgoStr();
 }
 
 // ── robots.txt check ──────────────────────────────────────────────────────────
@@ -184,11 +110,7 @@ function isAllowedByRobots(robotsText) {
     const lower = line.toLowerCase();
     if (lower.startsWith('user-agent:')) {
       const agent = line.slice('user-agent:'.length).trim().toLowerCase();
-      inBlock = (
-        agent === '*' ||
-        agent === 'trialtrackerbot' ||
-        agent === 'trialtracker-bot'
-      );
+      inBlock = (agent === '*' || agent === 'trialtrackerbot' || agent === 'trialtracker-bot');
     } else if (inBlock && lower.startsWith('disallow:')) {
       if (line.slice('disallow:'.length).trim() === '/') return false;
     }
@@ -202,223 +124,126 @@ async function checkRobotsTxt(siteUrl) {
     const text   = await fetchText(origin + '/robots.txt', 8000);
     return isAllowedByRobots(text);
   } catch {
-    return true; // assume allowed if robots.txt is unreachable
+    return true; // assume allowed if unreachable
   }
 }
 
-// ── Pass 1: Collect event URLs + start dates from the list page ───────────────
+// ── Extract all events from the list page in one pass ────────────────────────
 //
-// The Events Calendar plugin renders events as <article class="tribe_events">
-// elements. Each article has a <time datetime="2026-03-05T..."> for the start
-// date and a title <a> linking to the event detail page (/event/slug/).
+// The CPE events list page renders every event with all fields visible in the
+// DOM — the + button only toggles CSS visibility. textContent reads both
+// visible and hidden content, so one page.evaluate() gets everything.
 //
-// We collect all of these here so we can filter by date BEFORE visiting
-// any individual detail pages.
+// Each event on the list page looks like:
+//   Date: "03/06/2026 - 03/08/2026"  (in an h2-level element)
+//   Title: "(AG) CA: Haute Dawgs Agility Group"  (in an h3-level element)
+//   Location: "Elk Grove, CA (Indoors)"
+//   Closing Date: "Closing Date: 02/24/2026"
+//   Website: http://www.hautedawgs.org
+//   Details link: https://cpe.dog/event/ag-ca-haute-dawgs-agility-group-2/
 //
-// For each event we also capture rawDateText — visible date text from the
-// container (e.g. "March 5-8, 2026"). If the <time[datetime]> attribute is
-// missing or empty, rawDateText is parsed by parseDateRange() in Node.js.
+// Strategy: anchor on each event's "Details" link (href matches /event/slug/).
+// Walk up the DOM to find the smallest container holding exactly one such link.
+// That container is one event's block. Read its textContent for all fields.
 
-async function extractEventList(page) {
+async function extractAllEvents(page) {
   console.log(`🌐 Loading CPE events list: ${CPE_LIST_URL}`);
-  await page.goto(CPE_LIST_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.goto(CPE_LIST_URL, { waitUntil: 'networkidle', timeout: 60000 });
   await sleep(2000);
 
-  const events = await page.evaluate((origin) => {
-    const results = [];
-    const seenUrls = new Set();
+  const events = await page.evaluate((ignoreDomains) => {
+    const results  = [];
+    const seen     = new Set();
 
-    // Regex to capture visible date text: "March 5-8, 2026", "Mar 30 - Apr 2, 2026", etc.
-    const DATE_RE = /\b(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}(?:\s*[-–]\s*(?:(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+)?\d{1,2})?,?\s*\d{4}/i;
+    // "Details" links match /event/slug/ exactly.
+    // "Premium" links go to /wp-content/uploads/ — excluded by the regex.
+    const detailLinks = Array.from(document.querySelectorAll('a[href]')).filter(a => {
+      try {
+        const u = new URL(a.href);
+        return u.hostname === 'cpe.dog' && /^\/event\/[^/]+\/?$/.test(u.pathname);
+      } catch { return false; }
+    });
 
-    // Helper: extract a visible date string from a DOM element's text content
-    function extractRawDate(el) {
-      const text = el ? (el.textContent || '') : '';
-      const m = text.match(DATE_RE);
-      return m ? m[0].trim() : null;
-    }
+    for (const detailLink of detailLinks) {
+      const officialLink = detailLink.href;
+      if (seen.has(officialLink)) continue;
+      seen.add(officialLink);
 
-    // Primary: The Events Calendar list articles
-    const articles = Array.from(
-      document.querySelectorAll('article.tribe_events, .tribe-events-calendar-list__event-article')
-    );
+      // Walk up the DOM: find the largest ancestor that contains ONLY this
+      // one Details link. When we step into an element that has two or more,
+      // we've gone too far — back up one level.
+      let container = detailLink.parentElement;
+      let prev      = container;
 
-    if (articles.length > 0) {
-      for (const article of articles) {
-        const titleLink = article.querySelector(
-          'a.tribe-events-calendar-list__event-title-link, h2 a, h3 a, h1 a'
-        );
-        const url = titleLink ? titleLink.href : null;
-        if (!url || seenUrls.has(url)) continue;
-        seenUrls.add(url);
+      while (container && container.tagName !== 'BODY') {
+        const count = Array.from(container.querySelectorAll('a[href]')).filter(a => {
+          try {
+            const u = new URL(a.href);
+            return u.hostname === 'cpe.dog' && /^\/event\/[^/]+\/?$/.test(u.pathname);
+          } catch { return false; }
+        }).length;
 
-        // Start date from <time datetime="YYYY-MM-DDT...">
-        const timeEl = article.querySelector('time[datetime]');
-        const dtAttr = timeEl ? (timeEl.getAttribute('datetime') || '') : '';
-        // Only use dtAttr if it looks like an ISO date (starts with 4 digits)
-        const startDate = /^\d{4}-\d{2}-\d{2}/.test(dtAttr) ? dtAttr.slice(0, 10) : null;
-
-        // Fallback: visible date text in the article
-        const rawDateText = startDate ? null : extractRawDate(article);
-
-        // Title text for logging
-        const titleText = titleLink ? titleLink.textContent.trim() : url;
-
-        results.push({ url, startDate, rawDateText, titleText });
-      }
-    } else {
-      // Fallback: collect all /event/ links on the page
-      const links = Array.from(document.querySelectorAll(`a[href*="${origin}/event/"]`));
-      for (const a of links) {
-        const url = a.href;
-        if (!url || seenUrls.has(url)) continue;
-        seenUrls.add(url);
-
-        // Walk up to 8 parent levels looking for a <time[datetime]> or visible date text
-        let startDate = null;
-        let rawDateText = null;
-        let el = a.parentElement;
-        for (let i = 0; i < 8 && el; i++) {
-          const t = el.querySelector('time[datetime]');
-          if (t) {
-            const dtAttr = t.getAttribute('datetime') || '';
-            if (/^\d{4}-\d{2}-\d{2}/.test(dtAttr)) {
-              startDate = dtAttr.slice(0, 10);
-              break;
-            }
-          }
-          // Try visible date text in this container
-          if (!rawDateText) {
-            const m = (el.textContent || '').match(DATE_RE);
-            if (m) rawDateText = m[0].trim();
-          }
-          el = el.parentElement;
+        if (count > 1) {
+          container = prev; // back up: this ancestor wraps multiple events
+          break;
         }
-
-        const titleText = a.textContent.trim() || url;
-        results.push({ url, startDate, rawDateText, titleText });
+        prev      = container;
+        container = container.parentElement;
       }
+
+      if (!container || container.tagName === 'BODY') continue;
+
+      // textContent reads ALL text including CSS-hidden content (expanded panel)
+      const text = (container.textContent || '')
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n\s*\n/g, '\n')
+        .trim();
+
+      // ── Date: "03/06/2026 - 03/08/2026" ────────────────────────────────
+      const dateRangeM = text.match(/(\d{1,2}\/\d{1,2}\/\d{4})\s*[-–]\s*(\d{1,2}\/\d{1,2}\/\d{4})/);
+      const singleDateM = !dateRangeM && text.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+      const rawStart = dateRangeM ? dateRangeM[1] : (singleDateM ? singleDateM[1] : null);
+      const rawEnd   = dateRangeM ? dateRangeM[2] : null;
+
+      // ── Title: "(AG) CA: Club Name" — check headings first ─────────────
+      let titleText = '';
+      for (const el of Array.from(container.querySelectorAll('h1,h2,h3,h4,h5,strong,b'))) {
+        const t = (el.textContent || '').trim();
+        if (/\([A-Z]+\)\s+[A-Z]{2}:/.test(t)) { titleText = t; break; }
+      }
+      if (!titleText) {
+        const m = text.match(/\([A-Z]+\)\s+[A-Z]{2}:\s*[^\n|]+/);
+        if (m) titleText = m[0].trim();
+      }
+
+      // ── Location: "City, ST (Indoors)" or "CITY, ST (Outdoors)" ────────
+      const locM  = text.match(/([A-Za-z][A-Za-z\s\-'.]*),\s*([A-Z]{2})\s*\((Indoors|Outdoors)/i);
+      const city  = locM ? locM[1].trim() : null;
+      const state = locM ? locM[2].toUpperCase() : null;
+
+      // ── Closing Date: "Closing Date: 02/24/2026" ────────────────────────
+      const closingM  = text.match(/Closing Date[:\s]+(\d{1,2}\/\d{1,2}\/\d{4})/i);
+      const rawClosing = closingM ? closingM[1] : null;
+
+      // ── Website: first external non-CPE/non-social link ─────────────────
+      let website = null;
+      for (const a of Array.from(container.querySelectorAll('a[href^="http"]'))) {
+        try {
+          const hostname = new URL(a.href).hostname.replace(/^www\./, '');
+          if (!ignoreDomains.some(d => hostname === d || hostname.endsWith('.' + d))) {
+            website = a.href;
+            break;
+          }
+        } catch {}
+      }
+
+      results.push({ rawStart, rawEnd, titleText, rawClosing, city, state, website, officialLink });
     }
 
     return results;
-  }, CPE_ORIGIN);
-
-  // Parse rawDateText in Node.js for events that had no <time[datetime]>
-  for (const ev of events) {
-    if (!ev.startDate && ev.rawDateText) {
-      const parsed = parseDateRange(ev.rawDateText);
-      if (parsed.start) {
-        ev.startDate = parsed.start;
-        console.log(`  📅 Parsed list-page date from text: "${ev.rawDateText}" → ${parsed.start}`);
-      }
-    }
-  }
+  }, IGNORE_DOMAINS);
 
   return events;
-}
-
-// ── Pass 2: Scrape a single event detail page ─────────────────────────────────
-//
-// CPE detail pages embed a schema.org Event JSON-LD block with startDate/endDate.
-// The page body contains labeled fields:
-//   "Host Club: Club Name"
-//   "Closing Date: MM/DD/YYYY"
-//   "City, ST (Indoors)" — venue location line
-
-async function scrapeEventDetail(page, url) {
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
-  await sleep(1000);
-
-  return await page.evaluate(({ pageUrl, ignoreDomains }) => {
-    // ── JSON-LD structured data ──────────────────────────────────────────
-    let startDate = null, endDate = null;
-    const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
-    for (const script of jsonLdScripts) {
-      try {
-        const data   = JSON.parse(script.textContent || '');
-        const events = Array.isArray(data) ? data : [data];
-        for (const ev of events) {
-          if (ev['@type'] === 'Event' || ev['@type'] === 'SportsEvent') {
-            if (ev.startDate) {
-              const s = ev.startDate.slice(0, 10);
-              // Only accept if it looks like YYYY-MM-DD
-              if (/^\d{4}-\d{2}-\d{2}$/.test(s)) startDate = s;
-            }
-            if (ev.endDate) {
-              const s = ev.endDate.slice(0, 10);
-              if (/^\d{4}-\d{2}-\d{2}$/.test(s)) endDate = s;
-            }
-          }
-        }
-      } catch {}
-    }
-
-    // ── Page text fields ─────────────────────────────────────────────────
-    const bodyText = document.body.innerText || '';
-    const lines    = bodyText.split('\n').map(l => l.trim()).filter(Boolean);
-
-    // Event title (h1) — format: "CPE | (AG) OH: Club Name"
-    const h1        = document.querySelector('h1.tribe-events-single-event-title, h1.entry-title, h1');
-    const titleText = h1 ? h1.textContent.trim() : '';
-
-    // Parse "(AG) ST: Club Name" from title
-    let trialName      = 'CPE Agility Trial';
-    let hostClub       = null;
-    let stateFromTitle = null;
-    const titleMatch   = titleText.match(/\(([A-Z]+)\)\s+([A-Z]{2}):\s*(.+)/);
-    if (titleMatch) {
-      trialName      = `CPE ${titleMatch[1]} Trial`;
-      stateFromTitle = titleMatch[2];
-      hostClub       = titleMatch[3].split('|')[0].trim(); // strip " | cpe.dog" suffix
-    }
-
-    // "Host Club: ..." overrides title-parsed value if present
-    const hcMatch = bodyText.match(/Host Club[:\s]+([^\n]+)/i);
-    if (hcMatch) hostClub = hcMatch[1].trim();
-
-    // Closing Date
-    let closingDate = null;
-    const cdMatch = bodyText.match(/Closing Date[:\s]+(\d{1,2}\/\d{1,2}\/\d{4})/i);
-    if (cdMatch) closingDate = cdMatch[1];
-
-    // City and State — look for "City, ST (Indoors)" or "City, ST (Outdoors)"
-    let city  = null;
-    let state = stateFromTitle;
-    for (const line of lines) {
-      const m = line.match(/^([A-Za-z][A-Za-z\s\-']+),\s*([A-Z]{2})\s*(?:\(|$)/);
-      if (m) { city = m[1].trim(); state = m[2]; break; }
-    }
-    if (!state) {
-      const stateZip = bodyText.match(/,\s*([A-Z]{2})\s+\d{5}/);
-      if (stateZip) state = stateZip[1];
-    }
-
-    // Cancelled?
-    const cancelled = /trial\s+cancel/i.test(bodyText) || /cancel/i.test(titleText);
-
-    // Club website — first external non-CPE/non-social link on the page
-    let clubWebsite = null;
-    for (const a of Array.from(document.querySelectorAll('a[href]'))) {
-      const href = (a.href || '').toLowerCase();
-      if (!href.startsWith('http')) continue;
-      if (ignoreDomains.some(d => href.includes(d))) continue;
-      clubWebsite = a.href;
-      break;
-    }
-
-    // Visible date text from body — returned as fallback if JSON-LD date is missing.
-    // Look for patterns like "March 5-8, 2026" or "March 30 - April 2, 2026".
-    const DATE_RE = /\b(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}(?:\s*[-–]\s*(?:(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+)?\d{1,2})?,?\s*\d{4}/i;
-    const dateBodyMatch = bodyText.match(DATE_RE);
-    const rawDateText = dateBodyMatch ? dateBodyMatch[0].trim() : null;
-
-    return {
-      startDate, endDate, rawDateText,
-      hostClub, trialName,
-      closingDate, city, state, cancelled, clubWebsite,
-      officialLink: pageUrl,
-    };
-  }, { pageUrl: url, ignoreDomains: IGNORE_DOMAINS });
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -431,7 +256,6 @@ async function main() {
   console.log(`📅 Today: ${todayStr} — window closes ${limitStr} (90 days)`);
   console.log(`🤖 User-Agent: ${BOT_UA}`);
 
-  // robots.txt check
   const allowed = await checkRobotsTxt(CPE_LIST_URL);
   if (!allowed) {
     console.log('🚫 robots.txt disallows automated access — exiting.');
@@ -451,122 +275,75 @@ async function main() {
 
   const page = await context.newPage();
 
-  // ── Pass 1: collect all event URLs with their start dates ─────────────────
-  let eventList;
+  // ── Load list page and extract all events in one pass ─────────────────────
+  let rawEvents;
   try {
-    eventList = await extractEventList(page);
+    rawEvents = await extractAllEvents(page);
   } catch (err) {
-    console.error(`❌ Failed to load CPE events list: ${err.message}`);
+    console.error(`❌ Failed to extract events: ${err.message}`);
     await browser.close();
     process.exit(1);
   }
 
-  console.log(`🔎 Found ${eventList.length} total event links on the list page`);
+  await browser.close(); // done with the browser — everything else is pure data
 
-  if (eventList.length === 0) {
+  console.log(`🔎 Found ${rawEvents.length} total events on list page`);
+
+  if (rawEvents.length === 0) {
     console.error('ERROR: No events extracted — page structure may have changed.');
-    await browser.close();
     process.exit(1);
   }
 
-  // ── 90-day filter — applied HERE before visiting any detail pages ──────────
-  // Events whose start date is known and outside the window are dropped now.
-  // Events with no parseable start date are kept so the detail page can
-  // provide a definitive date from JSON-LD or body text.
-  const qualifying = [];
-  let skippedEarly = 0;
+  // ── Filter by 90-day window and build trial objects ───────────────────────
+  const trials  = [];
+  let   skipped = 0;
 
-  for (const ev of eventList) {
-    if (ev.startDate) {
-      if (isWithin90Days(ev.startDate)) {
-        qualifying.push(ev);
-      } else {
-        console.log(`⏭️  Skipping ${ev.titleText || ev.url} (${ev.startDate}) — outside 90-day window`);
-        skippedEarly++;
-      }
-    } else {
-      // No date found on list page — visit detail page to confirm
-      qualifying.push(ev);
-    }
-  }
+  for (const ev of rawEvents) {
+    const startDate = parseMDY(ev.rawStart);
+    const endDate   = parseMDY(ev.rawEnd);
 
-  console.log(
-    `📅 ${qualifying.length} events to visit (${skippedEarly} skipped from list page alone)\n`
-  );
-
-  if (qualifying.length === 0) {
-    console.log('No qualifying events — nothing to upload.');
-    await browser.close();
-    return;
-  }
-
-  // ── Pass 2: visit each qualifying detail page ─────────────────────────────
-  const trials = [];
-  let skippedDetail = 0;
-
-  for (let i = 0; i < qualifying.length; i++) {
-    const ev    = qualifying[i];
-    const label = `[${i + 1}/${qualifying.length}]`;
-
-    console.log(`${label} ${ev.url}`);
-    await sleep(DELAY_MS);
-
-    let detail;
-    try {
-      detail = await scrapeEventDetail(page, ev.url);
-    } catch (err) {
-      console.log(`  ⚠️  Failed to scrape detail page: ${err.message}`);
+    if (!startDate) {
+      console.log(`⚠️  No date found for: ${ev.titleText || ev.officialLink}`);
       continue;
     }
 
-    if (detail.cancelled) {
-      console.log('  ⏭️  Cancelled trial — skipping');
-      skippedDetail++;
+    if (!isWithin90Days(startDate)) {
+      console.log(`⏭️  Skipping ${ev.titleText || '?'} (${startDate}) — outside 90-day window`);
+      skipped++;
       continue;
     }
 
-    // If JSON-LD didn't give us a valid ISO date, fall back to body text
-    if (!detail.startDate && detail.rawDateText) {
-      const parsed = parseDateRange(detail.rawDateText);
-      if (parsed.start) {
-        detail.startDate = parsed.start;
-        detail.endDate   = detail.endDate || parsed.end;
-        console.log(`  📅 Date from page body: "${detail.rawDateText}" → ${parsed.start}`);
-      }
-    }
+    // Parse "(AG) CA: Club Name"
+    let trialName      = 'CPE Agility Trial';
+    let trialHost      = null;
+    let stateFromTitle = null;
 
-    // Second 90-day filter using the authoritative detail-page date
-    if (!isWithin90Days(detail.startDate)) {
-      console.log(`  ⏭️  Skipping ${detail.hostClub || ev.titleText} (${detail.startDate || 'no date'}) — outside 90-day window`);
-      skippedDetail++;
-      continue;
+    const titleM = (ev.titleText || '').match(/\(([A-Z]+)\)\s+([A-Z]{2}):\s*(.+)/);
+    if (titleM) {
+      trialName      = `CPE ${titleM[1]} Trial`;
+      stateFromTitle = titleM[2];
+      trialHost      = titleM[3].replace(/\|.*$/, '').trim();
     }
 
     const trial = {
       organization:       'CPE',
       sport:              'Agility',
-      trial_name:         detail.trialName       || 'CPE Agility Trial',
-      trial_host:         detail.hostClub        || null,
+      trial_name:         trialName,
+      trial_host:         trialHost,
       location_name:      null,
       street:             null,
-      city:               detail.city            || null,
-      state:              detail.state           || null,
+      city:               ev.city  || null,
+      state:              ev.state || stateFromTitle || null,
       zip:                null,
-      trial_start_date:   detail.startDate,
-      trial_end_date:     detail.endDate         || null,
+      trial_start_date:   startDate,
+      trial_end_date:     endDate || null,
       entry_opening_date: null,
-      entry_closing_date: parseMDY(detail.closingDate),
-      club_website:       detail.clubWebsite     || null,
-      official_link:      detail.officialLink,
+      entry_closing_date: parseMDY(ev.rawClosing),
+      club_website:       ev.website || null,
+      official_link:      ev.officialLink,
       cancelled:          false,
       data_source:        'cpe',
     };
-
-    if (isOlderThanOneYear(trial.trial_start_date) || isOlderThanOneYear(trial.entry_opening_date)) {
-      console.log(`  ⏭️  Skipping ${trial.trial_host || ev.titleText} — older than 1 year`);
-      skippedDetail++;
-      continue;
-    }
 
     trials.push(trial);
     console.log(
@@ -581,20 +358,20 @@ async function main() {
   // ── Summary ───────────────────────────────────────────────────────────────
   console.log('\n══════════════════════════════════════════');
   console.log('📊 Run summary:');
-  console.log(`   🔎 Total events on list page:     ${eventList.length}`);
-  console.log(`   ⏭️  Skipped (outside 90 days):    ${skippedEarly + skippedDetail}`);
+  console.log(`   🔎 Total events on list page:     ${rawEvents.length}`);
+  console.log(`   ⏭️  Skipped (outside 90 days):    ${skipped}`);
   console.log(`   ✅ Qualifying trials found:        ${trials.length}`);
   console.log('══════════════════════════════════════════');
 
   // ── Upsert to Supabase ────────────────────────────────────────────────────
   if (supabase && trials.length > 0) {
     console.log('\n☁️  Uploading to Supabase...');
-    let success = 0, skipped = 0, failed = 0;
+    let success = 0, pastSkipped = 0, failed = 0;
 
     for (const t of trials) {
       if (t.trial_start_date < todayStr) {
         console.log(`  ⏭️  Skipping past trial: ${t.trial_host || '?'} ${t.trial_start_date}`);
-        skipped++;
+        pastSkipped++;
         continue;
       }
       try {
@@ -609,13 +386,12 @@ async function main() {
       }
     }
 
-    console.log(`  ✅ Supabase: ${success} upserted, ${skipped} skipped (past), ${failed} failed`);
+    console.log(`  ✅ Supabase: ${success} upserted, ${pastSkipped} skipped (past), ${failed} failed`);
   } else if (!supabase) {
     console.log('\nℹ️  No Supabase credentials — skipping upload.');
     console.log('   Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to enable.');
   }
 
-  await browser.close();
   console.log('\n✨ CPE scraper done!');
 }
 
