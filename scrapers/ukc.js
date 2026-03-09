@@ -16,8 +16,8 @@
 // in the slug URL (e.g. "club-name-mar-14-2026"). The end date is the latest
 // calendar day on which the same slug appears across scanned months.
 //
-// We never navigate to individual event detail pages — all needed data is
-// extractable from the calendar pages alone.
+// For trials within the 90-day window, the scraper visits each event's detail
+// page to collect entry_opening_date and entry_closing_date.
 
 const { chromium } = require('playwright');
 const { createClient } = require('@supabase/supabase-js');
@@ -55,6 +55,13 @@ const US_STATES = new Set([
 const MONTH_MAP = {
   jan:'01', feb:'02', mar:'03', apr:'04', may:'05', jun:'06',
   jul:'07', aug:'08', sep:'09', oct:'10', nov:'11', dec:'12',
+};
+
+const ENTRY_MONTHS = {
+  january:'01', february:'02', march:'03', april:'04', may:'05', june:'06',
+  july:'07', august:'08', september:'09', october:'10', november:'11', december:'12',
+  jan:'01', feb:'02', mar:'03', apr:'04', jun:'06', jul:'07',
+  aug:'08', sep:'09', oct:'10', nov:'11', dec:'12',
 };
 
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
@@ -104,6 +111,73 @@ function oneYearAgoIso() {
 function isOlderThanOneYear(dateStr) {
   if (!dateStr) return false;
   return dateStr < oneYearAgoIso();
+}
+
+// ── Entry date helpers ────────────────────────────────────────────────────────
+
+// Parse a date string in any common format → YYYY-MM-DD, or null.
+function parseEntryDate(str) {
+  if (!str) return null;
+  str = str.trim();
+
+  // YYYY-MM-DD
+  const iso = str.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+
+  // MM/DD/YYYY
+  const mdy = str.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (mdy) return `${mdy[3]}-${mdy[1].padStart(2, '0')}-${mdy[2].padStart(2, '0')}`;
+
+  // "March 14, 2026" or "Mar 14, 2026"
+  const long = str.match(/([A-Za-z]+)\s+(\d{1,2}),?\s*(\d{4})/);
+  if (long) {
+    const mo = ENTRY_MONTHS[long[1].toLowerCase()];
+    if (mo) return `${long[3]}-${mo}-${long[2].padStart(2, '0')}`;
+  }
+
+  // "14 March 2026"
+  const dmy = str.match(/(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
+  if (dmy) {
+    const mo = ENTRY_MONTHS[dmy[2].toLowerCase()];
+    if (mo) return `${dmy[3]}-${mo}-${dmy[1].padStart(2, '0')}`;
+  }
+
+  return null;
+}
+
+// Visit an event detail page and extract entry opening / closing dates.
+// Looks for these labels (case-insensitive):
+//   Opening: "Entry Opening Date", "Entries Open", "Opens"
+//   Closing: "Entry Closing Date", "Entries Close", "Closes"
+async function scrapeEntryDates(page, url) {
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+  await sleep(500);
+
+  const rawDates = await page.evaluate(() => {
+    const body = document.body.innerText || '';
+
+    function findAfterLabel(text, ...patterns) {
+      for (const pat of patterns) {
+        // Match label then optional colon/space then the value up to end of line
+        const re = new RegExp(pat + '[:\\s]+([^\\n]+)', 'i');
+        const m = text.match(re);
+        if (m) return m[1].trim();
+      }
+      return null;
+    }
+
+    const openText  = findAfterLabel(body,
+      'entry opening date', 'entries open', '\\bopens\\b');
+    const closeText = findAfterLabel(body,
+      'entry closing date', 'entries close', '\\bcloses\\b');
+
+    return { openText, closeText };
+  });
+
+  return {
+    opening: parseEntryDate(rawDates.openText),
+    closing: parseEntryDate(rawDates.closeText),
+  };
 }
 
 // ── Per-sport calendar scraper ────────────────────────────────────────────────
@@ -247,6 +321,35 @@ async function main() {
     console.log(`  [${i + 1}] ${t.trial_start_date}${t.trial_end_date ? ' – ' + t.trial_end_date : ''} | ${t.sport.padEnd(10)} | ${t.trial_host} | ${t.city}, ${t.state}`)
   );
 
+  // ── Collect entry dates from individual detail pages ──────────────────────
+  console.log(`\n📅 Collecting entry dates for ${freshnessFiltered.length} trials...`);
+  for (const t of freshnessFiltered) {
+    if (!isWithin90Days(t.trial_start_date)) {
+      console.log(`  Skipping ${t.trial_host} — outside 90-day window`);
+      continue;
+    }
+
+    console.log(`  Checking: ${t.official_link}`);
+    await sleep(2000);
+
+    try {
+      const { opening, closing } = await scrapeEntryDates(page, t.official_link);
+      if (opening) {
+        t.entry_opening_date = opening;
+        console.log(`    Found opening date: ${opening}`);
+      }
+      if (closing) {
+        t.entry_closing_date = closing;
+        console.log(`    Found closing date: ${closing}`);
+      }
+      if (!opening && !closing) {
+        console.log(`    No entry dates found`);
+      }
+    } catch (err) {
+      console.log(`    ⚠️  Failed to fetch entry dates: ${err.message}`);
+    }
+  }
+
   // ── Save JSON ──────────────────────────────────────────────────────────────
   fs.writeFileSync(OUTPUT_FILE, JSON.stringify(freshnessFiltered, null, 2), 'utf8');
   console.log(`\n✨ Saved ${freshnessFiltered.length} trials to ukc-trials.json`);
@@ -324,4 +427,3 @@ main().catch(err => {
   console.error('Fatal error:', err);
   process.exit(1);
 });
-
