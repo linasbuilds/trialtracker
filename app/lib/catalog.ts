@@ -15,7 +15,9 @@ export const CATALOG: Record<string, Record<string, string[]>> = {
     Agility: ['Beginners', 'Novice', 'Senior', 'Champion'],
   },
   CPE: {
-    Agility: ['Level 1', 'Level 2', 'Level 3', 'Level 4', 'Level 5', 'C'],
+    Agility:             ['Level 1', 'Level 2', 'Level 3', 'Level 4', 'Level 5', 'C'],
+    SpeedWay:            [],
+    'Canine Scent Sport': [],
   },
   NADAC: {
     Agility: ['Intro', 'Novice', 'Open', 'Elite'],

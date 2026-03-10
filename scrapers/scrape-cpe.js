@@ -11,13 +11,21 @@
 // LEGAL SAFEGUARDS:
 //   - Honest bot User-Agent — never disguised as a browser.
 //   - robots.txt respected before any scraping begins.
-//   - organization = 'CPE', sport = 'Agility', data_source = 'cpe'
+//   - organization = 'CPE', sport mapped from title prefix (AG/SW/CSS), data_source = 'cpe'
 //   - Upsert on official_link — no duplicates.
 
 const { chromium } = require('playwright');
 const { createClient } = require('@supabase/supabase-js');
 const https = require('https');
 const http  = require('http');
+
+// ── Sport code map ────────────────────────────────────────────────────────────
+
+const CPE_SPORT = {
+  AG:  'Agility',
+  SW:  'SpeedWay',
+  CSS: 'Canine Scent Sport',
+};
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -313,21 +321,25 @@ async function main() {
       continue;
     }
 
-    // Parse "(AG) CA: Club Name"
-    let trialName      = 'CPE Agility Trial';
+    // Parse "(AG) CA: Club Name" → sport, state, clean trial_host/trial_name
+    let sport          = 'Agility';
     let trialHost      = null;
     let stateFromTitle = null;
 
     const titleM = (ev.titleText || '').match(/\(([A-Z]+)\)\s+([A-Z]{2}):\s*(.+)/);
     if (titleM) {
-      trialName      = `CPE ${titleM[1]} Trial`;
+      sport          = CPE_SPORT[titleM[1]] || `CPE ${titleM[1]}`;
       stateFromTitle = titleM[2];
+      // Strip " | cpe.dog" or any trailing pipe content
       trialHost      = titleM[3].replace(/\|.*$/, '').trim();
     }
 
+    // trial_name is the clean club name (no prefix, no state code)
+    const trialName = trialHost || 'CPE Trial';
+
     const trial = {
       organization:       'CPE',
-      sport:              'Agility',
+      sport,
       trial_name:         trialName,
       trial_host:         trialHost,
       location_name:      null,
