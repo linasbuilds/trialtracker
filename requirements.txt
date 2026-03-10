@@ -1,3 +1,4 @@
 crawl4ai
 supabase
 httpx
+pdfplumber
