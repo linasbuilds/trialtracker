@@ -65,6 +65,12 @@ const getOneYearAgoIso = () => {
   return d.toISOString().split("T")[0];
 };
 
+// Returns today's date as YYYY-MM-DD using local date parts (no UTC shift).
+const getTodayIso = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 interface Trial {
   id: string;
   organization: string;
@@ -111,6 +117,7 @@ export default function TrialsPage() {
   const [keyword, setKeyword] = useState("");
   const [prefsLoaded, setPrefsLoaded] = useState(false);
   const oneYearAgo = getOneYearAgoIso();
+  const todayIso   = getTodayIso();
 
   // Load saved preferences and apply to filters, then fetch trials
   useEffect(() => {
@@ -188,6 +195,7 @@ export default function TrialsPage() {
   const getHostName = (trial: Trial) => trial.trial_host || trial.host_club || "";
 
   const filteredTrials = trials.filter((trial) => {
+    if (trial.trial_start_date && trial.trial_start_date < todayIso) return false;
     if (trial.trial_start_date && trial.trial_start_date < oneYearAgo) return false;
     if (trial.entry_opening_date && trial.entry_opening_date < oneYearAgo) return false;
 
