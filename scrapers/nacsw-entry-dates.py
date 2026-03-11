@@ -2,7 +2,7 @@
 """
 scrapers/nacsw-entry-dates.py
 
-NACSW Entry Date Scraper — Crawl4AI
+NACSW Entry Date Scraper — Crawl4AI + pypdf
 ------------------------------------
 Runs AFTER the main NACSW calendar scraper (nacsw.js) has populated
 the trials table in Supabase.
@@ -19,6 +19,11 @@ Search sequence per trial:
   Step C    → PDF links found on homepage or any visited page
   Step D    → give up, log, move on
 
+PDF text extraction:
+  1. Crawl4AI fetches the PDF — if it returns usable text, use it.
+  2. If Crawl4AI returns empty text, download raw bytes with httpx and
+     extract text with pypdf (reads page 2 first; page 1 if only 1 page).
+
 LEGAL SAFEGUARDS
   - robots.txt checked before visiting each new domain
   - Honest User-Agent identifying this as a bot
@@ -28,6 +33,7 @@ LEGAL SAFEGUARDS
 """
 
 import asyncio
+import io
 import os
 import re
 from datetime import date, timedelta
@@ -35,6 +41,8 @@ from urllib.parse import urljoin, urlparse
 from urllib.robotparser import RobotFileParser
 import urllib.request
 
+import httpx
+from pypdf import PdfReader
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
 from supabase import create_client, Client
 
@@ -118,10 +126,15 @@ _DATE_RE = re.compile(
 
 # ── Entry date keyword patterns ───────────────────────────────────────────────
 
-# Keywords that signal an entry OPEN date on the same line
+# Keywords that signal an entry OPEN date on the same line.
+# Covers: "Entries Open", "Entry Opens", "Trial Opens", "Opens:", "Opening Date",
+#         "Entry Opening", "Trial Entry Open", "Draw Period.*Open",
+#         "Registration Opens", "Open Date"
 _OPEN_RE = re.compile(
     r"trial\s+entr(?:y|ies)\s+open"
+    r"|trial\s+opens?"
     r"|entr(?:y|ies)\s+open(?:s|ing)?(?:\s+date)?"
+    r"|opening\s+date"
     r"|draw\s+period.*open"
     r"|registration\s+opens?"
     r"|opens?\s*:"
@@ -129,15 +142,18 @@ _OPEN_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Keywords that signal an entry CLOSE / deadline date on the same line
+# Keywords that signal an entry CLOSE / deadline date on the same line.
+# Covers: "Entries Close", "Entry Closes", "Trial Closes", "Closes:",
+#         "Closing Date", "Entry Closing", "Entry Deadline", "Close Date"
 _CLOSE_RE = re.compile(
     r"trial\s+entr(?:y|ies)\s+clos"
+    r"|trial\s+closes?"
     r"|entr(?:y|ies)\s+clos(?:e|es|ing)(?:\s+date)?"
+    r"|closing\s+date"
     r"|clos(?:e|es)\s*:"
     r"|entry\s+deadline"
     r"|deadline\s*:"
-    r"|close\s+date"
-    r"|closing\s+date",
+    r"|close\s+date",
     re.IGNORECASE,
 )
 
@@ -294,6 +310,70 @@ def _get_links(result) -> list[dict]:
         pass
     return []
 
+# ── PDF text extraction ───────────────────────────────────────────────────────
+
+async def _pypdf_text(pdf_url: str) -> str:
+    """
+    Download a PDF with httpx and extract text using pypdf.
+
+    Reads page index 1 (page 2) where NACSW entry dates always appear.
+    Falls back to page index 0 if the PDF has only one page.
+
+    Logs the first 300 characters of extracted text for debugging.
+    Returns the extracted text, or "" on any failure.
+    """
+    try:
+        async with httpx.AsyncClient(
+            follow_redirects=True,
+            timeout=30,
+            headers={"User-Agent": BOT_UA},
+        ) as client:
+            resp = await client.get(pdf_url)
+            resp.raise_for_status()
+            pdf_bytes = resp.content
+    except Exception as exc:
+        print(f"      ⚠️  httpx download failed: {exc}")
+        return ""
+
+    try:
+        reader    = PdfReader(io.BytesIO(pdf_bytes))
+        page_idx  = 1 if len(reader.pages) > 1 else 0
+        text      = reader.pages[page_idx].extract_text() or ""
+        preview   = text[:300].replace("\n", " ")
+        print(f"      📝 pypdf page {page_idx + 1} preview: {preview!r}")
+        return text
+    except Exception as exc:
+        print(f"      ⚠️  pypdf extraction failed: {exc}")
+        return ""
+
+
+async def _fetch_pdf_text(crawler: AsyncWebCrawler, pdf_url: str, cfg: CrawlerRunConfig) -> str:
+    """
+    Get usable text from a PDF URL.
+
+    Step 1 — Ask Crawl4AI to fetch the PDF.
+             Crawl4AI fetches PDFs as raw bytes but does not extract text,
+             so result.markdown is usually empty. Use it if non-empty.
+    Step 2 — If Crawl4AI returns empty text, fall back to httpx + pypdf.
+             pypdf reliably extracts text from NACSW premium PDFs.
+
+    Returns the best text found, or "" if both attempts fail.
+    """
+    # Step 1: Crawl4AI
+    try:
+        result   = await crawler.arun(url=pdf_url, config=cfg)
+        crawl_text = _get_text(result)
+    except Exception as exc:
+        print(f"      ⚠️  Crawl4AI PDF fetch failed: {exc}")
+        crawl_text = ""
+
+    if crawl_text.strip():
+        return crawl_text
+
+    # Step 2: httpx + pypdf fallback
+    print(f"      📄 Crawl4AI returned empty text — trying pypdf")
+    return await _pypdf_text(pdf_url)
+
 # ── Link finders ──────────────────────────────────────────────────────────────
 
 def _score_pdf_url(url: str) -> int:
@@ -420,21 +500,25 @@ async def _scrape_trial(
 
     print(f"\n  Trial: {trial_host}  ({start_date})")
 
+    cfg = CrawlerRunConfig(page_timeout=20000)
+
     # ── Fast Path: premium_url PDF ─────────────────────────────────────────────
     if premium_url:
         print(f"  ⚡ Fast Path — fetching premium PDF: {premium_url}")
-        pdf_result = await _fetch(crawler, premium_url)
-        if pdf_result is not None:
-            text = _get_text(pdf_result)
-            opening, closing = extract_dates(text)
+        pdf_text = await _fetch_pdf_text(crawler, premium_url, cfg)
+        if pdf_text.strip():
+            opening, closing = extract_dates(pdf_text)
             if opening or closing:
                 _log_found(opening, closing, "premium PDF")
-                if start_date and not _trial_date_matches(text, start_date):
+                if start_date and not _trial_date_matches(pdf_text, start_date):
                     print(f"  ⚠️  Could not confirm trial match for {trial_host} — skipping")
                 else:
                     return opening, closing
             else:
-                print("    📄 No dates in premium PDF — falling through to club website")
+                print("    ❌ No date labels found in PDF")
+        else:
+            print("    ❌ No date labels found in PDF")
+        print("    Falling through to club website")
         await asyncio.sleep(1)
 
     if not club_url:
@@ -484,8 +568,8 @@ async def _scrape_trial(
             continue
         pages_visited_in_b += 1
 
-        nav_text  = _get_text(nav_result)
-        nav_html  = _get_html(nav_result)
+        nav_text    = _get_text(nav_result)
+        nav_html    = _get_html(nav_result)
         nav_links_b = _get_links(nav_result)
 
         opening, closing = extract_dates(nav_text)
@@ -501,10 +585,9 @@ async def _scrape_trial(
         for pdf_url in nav_pdfs[:2]:
             print(f"    📋 PDF from nav page: {pdf_url}")
             await asyncio.sleep(1)
-            pdf_result = await _fetch(crawler, pdf_url)
-            if pdf_result is None:
+            pdf_text = await _fetch_pdf_text(crawler, pdf_url, cfg)
+            if not pdf_text.strip():
                 continue
-            pdf_text = _get_text(pdf_result)
             opening, closing = extract_dates(pdf_text)
             if opening or closing:
                 _log_found(opening, closing, f"PDF {pdf_url}")
@@ -512,6 +595,8 @@ async def _scrape_trial(
                     print(f"  ⚠️  Could not confirm trial match for {trial_host} — skipping")
                     continue
                 return opening, closing
+            else:
+                print(f"      ❌ No date labels found in PDF")
 
     # ── Step C: PDFs linked from the homepage ──────────────────────────────────
     pdf_links = _find_pdf_links(home_html, home_links, club_url)
@@ -520,10 +605,9 @@ async def _scrape_trial(
     for pdf_url in pdf_links:
         print(f"    📋 Trying PDF: {pdf_url}")
         await asyncio.sleep(1)
-        pdf_result = await _fetch(crawler, pdf_url)
-        if pdf_result is None:
+        pdf_text = await _fetch_pdf_text(crawler, pdf_url, cfg)
+        if not pdf_text.strip():
             continue
-        pdf_text = _get_text(pdf_result)
         opening, closing = extract_dates(pdf_text)
         if opening or closing:
             _log_found(opening, closing, f"PDF {pdf_url}")
@@ -531,6 +615,8 @@ async def _scrape_trial(
                 print(f"  ⚠️  Could not confirm trial match for {trial_host} — skipping")
                 continue
             return opening, closing
+        else:
+            print(f"      ❌ No date labels found in PDF")
 
     # ── Step D: Give up ────────────────────────────────────────────────────────
     print(f"  ❌ Could not find entry dates for {trial_host} at {club_url}")
@@ -547,7 +633,7 @@ def _log_found(opening: str | None, closing: str | None, source: str) -> None:
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 async def main() -> None:
-    print("🐾 NACSW Entry Date Scraper (Crawl4AI)")
+    print("🐾 NACSW Entry Date Scraper (Crawl4AI + pypdf)")
     print(f"📅 Today: {TODAY_STR}  |  90-day window ends: {LIMIT_STR}")
     print(f"🤖 User-Agent: {BOT_UA}\n")
 
