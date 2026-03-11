@@ -2,7 +2,7 @@
 """
 scrapers/nacsw-entry-dates.py
 
-NACSW Entry Date Scraper — Crawl4AI + pypdf
+NACSW Entry Date Scraper — Crawl4AI + pdfplumber
 ------------------------------------
 Runs AFTER the main NACSW calendar scraper (nacsw.js) has populated
 the trials table in Supabase.
@@ -22,7 +22,7 @@ Search sequence per trial:
 PDF text extraction:
   1. Crawl4AI fetches the PDF — if it returns usable text, use it.
   2. If Crawl4AI returns empty text, download raw bytes with httpx and
-     extract text with pypdf (reads page 2 first; page 1 if only 1 page).
+     extract text with pdfplumber (reads page 2 first; page 1 if only 1 page).
 
 LEGAL SAFEGUARDS
   - robots.txt checked before visiting each new domain
@@ -42,7 +42,7 @@ from urllib.robotparser import RobotFileParser
 import urllib.request
 
 import httpx
-from pypdf import PdfReader
+import pdfplumber
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
 from supabase import create_client, Client
 
@@ -314,7 +314,7 @@ def _get_links(result) -> list[dict]:
 
 async def _pypdf_text(pdf_url: str) -> str:
     """
-    Download a PDF with httpx and extract text using pypdf.
+    Download a PDF with httpx and extract text using pdfplumber.
 
     Reads page index 1 (page 2) where NACSW entry dates always appear.
     Falls back to page index 0 if the PDF has only one page.
@@ -323,27 +323,24 @@ async def _pypdf_text(pdf_url: str) -> str:
     Returns the extracted text, or "" on any failure.
     """
     try:
-        async with httpx.AsyncClient(
-            follow_redirects=True,
-            timeout=30,
+        data = httpx.get(
+            pdf_url,
             headers={"User-Agent": BOT_UA},
-        ) as client:
-            resp = await client.get(pdf_url)
-            resp.raise_for_status()
-            pdf_bytes = resp.content
+            timeout=30,
+            follow_redirects=True,
+        ).content
     except Exception as exc:
         print(f"      ⚠️  httpx download failed: {exc}")
         return ""
 
     try:
-        reader    = PdfReader(io.BytesIO(pdf_bytes))
-        page_idx  = 1 if len(reader.pages) > 1 else 0
-        text      = reader.pages[page_idx].extract_text() or ""
-        preview   = text[:300].replace("\n", " ")
-        print(f"      📝 pypdf page {page_idx + 1} preview: {preview!r}")
-        return text
+        with pdfplumber.open(io.BytesIO(data)) as pdf:
+            page = pdf.pages[1] if len(pdf.pages) > 1 else pdf.pages[0]
+            text = page.extract_text() or ""
+            print(f"  📄 pdfplumber page 2 preview: {text[:300]}")
+            return text
     except Exception as exc:
-        print(f"      ⚠️  pypdf extraction failed: {exc}")
+        print(f"      ⚠️  pdfplumber extraction failed: {exc}")
         return ""
 
 
@@ -370,8 +367,8 @@ async def _fetch_pdf_text(crawler: AsyncWebCrawler, pdf_url: str, cfg: CrawlerRu
     if crawl_text.strip():
         return crawl_text
 
-    # Step 2: httpx + pypdf fallback
-    print(f"      📄 Crawl4AI returned empty text — trying pypdf")
+    # Step 2: httpx + pdfplumber fallback
+    print(f"      📄 Crawl4AI returned empty text — trying pdfplumber")
     return await _pypdf_text(pdf_url)
 
 # ── Link finders ──────────────────────────────────────────────────────────────
@@ -633,7 +630,7 @@ def _log_found(opening: str | None, closing: str | None, source: str) -> None:
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 async def main() -> None:
-    print("🐾 NACSW Entry Date Scraper (Crawl4AI + pypdf)")
+    print("🐾 NACSW Entry Date Scraper (Crawl4AI + pdfplumber)")
     print(f"📅 Today: {TODAY_STR}  |  90-day window ends: {LIMIT_STR}")
     print(f"🤖 User-Agent: {BOT_UA}\n")
 
