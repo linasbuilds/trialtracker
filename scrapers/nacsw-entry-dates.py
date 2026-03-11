@@ -124,40 +124,35 @@ _DATE_RE = re.compile(
     re.IGNORECASE,
 )
 
-# ── Entry date keyword patterns ───────────────────────────────────────────────
+# ── Entry date section heading pattern ───────────────────────────────────────
+# Dates are ONLY searched within 500 chars after one of these headings.
 
-# Keywords that signal an entry OPEN date on the same line.
-# Covers: "Entries Open", "Entry Opens", "Trial Opens", "Opens:", "Opening Date",
-#         "Entry Opening", "Trial Entry Open", "Draw Period.*Open",
-#         "Registration Opens", "Open Date"
-_OPEN_RE = re.compile(
-    r"trial\s+entr(?:y|ies)\s+open"
-    r"|trial\s+opens?"
-    r"|entr(?:y|ies)\s+open(?:s|ing)?(?:\s+date)?"
-    r"|opening\s+date"
-    r"|draw\s+period.*will\s+open\s+on"
-    r"|draw\s+period.*open"
-    r"|trial\s+will\s+open\s+on"
-    r"|draw\s+will\s+open\s+on"
-    r"|open\s+on\b"
-    r"|registration\s+opens?"
-    r"|opens?\s*:"
-    r"|open\s+date",
+_SECTION_HEADING_RE = re.compile(
+    r"trial\s+entry\s+open\s+and\s+closing"
+    r"|trial\s+entry\s+information"
+    r"|entry\s+open\s+and\s+closing",
     re.IGNORECASE,
 )
 
-# Keywords that signal an entry CLOSE / deadline date on the same line.
-# Covers: "Entries Close", "Entry Closes", "Trial Closes", "Closes:",
-#         "Closing Date", "Entry Closing", "Entry Deadline", "Close Date"
-_CLOSE_RE = re.compile(
-    r"trial\s+entr(?:y|ies)\s+clos"
-    r"|trial\s+closes?"
-    r"|entr(?:y|ies)\s+clos(?:e|es|ing)(?:\s+date)?"
-    r"|closing\s+date"
-    r"|clos(?:e|es)\s*:"
-    r"|entry\s+deadline"
-    r"|deadline\s*:"
-    r"|close\s+date",
+# Within the section: signals for the OPENING date line
+_SECTION_OPEN_RE = re.compile(
+    r"draw\s+period\s+for\s+the\s+trial\s+will\s+open\s+on"
+    r"|trial\s+will\s+open\s+on"
+    r"|draw\s+period.*?open\s+on"
+    r"|draw\s+will\s+open\s+on"
+    r"|open\s+on\b"
+    r"|opens\s+on\b"
+    r"|opening\s+date"
+    r"|entries\s+open",
+    re.IGNORECASE,
+)
+
+# Within the section: signals for the CLOSING date line
+_SECTION_CLOSE_RE = re.compile(
+    r"draw.*?close"
+    r"|closes?\b"
+    r"|closing\b"
+    r"|entry\s+deadline",
     re.IGNORECASE,
 )
 
@@ -181,28 +176,75 @@ _A_TAG_RE = re.compile(
 
 # ── Date extraction from page/PDF text ───────────────────────────────────────
 
-def extract_dates(text: str) -> tuple[str | None, str | None]:
+def _validate_date(raw: str, trial_start_date: str, label: str) -> str | None:
     """
-    Scan page or PDF text line-by-line for entry open and close date keywords.
+    Parse raw date string → YYYY-MM-DD.
+    Rejects dates that are in the past or on/after trial_start_date.
+    """
+    d = _parse_date(raw.strip())
+    if d is None:
+        return None
+    if d < TODAY_STR:
+        print(f"    ⏭️  Skipping past date ({label}): {d}")
+        return None
+    if trial_start_date and d >= trial_start_date:
+        print(f"    ⏭️  Skipping trial schedule date ({label}): {d}")
+        return None
+    return d
+
+
+def extract_dates(text: str, trial_start_date: str = "") -> tuple[str | None, str | None]:
+    """
+    Find entry open/close dates inside the 'Trial Entry Open and Closing' section.
+
+    1. Locate a section heading (case-insensitive):
+         "Trial Entry Open and Closing"
+         "Trial Entry Information"
+         "Entry Open and Closing"
+    2. Search ONLY within the next 500 characters after that heading.
+    3. Special case: a line containing "between" with two dates → first=open,
+       second=close ("entries received between DATE and DATE").
+    4. Otherwise scan line-by-line for open/close keyword signals.
+    5. Any date that is in the past or >= trial_start_date is rejected.
+
     Returns (opening_date, closing_date) as YYYY-MM-DD strings or None.
-    Only returns dates that are today or in the future.
     """
+    heading_m = _SECTION_HEADING_RE.search(text)
+    if not heading_m:
+        return None, None
+
+    window = text[heading_m.end(): heading_m.end() + 500]
     opening = closing = None
 
-    for line in text.splitlines():
-        if opening is None and _OPEN_RE.search(line):
-            m = _DATE_RE.search(line)
-            if m:
-                d = _parse_date(m.group())
-                if d and d >= TODAY_STR:
-                    opening = d
+    for line in window.splitlines():
+        line = line.strip()
+        if not line:
+            continue
 
-        if closing is None and _CLOSE_RE.search(line):
+        # "entries received between DATE and DATE" — first=open, second=close
+        if re.search(r"\bbetween\b", line, re.IGNORECASE):
+            found = [
+                _validate_date(m.group(), trial_start_date, "between")
+                for m in _DATE_RE.finditer(line)
+            ]
+            found = [d for d in found if d]
+            if len(found) >= 2:
+                opening = opening or found[0]
+                closing = closing or found[1]
+                continue
+            elif len(found) == 1:
+                opening = opening or found[0]
+                continue
+
+        if opening is None and _SECTION_OPEN_RE.search(line):
             m = _DATE_RE.search(line)
             if m:
-                d = _parse_date(m.group())
-                if d and d >= TODAY_STR:
-                    closing = d
+                opening = _validate_date(m.group(), trial_start_date, "opening")
+
+        if closing is None and _SECTION_CLOSE_RE.search(line):
+            m = _DATE_RE.search(line)
+            if m:
+                closing = _validate_date(m.group(), trial_start_date, "closing")
 
         if opening and closing:
             break
@@ -508,7 +550,7 @@ async def _scrape_trial(
         print(f"  ⚡ Fast Path — fetching premium PDF: {premium_url}")
         pdf_text = await _fetch_pdf_text(crawler, premium_url, cfg)
         if pdf_text.strip():
-            opening, closing = extract_dates(pdf_text)
+            opening, closing = extract_dates(pdf_text, start_date)
             if opening or closing:
                 _log_found(opening, closing, "premium PDF")
                 if start_date and not _trial_date_matches(pdf_text, start_date):
@@ -542,7 +584,7 @@ async def _scrape_trial(
     home_html  = _get_html(home_result)
     home_links = _get_links(home_result)
 
-    opening, closing = extract_dates(home_text)
+    opening, closing = extract_dates(home_text, start_date)
     if opening or closing:
         _log_found(opening, closing, "homepage")
         if start_date and not _trial_date_matches(home_text, start_date):
@@ -579,7 +621,7 @@ async def _scrape_trial(
         nav_html    = _get_html(nav_result)
         nav_links_b = _get_links(nav_result)
 
-        opening, closing = extract_dates(nav_text)
+        opening, closing = extract_dates(nav_text, start_date)
         if opening or closing:
             _log_found(opening, closing, f"nav page {nav_url}")
             if start_date and not _trial_date_matches(nav_text, start_date):
@@ -604,7 +646,7 @@ async def _scrape_trial(
             pdf_text = await _fetch_pdf_text(crawler, pdf_url, cfg)
             if not pdf_text.strip():
                 continue
-            opening, closing = extract_dates(pdf_text)
+            opening, closing = extract_dates(pdf_text, start_date)
             if opening or closing:
                 _log_found(opening, closing, f"PDF {pdf_url}")
                 if start_date and not _trial_date_matches(pdf_text, start_date):
@@ -633,7 +675,7 @@ async def _scrape_trial(
         pdf_text = await _fetch_pdf_text(crawler, pdf_url, cfg)
         if not pdf_text.strip():
             continue
-        opening, closing = extract_dates(pdf_text)
+        opening, closing = extract_dates(pdf_text, start_date)
         if opening or closing:
             _log_found(opening, closing, f"PDF {pdf_url}")
             if start_date and not _trial_date_matches(pdf_text, start_date):
