@@ -20,7 +20,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install Python dependencies
-        run: pip install crawl4ai supabase
+        run: pip install crawl4ai supabase pypdf httpx
 
       - name: Install Playwright browser
         run: |
