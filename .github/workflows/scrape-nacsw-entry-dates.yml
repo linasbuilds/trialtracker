@@ -27,6 +27,12 @@ jobs:
           playwright install chromium
           playwright install-deps chromium
 
+      - name: Install Playwright browsers
+        run: python -m playwright install chromium
+
+      - name: Run Crawl4AI setup
+        run: crawl4ai-setup
+
       - name: Run entry date backfill
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
