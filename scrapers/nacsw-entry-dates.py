@@ -7,8 +7,8 @@ NACSW Entry Date Scraper — Crawl4AI + pdfplumber
 Runs AFTER the main NACSW calendar scraper (nacsw.js) has populated
 the trials table in Supabase.
 
-For each NACSW trial within 90 days that is missing entry dates,
-visits the club website and/or premium PDF to find:
+For each NACSW trial starting >21 days from today that is missing entry
+dates, visits the club website and/or premium PDF to find:
   - entry_opening_date
   - entry_closing_date
 
@@ -22,13 +22,17 @@ Search sequence per trial:
 PDF text extraction:
   1. Crawl4AI fetches the PDF — if it returns usable text, use it.
   2. If Crawl4AI returns empty text, download raw bytes with httpx and
-     extract text with pdfplumber (reads page 2 first; page 1 if only 1 page).
+     extract text with pdfplumber (reads all pages).
+
+TEST MODE
+  Set TEST_MODE = True and TEST_URL to a single club website to debug
+  locally without crawl4ai. Uses plain httpx for page fetches, prints
+  full PDF text and a line-by-line regex trace.
 
 LEGAL SAFEGUARDS
   - robots.txt checked before visiting each new domain
   - Honest User-Agent identifying this as a bot
   - 3-second delay between club website visits
-  - MAX_TRIALS cap (50) prevents runaway API usage
   - Only publicly accessible pages — no login, no paywall
 """
 
@@ -43,8 +47,32 @@ import urllib.request
 
 import httpx
 import pdfplumber
-from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
 from supabase import create_client, Client
+
+# ── Test mode ─────────────────────────────────────────────────────────────────
+# Set TEST_MODE = True to run against a single club URL locally.
+# Uses plain httpx instead of crawl4ai — no browser install needed.
+# Prints full PDF/page text and verbose regex trace to help debug patterns.
+
+TEST_MODE = False
+TEST_URL  = "https://www.aboutfacek9academy.com/april-olympia-wa-premium/"
+
+# Crawl4AI is only needed for production runs.
+# In TEST_MODE we skip the import entirely and provide lightweight stubs
+# so the rest of the code compiles and runs without crawl4ai installed.
+if TEST_MODE:
+    class AsyncWebCrawler:  # type: ignore[no-redef]
+        def __init__(self, *args, **kwargs): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): return None
+
+    class BrowserConfig:  # type: ignore[no-redef]
+        def __init__(self, **kw): pass
+
+    class CrawlerRunConfig:  # type: ignore[no-redef]
+        def __init__(self, **kw): pass
+else:
+    from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig  # type: ignore
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -132,27 +160,28 @@ _SECTION_HEADING_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Within the section: signals for the OPENING date line
-_SECTION_OPEN_RE = re.compile(
-    r"draw\s+period\s+for\s+the\s+trial\s+will\s+open\s+on"
-    r"|trial\s+will\s+open\s+on"
-    r"|draw\s+period.*?open\s+on"
-    r"|draw\s+will\s+open\s+on"
-    r"|open\s+on\b"
-    r"|opens\s+on\b"
-    r"|opening\s+date"
-    r"|entries\s+open",
-    re.IGNORECASE,
-)
+# Within the section: signals for the OPENING date line.
+# Stored as a list so TEST_MODE can test and log each pattern individually.
+_SECTION_OPEN_PATTERNS = [
+    r"draw\s+period\s+for\s+the\s+trial\s+will\s+open\s+on",
+    r"trial\s+will\s+open\s+on",
+    r"draw\s+period.*?open\s+on",
+    r"draw\s+will\s+open\s+on",
+    r"open\s+on\b",
+    r"opens\s+on\b",
+    r"opening\s+date",
+    r"entries\s+open",
+]
+_SECTION_OPEN_RE = re.compile("|".join(_SECTION_OPEN_PATTERNS), re.IGNORECASE)
 
-# Within the section: signals for the CLOSING date line
-_SECTION_CLOSE_RE = re.compile(
-    r"draw.*?close"
-    r"|closes?\b"
-    r"|closing\b"
-    r"|entry\s+deadline",
-    re.IGNORECASE,
-)
+# Within the section: signals for the CLOSING date line.
+_SECTION_CLOSE_PATTERNS = [
+    r"draw.*?close",
+    r"closes?\b",
+    r"closing\b",
+    r"entry\s+deadline",
+]
+_SECTION_CLOSE_RE = re.compile("|".join(_SECTION_CLOSE_PATTERNS), re.IGNORECASE)
 
 # Keywords in a URL or link text suggesting a trials/events navigation page
 _NAV_KEYWORDS_RE = re.compile(
@@ -172,24 +201,45 @@ _A_TAG_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
-# ── Date extraction from page/PDF text ───────────────────────────────────────
+# ── httpx result wrapper (TEST_MODE) ─────────────────────────────────────────
+
+class _HttpxResult:
+    """
+    Lightweight stand-in for a Crawl4AI result object.
+    Built from a plain httpx response so the existing _get_text / _get_html /
+    _get_links accessors work without modification.
+    """
+    def __init__(self, html: str) -> None:
+        self.html  = html
+        self.links: list = []
+        # Strip HTML tags to produce plain text (good enough for regex matching)
+        stripped = re.sub(r"<[^>]+>", " ", html)
+        self.markdown = re.sub(r"\s+", " ", stripped).strip()
+
+# ── Date validation ───────────────────────────────────────────────────────────
 
 def _validate_date(raw: str, trial_start_date: str, label: str) -> str | None:
     """
     Parse raw date string → YYYY-MM-DD.
-    Rejects dates that are in the past or on/after trial_start_date.
+    Rejects only dates that are on/after trial_start_date (those are trial
+    schedule dates, not entry dates). Past entry dates are kept — they tell
+    handlers when entries opened/closed even if the window has passed.
     """
     d = _parse_date(raw.strip())
     if d is None:
-        return None
-    if d < TODAY_STR:
-        print(f"    ⏭️  Skipping past date ({label}): {d}")
         return None
     if trial_start_date and d >= trial_start_date:
         print(f"    ⏭️  Skipping trial schedule date ({label}): {d}")
         return None
     return d
 
+
+def _dbg(msg: str) -> None:
+    """Print a debug line (TEST_MODE only)."""
+    if TEST_MODE:
+        print(msg)
+
+# ── Date extraction from page/PDF text ───────────────────────────────────────
 
 def extract_dates(text: str, trial_start_date: str = "") -> tuple[str | None, str | None]:
     """
@@ -207,11 +257,29 @@ def extract_dates(text: str, trial_start_date: str = "") -> tuple[str | None, st
 
     Returns (opening_date, closing_date) as YYYY-MM-DD strings or None.
     """
+    # ── Step 1: find the section heading ──────────────────────────────────────
     heading_m = _SECTION_HEADING_RE.search(text)
+    if TEST_MODE:
+        print(f"\n{'─'*60}")
+        print(f"🔍 REGEX TRACE  (trial_start_date={trial_start_date!r})")
+        print(f"{'─'*60}")
+        print(f"HEADING PATTERN: {_SECTION_HEADING_RE.pattern!r}")
+        if heading_m:
+            print(f"  ✅ HEADING MATCHED at pos {heading_m.start()}: {heading_m.group()!r}")
+        else:
+            print(f"  ❌ HEADING NOT FOUND — no section to search")
+            print(f"{'─'*60}\n")
+
     if not heading_m:
         return None, None
 
     window = text[heading_m.end(): heading_m.end() + 500]
+
+    if TEST_MODE:
+        print(f"\n📌 500-CHAR WINDOW AFTER HEADING:")
+        print(repr(window))
+        print()
+
     opening = closing = None
 
     for line in window.splitlines():
@@ -219,33 +287,64 @@ def extract_dates(text: str, trial_start_date: str = "") -> tuple[str | None, st
         if not line:
             continue
 
+        _dbg(f"\n  LINE: {line!r}")
+
         # "entries received between DATE and DATE" — first=open, second=close
         if re.search(r"\bbetween\b", line, re.IGNORECASE):
+            _dbg(f"    ↳ contains 'between' — extracting two dates")
             found = [
                 _validate_date(m.group(), trial_start_date, "between")
                 for m in _DATE_RE.finditer(line)
             ]
             found = [d for d in found if d]
+            _dbg(f"    ↳ valid dates found: {found}")
             if len(found) >= 2:
                 opening = opening or found[0]
-                closing = closing or found[1]
+                closing = closing or found[-1]
+                _dbg(f"    ✅ between → opening={opening}, closing={closing}")
                 continue
             elif len(found) == 1:
                 opening = opening or found[0]
+                _dbg(f"    ✅ between → opening={opening} (only 1 date)")
                 continue
 
-        if opening is None and _SECTION_OPEN_RE.search(line):
-            m = _DATE_RE.search(line)
-            if m:
-                opening = _validate_date(m.group(), trial_start_date, "opening")
+        # Test each OPEN pattern individually
+        if opening is None:
+            _dbg(f"    Testing OPEN patterns:")
+            for pat in _SECTION_OPEN_PATTERNS:
+                matched = bool(re.search(pat, line, re.IGNORECASE))
+                _dbg(f"      {'✅' if matched else '❌'} {pat!r}")
+                if matched:
+                    m = _DATE_RE.search(line)
+                    if m:
+                        opening = _validate_date(m.group(), trial_start_date, "opening")
+                        _dbg(f"      → date extracted: {m.group()!r} → {opening}")
+                    else:
+                        _dbg(f"      → no date found on this line")
+                    break
 
-        if closing is None and _SECTION_CLOSE_RE.search(line):
-            m = _DATE_RE.search(line)
-            if m:
-                closing = _validate_date(m.group(), trial_start_date, "closing")
+        # Test each CLOSE pattern individually
+        if closing is None:
+            _dbg(f"    Testing CLOSE patterns:")
+            for pat in _SECTION_CLOSE_PATTERNS:
+                matched = bool(re.search(pat, line, re.IGNORECASE))
+                _dbg(f"      {'✅' if matched else '❌'} {pat!r}")
+                if matched:
+                    m = _DATE_RE.search(line)
+                    if m:
+                        closing = _validate_date(m.group(), trial_start_date, "closing")
+                        _dbg(f"      → date extracted: {m.group()!r} → {closing}")
+                    else:
+                        _dbg(f"      → no date found on this line")
+                    break
 
         if opening and closing:
             break
+
+    if TEST_MODE:
+        print(f"\n{'─'*60}")
+        print(f"RESULT:  opening={opening or 'NO DATE FOUND'}  closing={closing or 'NO DATE FOUND'}")
+        print(f"{'─'*60}\n")
 
     return opening, closing
 
@@ -323,23 +422,23 @@ def _same_host(url_a: str, url_b: str) -> bool:
     except Exception:
         return False
 
-# ── Crawl4AI result accessors ─────────────────────────────────────────────────
+# ── Result accessors (work for both Crawl4AI results and _HttpxResult) ────────
 
 def _get_text(result) -> str:
-    """Extract the best available text from a Crawl4AI result."""
+    """Extract the best available text from a result object."""
     return (getattr(result, "markdown", None)
             or getattr(result, "extracted_content", None)
             or "").strip()
 
 
 def _get_html(result) -> str:
-    """Extract raw HTML from a Crawl4AI result."""
+    """Extract raw HTML from a result object."""
     return (getattr(result, "html", None) or "").strip()
 
 
 def _get_links(result) -> list[dict]:
     """
-    Extract links from a Crawl4AI result.
+    Extract links from a result object.
     Crawl4AI stores links as result.links = {'internal': [...], 'external': [...]},
     each item being a dict with at least 'href' and optionally 'text'.
     Falls back gracefully if the attribute is missing or has an unexpected shape.
@@ -359,11 +458,8 @@ def _get_links(result) -> list[dict]:
 async def _pypdf_text(pdf_url: str) -> str:
     """
     Download a PDF with httpx and extract text using pdfplumber.
-
-    Reads ALL pages and concatenates their text into one string so that
-    date keywords can be found regardless of which page they appear on.
-
-    Logs the first 300 characters of combined text for debugging.
+    Reads ALL pages and concatenates their text.
+    In TEST_MODE prints the full text; otherwise prints a 300-char preview.
     Returns the combined text, or "" on any failure.
     """
     try:
@@ -381,28 +477,32 @@ async def _pypdf_text(pdf_url: str) -> str:
         with pdfplumber.open(io.BytesIO(data)) as pdf:
             pages_text = [page.extract_text() or "" for page in pdf.pages]
             text = "\n".join(pages_text)
-            print(f"  📄 pdfplumber ({len(pdf.pages)} page(s)) preview: {text[:300]}")
+            if TEST_MODE:
+                print(f"\n{'='*60}")
+                print(f"📄 FULL PDF TEXT ({len(pdf.pages)} page(s), {len(text)} chars):")
+                print(f"{'='*60}")
+                print(text)
+                print(f"{'='*60}\n")
+            else:
+                print(f"  📄 pdfplumber ({len(pdf.pages)} page(s)) preview: {text[:300]}")
             return text
     except Exception as exc:
         print(f"      ⚠️  pdfplumber extraction failed: {exc}")
         return ""
 
 
-async def _fetch_pdf_text(crawler: AsyncWebCrawler, pdf_url: str, cfg: CrawlerRunConfig) -> str:
+async def _fetch_pdf_text(crawler, pdf_url: str, cfg) -> str:
     """
     Get usable text from a PDF URL.
-
-    Step 1 — Ask Crawl4AI to fetch the PDF.
-             Crawl4AI fetches PDFs as raw bytes but does not extract text,
-             so result.markdown is usually empty. Use it if non-empty.
-    Step 2 — If Crawl4AI returns empty text, fall back to httpx + pypdf.
-             pypdf reliably extracts text from NACSW premium PDFs.
-
-    Returns the best text found, or "" if both attempts fail.
+    In TEST_MODE: goes straight to httpx + pdfplumber (no crawl4ai).
+    In production: tries Crawl4AI first, falls back to httpx + pdfplumber.
     """
-    # Step 1: Crawl4AI
+    if TEST_MODE:
+        return await _pypdf_text(pdf_url)
+
+    # Production path — try Crawl4AI first
     try:
-        result   = await crawler.arun(url=pdf_url, config=cfg)
+        result     = await crawler.arun(url=pdf_url, config=cfg)
         crawl_text = _get_text(result)
     except Exception as exc:
         print(f"      ⚠️  Crawl4AI PDF fetch failed: {exc}")
@@ -411,7 +511,6 @@ async def _fetch_pdf_text(crawler: AsyncWebCrawler, pdf_url: str, cfg: CrawlerRu
     if crawl_text.strip():
         return crawl_text
 
-    # Step 2: httpx + pdfplumber fallback
     print(f"      📄 Crawl4AI returned empty text — trying pdfplumber")
     return await _pypdf_text(pdf_url)
 
@@ -424,7 +523,7 @@ def _score_pdf_url(url: str) -> int:
 
 def _find_pdf_links(html: str, crawl_links: list[dict], base_url: str) -> list[str]:
     """
-    Collect PDF URLs from raw HTML href attributes and Crawl4AI result links.
+    Collect PDF URLs from raw HTML href attributes and result links.
     Trial-related PDFs (premium, entry, nosework) are sorted first.
     Returns at most 5 unique URLs.
     """
@@ -440,7 +539,7 @@ def _find_pdf_links(html: str, crawl_links: list[dict], base_url: str) -> list[s
         except Exception:
             pass
 
-    # From Crawl4AI result.links
+    # From result.links
     for link in crawl_links:
         href = link.get("href", "") if isinstance(link, dict) else str(link)
         if href and ".pdf" in href.lower():
@@ -489,7 +588,7 @@ def _find_nav_links(html: str, crawl_links: list[dict], base_url: str) -> list[s
         text = re.sub(r"<[^>]+>", "", m[2]).strip()
         _add_candidate(href, text)
 
-    # From Crawl4AI result.links
+    # From result.links
     for link in crawl_links:
         if isinstance(link, dict):
             href = link.get("href", "")
@@ -509,13 +608,31 @@ def _find_nav_links(html: str, crawl_links: list[dict], base_url: str) -> list[s
                 break
     return result
 
-# ── Crawl4AI fetch wrapper ────────────────────────────────────────────────────
+# ── Page fetch wrapper ────────────────────────────────────────────────────────
 
-async def _fetch(crawler: AsyncWebCrawler, url: str):
+async def _fetch(crawler, url: str):
     """
-    Fetch a URL with Crawl4AI. Returns the result object or None on failure.
-    Gracefully handles 4xx / 5xx / timeouts.
+    Fetch a URL and return a result object compatible with _get_text/_get_html/_get_links.
+    In TEST_MODE: uses plain httpx (returns _HttpxResult).
+    In production: uses Crawl4AI (returns its native result).
+    Returns None on failure.
     """
+    if TEST_MODE:
+        try:
+            print(f"    🌐 httpx GET {url}")
+            resp = httpx.get(
+                url,
+                headers={"User-Agent": BOT_UA},
+                timeout=30,
+                follow_redirects=True,
+            )
+            resp.raise_for_status()
+            return _HttpxResult(resp.text)
+        except Exception as exc:
+            print(f"    ⚠️  Fetch failed ({url}): {exc}")
+            return None
+
+    # Production path — Crawl4AI
     cfg = CrawlerRunConfig(page_timeout=20000)
     try:
         result = await crawler.arun(url=url, config=cfg)
@@ -527,7 +644,7 @@ async def _fetch(crawler: AsyncWebCrawler, url: str):
 # ── Per-trial scraping ────────────────────────────────────────────────────────
 
 async def _scrape_trial(
-    crawler: AsyncWebCrawler,
+    crawler,
     trial: dict,
 ) -> tuple[str | None, str | None]:
     """
@@ -564,7 +681,7 @@ async def _scrape_trial(
             else:
                 print("    ❌ No date labels found in PDF")
         else:
-            print("    ❌ No date labels found in PDF")
+            print("    ❌ No text extracted from PDF")
         print("    Falling through to club website")
         await asyncio.sleep(1)
 
@@ -587,6 +704,13 @@ async def _scrape_trial(
     home_text  = _get_text(home_result)
     home_html  = _get_html(home_result)
     home_links = _get_links(home_result)
+
+    if TEST_MODE:
+        print(f"\n{'='*60}")
+        print(f"📄 FULL PAGE TEXT — homepage ({len(home_text)} chars):")
+        print(f"{'='*60}")
+        print(home_text)
+        print(f"{'='*60}\n")
 
     opening, closing = extract_dates(home_text, start_date)
     if opening or closing:
@@ -624,6 +748,13 @@ async def _scrape_trial(
         nav_text    = _get_text(nav_result)
         nav_html    = _get_html(nav_result)
         nav_links_b = _get_links(nav_result)
+
+        if TEST_MODE:
+            print(f"\n{'='*60}")
+            print(f"📄 FULL PAGE TEXT — {nav_url} ({len(nav_text)} chars):")
+            print(f"{'='*60}")
+            print(nav_text)
+            print(f"{'='*60}\n")
 
         opening, closing = extract_dates(nav_text, start_date)
         if opening or closing:
@@ -704,14 +835,11 @@ def _log_found(opening: str | None, closing: str | None, source: str) -> None:
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 async def main() -> None:
-    print("🐾 NACSW Entry Date Scraper (Crawl4AI + pdfplumber)")
+    mode_label = "TEST MODE (httpx)" if TEST_MODE else "PRODUCTION (crawl4ai)"
+    print(f"🐾 NACSW Entry Date Scraper — {mode_label}")
     print(f"📅 Today: {TODAY_STR}  |  Fetching all trials starting >21 days from now")
     print(f"🤖 User-Agent: {BOT_UA}\n")
 
-    # Query: NACSW trials starting >21 days from today (entry window still open),
-    # missing entry_opening_date, not claimed by a club yet.
-    # Filter for club_website / premium_url in Python
-    # (Supabase OR across two nullable columns is awkward in the query builder).
     EARLIEST_STR = (_today + timedelta(days=21)).isoformat()
     resp = (
         db.table("trials")
@@ -735,6 +863,21 @@ async def main() -> None:
     if not trials:
         print("Nothing to do — exiting.")
         return
+
+    if TEST_MODE:
+        base = TEST_URL.rstrip("/")
+        matched = [t for t in trials if (t.get("club_website") or "").rstrip("/") == base]
+        if not matched:
+            # Fallback: partial match
+            matched = [t for t in trials if base in (t.get("club_website") or "")]
+        if not matched:
+            print(f"⚠️  TEST MODE: no trial found with club_website matching {TEST_URL!r}")
+            print("Available club_website values:")
+            for t in trials[:10]:
+                print(f"  {t.get('club_website')!r}")
+            return
+        trials = matched[:1]
+        print(f"🧪 TEST MODE — running only: {trials[0].get('club_website')!r}  ({trials[0].get('trial_start_date')})\n")
 
     browser_cfg = BrowserConfig(headless=True, user_agent=BOT_UA)
 
@@ -766,27 +909,23 @@ async def main() -> None:
                 payload: dict[str, str] = {}
 
                 if opening:
-                    if opening < TODAY_STR:
-                        print(f"  ⚠️  Skipping past date: {opening}")
-                    else:
-                        payload["entry_opening_date"] = opening
+                    payload["entry_opening_date"] = opening
 
                 if closing:
-                    if closing < TODAY_STR:
-                        print(f"  ⚠️  Skipping past date: {closing}")
-                    else:
-                        payload["entry_closing_date"] = closing
+                    payload["entry_closing_date"] = closing
 
                 if payload:
-                    try:
-                        db.table("trials").update(payload).eq("id", trial["id"]).execute()
-                        print(f"  ☁️  Saved to Supabase: {payload}")
-                        updated += 1
-                    except Exception as exc:
-                        print(f"  ❌ Supabase update failed: {exc}")
-                        errors += 1
+                    if TEST_MODE:
+                        print(f"  🧪 TEST MODE — would save to Supabase: {payload}")
+                    else:
+                        try:
+                            db.table("trials").update(payload).eq("id", trial["id"]).execute()
+                            print(f"  ☁️  Saved to Supabase: {payload}")
+                            updated += 1
+                        except Exception as exc:
+                            print(f"  ❌ Supabase update failed: {exc}")
+                            errors += 1
                 else:
-                    # All found dates were stale; treat as no dates
                     no_dates += 1
             else:
                 no_dates += 1
@@ -797,7 +936,8 @@ async def main() -> None:
 
     print("\n══════════════════════════════════════")
     print("📊 Run complete")
-    print(f"   ✅ Updated:          {updated}")
+    if not TEST_MODE:
+        print(f"   ✅ Updated:          {updated}")
     print(f"   ⏭️  Skipped:         {skipped}")
     print(f"   ❌ No dates found:   {no_dates}")
     print(f"   ⚠️  Errors:          {errors}")
