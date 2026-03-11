@@ -541,6 +541,12 @@ async def _scrape_trial(
     club_url    = trial.get("club_website") or ""
     premium_url = trial.get("premium_url") or ""
 
+    # Normalize club_url — ensure it has a scheme
+    if club_url and not club_url.startswith(("http://", "https://")):
+        fixed = "https://" + club_url
+        print(f"  🔧 Fixed URL: {club_url} → {fixed}")
+        club_url = fixed
+
     print(f"\n  Trial: {trial_host}  ({start_date})")
 
     cfg = CrawlerRunConfig(page_timeout=20000)
@@ -701,18 +707,20 @@ def _log_found(opening: str | None, closing: str | None, source: str) -> None:
 
 async def main() -> None:
     print("🐾 NACSW Entry Date Scraper (Crawl4AI + pdfplumber)")
-    print(f"📅 Today: {TODAY_STR}  |  90-day window ends: {LIMIT_STR}")
+    print(f"📅 Today: {TODAY_STR}  |  Window: >21 days out → {LIMIT_STR}")
     print(f"🤖 User-Agent: {BOT_UA}\n")
 
-    # Query: NACSW trials in the 90-day window, missing entry_opening_date,
-    # not claimed by a club yet. Filter for club_website / premium_url in Python
+    # Query: NACSW trials starting >21 days from today (entry window still open),
+    # missing entry_opening_date, not claimed by a club yet.
+    # Filter for club_website / premium_url in Python
     # (Supabase OR across two nullable columns is awkward in the query builder).
+    EARLIEST_STR = (_today + timedelta(days=21)).isoformat()
     resp = (
         db.table("trials")
         .select("id, trial_host, trial_name, trial_start_date, club_website, premium_url, claimed")
         .eq("organization", "NACSW")
         .is_("entry_opening_date", "null")
-        .gte("trial_start_date", TODAY_STR)
+        .gte("trial_start_date", EARLIEST_STR)
         .lte("trial_start_date", LIMIT_STR)
         .order("trial_start_date")
         .limit(MAX_TRIALS)
