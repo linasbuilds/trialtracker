@@ -60,12 +60,10 @@ BOT_UA = (
     "TrialTracker-Bot/1.0 (trial aggregator; "
     "contact: trialtrackerapp@gmail.com; info: trialtracker.app)"
 )
-DELAY      = 3    # seconds between club website visits
-MAX_TRIALS = 50   # safety cap per run
+DELAY = 3  # seconds between club website visits
 
 _today    = date.today()
 TODAY_STR = _today.isoformat()
-LIMIT_STR = (_today + timedelta(days=90)).isoformat()
 
 db: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -707,7 +705,7 @@ def _log_found(opening: str | None, closing: str | None, source: str) -> None:
 
 async def main() -> None:
     print("🐾 NACSW Entry Date Scraper (Crawl4AI + pdfplumber)")
-    print(f"📅 Today: {TODAY_STR}  |  Window: >21 days out → {LIMIT_STR}")
+    print(f"📅 Today: {TODAY_STR}  |  Fetching all trials starting >21 days from now")
     print(f"🤖 User-Agent: {BOT_UA}\n")
 
     # Query: NACSW trials starting >21 days from today (entry window still open),
@@ -721,9 +719,7 @@ async def main() -> None:
         .eq("organization", "NACSW")
         .is_("entry_opening_date", "null")
         .gte("trial_start_date", EARLIEST_STR)
-        .lte("trial_start_date", LIMIT_STR)
         .order("trial_start_date")
-        .limit(MAX_TRIALS)
         .execute()
     )
     all_trials = resp.data or []
@@ -734,10 +730,7 @@ async def main() -> None:
         if t.get("club_website") or t.get("premium_url")
     ]
 
-    print(
-        f"🔎 Found {len(trials)} trial(s) to check "
-        f"(of {len(all_trials)} queried, {MAX_TRIALS} cap)\n"
-    )
+    print(f"🔎 Found {len(trials)} trial(s) to check (of {len(all_trials)} queried)\n")
 
     if not trials:
         print("Nothing to do — exiting.")
