@@ -135,7 +135,11 @@ _OPEN_RE = re.compile(
     r"|trial\s+opens?"
     r"|entr(?:y|ies)\s+open(?:s|ing)?(?:\s+date)?"
     r"|opening\s+date"
+    r"|draw\s+period.*will\s+open\s+on"
     r"|draw\s+period.*open"
+    r"|trial\s+will\s+open\s+on"
+    r"|draw\s+will\s+open\s+on"
+    r"|open\s+on\b"
     r"|registration\s+opens?"
     r"|opens?\s*:"
     r"|open\s+date",
@@ -316,11 +320,11 @@ async def _pypdf_text(pdf_url: str) -> str:
     """
     Download a PDF with httpx and extract text using pdfplumber.
 
-    Reads page index 1 (page 2) where NACSW entry dates always appear.
-    Falls back to page index 0 if the PDF has only one page.
+    Reads ALL pages and concatenates their text into one string so that
+    date keywords can be found regardless of which page they appear on.
 
-    Logs the first 300 characters of extracted text for debugging.
-    Returns the extracted text, or "" on any failure.
+    Logs the first 300 characters of combined text for debugging.
+    Returns the combined text, or "" on any failure.
     """
     try:
         data = httpx.get(
@@ -335,9 +339,9 @@ async def _pypdf_text(pdf_url: str) -> str:
 
     try:
         with pdfplumber.open(io.BytesIO(data)) as pdf:
-            page = pdf.pages[1] if len(pdf.pages) > 1 else pdf.pages[0]
-            text = page.extract_text() or ""
-            print(f"  📄 pdfplumber page 2 preview: {text[:300]}")
+            pages_text = [page.extract_text() or "" for page in pdf.pages]
+            text = "\n".join(pages_text)
+            print(f"  📄 pdfplumber ({len(pdf.pages)} page(s)) preview: {text[:300]}")
             return text
     except Exception as exc:
         print(f"      ⚠️  pdfplumber extraction failed: {exc}")
