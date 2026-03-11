@@ -375,8 +375,12 @@ export default function TrialsPage() {
             const isOpeningTomorrow = daysUntil === 1;
             const alreadyOpen = trial.entry_opening_date && daysUntil < 0;
 
-            // official_link takes priority; club_website is the fallback
-            const trialLink = trial.official_link || trial.club_website || null;
+            // NACSW: club_website first (more useful for registration);
+            // all other orgs: official_link first, club_website as fallback
+            const isNACSW = trial.organization === 'NACSW';
+            const trialLink = isNACSW
+              ? (trial.club_website || trial.official_link || null)
+              : (trial.official_link || trial.club_website || null);
 
             const level = normalizeLevel(trial.level || "");
 
