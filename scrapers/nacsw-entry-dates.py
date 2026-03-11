@@ -558,6 +558,12 @@ async def _scrape_trial(
         if pages_visited_in_b >= 3:
             break
 
+        # Skip pages whose URL contains a year before 2026 — stale content
+        year_m = re.search(r'\b((?:19|20)\d{2})\b', nav_url)
+        if year_m and int(year_m.group(1)) < 2026:
+            print(f"    ⏭️  Skipping old page: {nav_url}")
+            continue
+
         print(f"    → Visiting nav page: {nav_url}")
         await asyncio.sleep(1)
         nav_result = await _fetch(crawler, nav_url)
@@ -577,9 +583,18 @@ async def _scrape_trial(
                 continue
             return opening, closing
 
-        # While here, opportunistically try PDFs found on this nav page
+        # While here, opportunistically try premium PDFs found on this nav page
         nav_pdfs = _find_pdf_links(nav_html, nav_links_b, nav_url)
         for pdf_url in nav_pdfs[:2]:
+            # Only try PDFs with "premium" in the URL
+            if "premium" not in pdf_url.lower():
+                print(f"    ⏭️  Skipping non-premium PDF: {pdf_url}")
+                continue
+            # Skip PDFs whose URL references a stale year
+            year_m = re.search(r'\b((?:19|20)\d{2})\b', pdf_url)
+            if year_m and int(year_m.group(1)) < 2026:
+                print(f"    ⏭️  Skipping old page: {pdf_url}")
+                continue
             print(f"    📋 PDF from nav page: {pdf_url}")
             await asyncio.sleep(1)
             pdf_text = await _fetch_pdf_text(crawler, pdf_url, cfg)
@@ -600,6 +615,15 @@ async def _scrape_trial(
     print(f"  📄 Step C — Found {len(pdf_links)} PDF link(s) on homepage")
 
     for pdf_url in pdf_links:
+        # Only try PDFs with "premium" in the URL; skip everything else
+        if "premium" not in pdf_url.lower():
+            print(f"    ⏭️  Skipping non-premium PDF: {pdf_url}")
+            continue
+        # Skip PDFs whose URL references a stale year
+        year_m = re.search(r'\b((?:19|20)\d{2})\b', pdf_url)
+        if year_m and int(year_m.group(1)) < 2026:
+            print(f"    ⏭️  Skipping old page: {pdf_url}")
+            continue
         print(f"    📋 Trying PDF: {pdf_url}")
         await asyncio.sleep(1)
         pdf_text = await _fetch_pdf_text(crawler, pdf_url, cfg)
@@ -696,13 +720,13 @@ async def main() -> None:
 
                 if opening:
                     if opening < TODAY_STR:
-                        print(f"  ⚠️  Skipping stale opening date {opening} for {name}")
+                        print(f"  ⚠️  Skipping past date: {opening}")
                     else:
                         payload["entry_opening_date"] = opening
 
                 if closing:
                     if closing < TODAY_STR:
-                        print(f"  ⚠️  Skipping stale closing date {closing} for {name}")
+                        print(f"  ⚠️  Skipping past date: {closing}")
                     else:
                         payload["entry_closing_date"] = closing
 
