@@ -22,11 +22,6 @@ jobs:
       - name: Install Python dependencies
         run: pip install crawl4ai supabase pypdf httpx
 
-      - name: Install Playwright browser
-        run: |
-          playwright install chromium
-          playwright install-deps chromium
-
       - name: Install Playwright browsers
         run: python -m playwright install chromium
 
@@ -37,4 +32,4 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python scrapers/scrape-nacsw-entry-dates.py
+        run: python scrapers/nacsw-entry-dates.py
