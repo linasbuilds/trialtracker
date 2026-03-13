@@ -102,6 +102,12 @@ _BLOCKED_DOMAINS = {
     "linkedin.com", "google.com", "nacsw.net",
 }
 
+# ── TOS blocklist (never scrape these club domains at all) ────────────────────
+
+_TOS_BLOCKED_DOMAINS = {
+    "foryourk9.com",  # TOS prohibits scraping
+}
+
 # ── Month name → zero-padded number ──────────────────────────────────────────
 
 _MONTH = {
@@ -437,6 +443,15 @@ def _is_blocked_domain(url: str) -> bool:
         return False
 
 
+def _is_tos_blocked(url: str) -> bool:
+    """Return True if the URL's domain is on the TOS blocklist."""
+    try:
+        host = urlparse(url).netloc.lower().lstrip("www.")
+        return any(host == d or host.endswith("." + d) for d in _TOS_BLOCKED_DOMAINS)
+    except Exception:
+        return False
+
+
 def _same_host(url_a: str, url_b: str) -> bool:
     """Return True if both URLs share the same hostname."""
     try:
@@ -708,6 +723,12 @@ async def _scrape_trial(
         club_url = fixed
 
     print(f"\n  Trial: {trial_host}  ({start_date})")
+
+    # ── TOS blocklist check — bail before touching any URL ─────────────────────
+    for _u in [u for u in [club_url, premium_url] if u]:
+        if _is_tos_blocked(_u):
+            print(f"  ⛔ Skipping {_u} — domain is on TOS blocklist")
+            return None, None
 
     cfg = CrawlerRunConfig(page_timeout=20000)
 
