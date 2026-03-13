@@ -852,8 +852,10 @@ async def _scrape_trial(
             if _is_non_entry_pdf(pdf_url):
                 print(f"    ⏭️  Skipping rulebook/non-entry PDF: {pdf_url}")
                 continue
-            # Skip PDFs whose URL references a stale year
-            year_m = re.search(r'\b((?:19|20)\d{2})\b', pdf_url)
+            # Skip PDFs whose filename references a stale year
+            # (check filename only — WordPress upload paths like 2025/12/ are not the trial year)
+            pdf_filename = pdf_url.rstrip("/").split("/")[-1].split("?")[0]
+            year_m = re.search(r'\b((?:19|20)\d{2})\b', pdf_filename)
             if year_m and int(year_m.group(1)) < 2026:
                 print(f"    ⏭️  Skipping old page: {pdf_url}")
                 continue
@@ -881,8 +883,10 @@ async def _scrape_trial(
         if _is_non_entry_pdf(pdf_url):
             print(f"    ⏭️  Skipping rulebook/non-entry PDF: {pdf_url}")
             continue
-        # Skip PDFs whose URL references a stale year
-        year_m = re.search(r'\b((?:19|20)\d{2})\b', pdf_url)
+        # Skip PDFs whose filename references a stale year
+        # (check filename only — WordPress upload paths like 2025/12/ are not the trial year)
+        pdf_filename = pdf_url.rstrip("/").split("/")[-1].split("?")[0]
+        year_m = re.search(r'\b((?:19|20)\d{2})\b', pdf_filename)
         if year_m and int(year_m.group(1)) < 2026:
             print(f"    ⏭️  Skipping old page: {pdf_url}")
             continue
