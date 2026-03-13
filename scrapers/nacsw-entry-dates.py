@@ -617,6 +617,12 @@ async def _fetch(crawler, url: str):
     In production: uses Crawl4AI (returns its native result).
     Returns None on failure.
     """
+    # Skip Word documents — crawl4ai crashes with "Download is starting" on these
+    url_path = url.lower().split("?")[0]
+    if url_path.endswith((".docx", ".doc")):
+        print(f"    ⏭️  Skipping document file: {url}")
+        return None
+
     if TEST_MODE:
         try:
             print(f"    🌐 httpx GET {url}")
@@ -674,12 +680,10 @@ async def _scrape_trial(
             opening, closing = extract_dates(pdf_text, start_date)
             if opening or closing:
                 _log_found(opening, closing, "premium PDF")
-                if start_date and not _trial_date_matches(pdf_text, start_date):
-                    print(f"  ⚠️  Could not confirm trial match for {trial_host} — skipping")
-                else:
-                    return opening, closing
+                return opening, closing
             else:
                 print("    ❌ No date labels found in PDF")
+                print(f"    🔍 PDF first 1000 chars: {pdf_text[:1000]!r}")
         else:
             print("    ❌ No text extracted from PDF")
         print("    Falling through to club website")
@@ -715,11 +719,7 @@ async def _scrape_trial(
     opening, closing = extract_dates(home_text, start_date)
     if opening or closing:
         _log_found(opening, closing, "homepage")
-        if start_date and not _trial_date_matches(home_text, start_date):
-            print(f"  ⚠️  Could not confirm trial match for {trial_host} — skipping")
-            # Don't return here — fall through to nav / PDF pages
-        else:
-            return opening, closing
+        return opening, closing
 
     # ── Step B: Navigation links ───────────────────────────────────────────────
     nav_links = _find_nav_links(home_html, home_links, club_url)
@@ -759,9 +759,6 @@ async def _scrape_trial(
         opening, closing = extract_dates(nav_text, start_date)
         if opening or closing:
             _log_found(opening, closing, f"nav page {nav_url}")
-            if start_date and not _trial_date_matches(nav_text, start_date):
-                print(f"  ⚠️  Could not confirm trial match for {trial_host} — skipping")
-                continue
             return opening, closing
 
         # While here, opportunistically try premium PDFs found on this nav page
@@ -784,12 +781,10 @@ async def _scrape_trial(
             opening, closing = extract_dates(pdf_text, start_date)
             if opening or closing:
                 _log_found(opening, closing, f"PDF {pdf_url}")
-                if start_date and not _trial_date_matches(pdf_text, start_date):
-                    print(f"  ⚠️  Could not confirm trial match for {trial_host} — skipping")
-                    continue
                 return opening, closing
             else:
                 print(f"      ❌ No date labels found in PDF")
+                print(f"      🔍 PDF first 1000 chars: {pdf_text[:1000]!r}")
 
     # ── Step C: PDFs linked from the homepage ──────────────────────────────────
     pdf_links = _find_pdf_links(home_html, home_links, club_url)
@@ -813,12 +808,10 @@ async def _scrape_trial(
         opening, closing = extract_dates(pdf_text, start_date)
         if opening or closing:
             _log_found(opening, closing, f"PDF {pdf_url}")
-            if start_date and not _trial_date_matches(pdf_text, start_date):
-                print(f"  ⚠️  Could not confirm trial match for {trial_host} — skipping")
-                continue
             return opening, closing
         else:
             print(f"      ❌ No date labels found in PDF")
+            print(f"      🔍 PDF first 1000 chars: {pdf_text[:1000]!r}")
 
     # ── Step D: Give up ────────────────────────────────────────────────────────
     print(f"  ❌ Could not find entry dates for {trial_host} at {club_url}")
