@@ -132,6 +132,10 @@ def _parse_date(s: str) -> str | None:
     m = re.match(r"(\d{1,2})/(\d{1,2})/(\d{4})", s)
     if m:
         return f"{m[3]}-{m[1].zfill(2)}-{m[2].zfill(2)}"
+    # MM/DD/YY or M/D/YY (2-digit year → assumed 2000s)
+    m = re.match(r"(\d{1,2})/(\d{1,2})/(\d{2})$", s)
+    if m:
+        return f"20{m[3]}-{m[1].zfill(2)}-{m[2].zfill(2)}"
     # M-D-YYYY (e.g. 3-4-2026)
     m = re.match(r"(\d{1,2})-(\d{1,2})-(\d{4})", s)
     if m:
@@ -155,6 +159,7 @@ def _parse_date(s: str) -> str | None:
 _DATE_RE = re.compile(
     r"([A-Za-z]+\.?\s+\d{1,2}(?:st|nd|rd|th)?,?\s*\d{4}"  # March 4th, 2026 / Mar. 4 2026
     r"|\d{1,2}/\d{1,2}/\d{4}"                               # 03/04/2026
+    r"|\d{1,2}/\d{1,2}/(?<!\d)\d{2}(?!\d)"                  # 4/14/26 (2-digit year)
     r"|\d{4}-\d{2}-\d{2}"                                   # 2026-03-04
     r"|\d{1,2}-\d{1,2}-\d{4}"                               # 3-4-2026
     r"|\d{1,2}\s+[A-Za-z]+\s+\d{4})",                       # 4 March 2026
@@ -207,7 +212,7 @@ _SECTION_CLOSE_RE = re.compile("|".join(_SECTION_CLOSE_PATTERNS), re.IGNORECASE)
 
 # Keywords in a URL or link text suggesting a trials/events navigation page
 _NAV_KEYWORDS_RE = re.compile(
-    r"trials?|nacsw|nosework|premium|events?|upcoming|schedule|enter|registration",
+    r"trials?|nacsw|nosework|scent|premium|events?|upcoming|schedule|enter|registration",
     re.IGNORECASE,
 )
 
@@ -284,6 +289,43 @@ def _dbg(msg: str) -> None:
         print(msg)
 
 # ── Date extraction from page/PDF text ───────────────────────────────────────
+
+# Plain-text inline signals for the opening date that appear WITHOUT a section heading.
+# Used by extract_dates_inline() as a fallback when extract_dates() finds nothing.
+_INLINE_OPEN_PATTERNS = re.compile(
+    r"opening\s+date\s*:"
+    r"|\bentry\s+open\b"
+    r"|\bentries\s+open\b",
+    re.IGNORECASE,
+)
+
+
+def extract_dates_inline(text: str, trial_start_date: str = "") -> tuple[str | None, str | None]:
+    """
+    Fallback extraction: scan every line for plain-text opening date signals
+    without requiring a section heading.
+
+    Patterns matched:
+      "Opening Date:"    — e.g. "Opening Date: Tuesday, April 14, 2026"
+      "Entry Open"       — e.g. "ENTRY OPEN 4/14/26"
+      "Entries Open"     — e.g. "Entries Open April 14, 2026"
+
+    Returns (opening_date, None) — closing date is not extracted here
+    (no section heading means lower confidence; opening alone is sufficient).
+    """
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if _INLINE_OPEN_PATTERNS.search(line):
+            m = _DATE_RE.search(line)
+            if m:
+                opening = _validate_date(m.group(), trial_start_date, "inline-open")
+                if opening:
+                    _dbg(f"  🔎 inline match on: {line!r}  → {opening}")
+                    return opening, None
+    return None, None
+
 
 def extract_dates(text: str, trial_start_date: str = "") -> tuple[str | None, str | None]:
     """
@@ -796,6 +838,8 @@ async def _scrape_trial(
         print(f"{'='*60}\n")
 
     opening, closing = extract_dates(home_text, start_date)
+    if not (opening or closing):
+        opening, closing = extract_dates_inline(home_text, start_date)
     if opening or closing:
         _log_found(opening, closing, "homepage")
         if not _entry_dates_plausible(opening, start_date):
@@ -839,6 +883,8 @@ async def _scrape_trial(
             print(f"{'='*60}\n")
 
         opening, closing = extract_dates(nav_text, start_date)
+        if not (opening or closing):
+            opening, closing = extract_dates_inline(nav_text, start_date)
         if opening or closing:
             _log_found(opening, closing, f"nav page {nav_url}")
             if not _entry_dates_plausible(opening, start_date):
