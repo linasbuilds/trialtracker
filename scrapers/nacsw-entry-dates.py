@@ -192,6 +192,13 @@ _NAV_KEYWORDS_RE = re.compile(
 # Scoring tokens for PDF URL relevance
 _PDF_TOKENS = {"premium", "trial", "entry", "nosework", "nacsw", "nw"}
 
+# Keywords in a PDF URL that indicate it is a rulebook or non-entry document
+_NON_ENTRY_PDF_RE = re.compile(
+    r"rulebook|regulations|rules[_\-]appendix|drop[_\-]?off|pick[_\-]?up",
+    re.IGNORECASE,
+)
+_NON_ENTRY_PDF_DOMAINS = {"akc.org", "usdaa.com"}
+
 # Regex to find PDF hrefs in raw HTML
 _PDF_HREF_RE = re.compile(r'href=["\']([^"\']+\.pdf[^"\']*)["\']', re.IGNORECASE)
 
@@ -531,6 +538,21 @@ async def _fetch_pdf_text(crawler, pdf_url: str, cfg) -> str:
 
 # ── Link finders ──────────────────────────────────────────────────────────────
 
+def _is_non_entry_pdf(url: str) -> bool:
+    """
+    Return True if the PDF URL is clearly a rulebook or non-entry document
+    and should be skipped.  Everything else should be attempted — CDN paths
+    like filesusr.com or _files/ugd/ are valid premium hosts for Wix sites.
+    """
+    try:
+        host = urlparse(url).netloc.lower().lstrip("www.")
+        if any(host == d or host.endswith("." + d) for d in _NON_ENTRY_PDF_DOMAINS):
+            return True
+    except Exception:
+        pass
+    return bool(_NON_ENTRY_PDF_RE.search(url))
+
+
 def _score_pdf_url(url: str) -> int:
     u = url.lower()
     return sum(1 for tok in _PDF_TOKENS if tok in u)
@@ -632,10 +654,12 @@ async def _fetch(crawler, url: str):
     In production: uses Crawl4AI (returns its native result).
     Returns None on failure.
     """
-    # Skip Word documents — crawl4ai crashes with "Download is starting" on these
-    url_path = url.lower().split("?")[0]
-    if url_path.endswith((".docx", ".doc")):
-        print(f"    ⏭️  Skipping document file: {url}")
+    # Skip file types that crash crawl4ai ("Download is starting" / broken page)
+    url_lower = url.lower()
+    url_path  = url_lower.split("?")[0]
+    if (url_path.endswith((".docx", ".doc", ".ics"))
+            or "format=ical" in url_lower):
+        print(f"    ⏭️  Skipping non-page file: {url}")
         return None
 
     if TEST_MODE:
@@ -788,9 +812,8 @@ async def _scrape_trial(
         # While here, opportunistically try premium PDFs found on this nav page
         nav_pdfs = _find_pdf_links(nav_html, nav_links_b, nav_url)
         for pdf_url in nav_pdfs[:2]:
-            # Only try PDFs with "premium" in the URL
-            if "premium" not in pdf_url.lower():
-                print(f"    ⏭️  Skipping non-premium PDF: {pdf_url}")
+            if _is_non_entry_pdf(pdf_url):
+                print(f"    ⏭️  Skipping rulebook/non-entry PDF: {pdf_url}")
                 continue
             # Skip PDFs whose URL references a stale year
             year_m = re.search(r'\b((?:19|20)\d{2})\b', pdf_url)
@@ -818,9 +841,8 @@ async def _scrape_trial(
     print(f"  📄 Step C — Found {len(pdf_links)} PDF link(s) on homepage")
 
     for pdf_url in pdf_links:
-        # Only try PDFs with "premium" in the URL; skip everything else
-        if "premium" not in pdf_url.lower():
-            print(f"    ⏭️  Skipping non-premium PDF: {pdf_url}")
+        if _is_non_entry_pdf(pdf_url):
+            print(f"    ⏭️  Skipping rulebook/non-entry PDF: {pdf_url}")
             continue
         # Skip PDFs whose URL references a stale year
         year_m = re.search(r'\b((?:19|20)\d{2})\b', pdf_url)
