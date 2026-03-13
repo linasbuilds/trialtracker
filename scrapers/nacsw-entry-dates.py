@@ -760,52 +760,6 @@ async def _fetch(crawler, url: str):
         print(f"    ⚠️  Fetch failed ({url}): {exc}")
         return None
 
-# ── Trial section anchoring ───────────────────────────────────────────────────
-
-def _narrow_to_trial(text: str, start_date: str) -> str:
-    """
-    On multi-trial club pages, find the section for THIS trial by locating
-    the trial's start date in the page text, then return a 1000-char window
-    starting from that position.
-
-    If the trial's date is not found on the page, returns the full text
-    unchanged so existing full-page extraction still runs as fallback.
-
-    Only applied to page text (Steps A and B) — not PDFs, which are
-    already per-trial documents.
-    """
-    if not start_date:
-        return text
-    try:
-        d = date.fromisoformat(start_date)
-    except ValueError:
-        return text
-
-    month_name = d.strftime("%B")  # "April"
-    month_abbr = d.strftime("%b")  # "Apr"
-
-    # Ordered from most specific to least, to avoid false matches
-    representations = [
-        d.isoformat(),                               # 2026-04-18
-        f"{d.month:02d}/{d.day:02d}/{d.year}",       # 04/18/2026
-        f"{d.month}/{d.day}/{d.year}",               # 4/18/2026
-        f"{month_name} {d.day}, {d.year}",           # April 18, 2026
-        f"{month_name} {d.day} {d.year}",            # April 18 2026
-        f"{month_abbr} {d.day}, {d.year}",           # Apr 18, 2026
-        f"{month_abbr} {d.day} {d.year}",            # Apr 18 2026
-    ]
-
-    text_lower = text.lower()
-    for rep in representations:
-        idx = text_lower.find(rep.lower())
-        if idx != -1:
-            print(f"    📍 Trial date anchor {start_date!r} matched {rep!r} at pos {idx} — narrowing to 1000-char window")
-            return text[idx : idx + 1000]
-
-    print(f"    📍 Trial date {start_date!r} not found in page text — using full page")
-    return text
-
-
 # ── Per-trial scraping ────────────────────────────────────────────────────────
 
 async def _scrape_trial(
@@ -884,10 +838,9 @@ async def _scrape_trial(
         print(home_text)
         print(f"{'='*60}\n")
 
-    home_search = _narrow_to_trial(home_text, start_date)
-    opening, closing = extract_dates(home_search, start_date)
+    opening, closing = extract_dates(home_text, start_date)
     if not (opening or closing):
-        opening, closing = extract_dates_inline(home_search, start_date)
+        opening, closing = extract_dates_inline(home_text, start_date)
     if opening or closing:
         _log_found(opening, closing, "homepage")
         if not _entry_dates_plausible(opening, start_date):
@@ -930,10 +883,9 @@ async def _scrape_trial(
             print(nav_text)
             print(f"{'='*60}\n")
 
-        nav_search = _narrow_to_trial(nav_text, start_date)
-        opening, closing = extract_dates(nav_search, start_date)
+        opening, closing = extract_dates(nav_text, start_date)
         if not (opening or closing):
-            opening, closing = extract_dates_inline(nav_search, start_date)
+            opening, closing = extract_dates_inline(nav_text, start_date)
         if opening or closing:
             _log_found(opening, closing, f"nav page {nav_url}")
             if not _entry_dates_plausible(opening, start_date):
