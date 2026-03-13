@@ -234,6 +234,21 @@ def _validate_date(raw: str, trial_start_date: str, label: str) -> str | None:
     return d
 
 
+def _entry_dates_plausible(opening: str | None, trial_start_date: str) -> bool:
+    """
+    Return False if the opening date is more than ~6 months (183 days) before the
+    trial start date — a sign we parsed dates from a different (older) trial's document.
+    If either value is missing, assume plausible.
+    """
+    if not opening or not trial_start_date:
+        return True
+    try:
+        gap = (date.fromisoformat(trial_start_date) - date.fromisoformat(opening)).days
+        return gap <= 183
+    except ValueError:
+        return True
+
+
 def _dbg(msg: str) -> None:
     """Print a debug line (TEST_MODE only)."""
     if TEST_MODE:
@@ -680,8 +695,11 @@ async def _scrape_trial(
             opening, closing = extract_dates(pdf_text, start_date)
             if opening or closing:
                 _log_found(opening, closing, "premium PDF")
-                return opening, closing
-            else:
+                if not _entry_dates_plausible(opening, start_date):
+                    print(f"  ⚠️  Opening date {opening} is >6 months before trial start {start_date} — stale PDF, skipping")
+                else:
+                    return opening, closing
+            if not (opening or closing):
                 print("    ❌ No date labels found in PDF")
                 print(f"    🔍 PDF first 1000 chars: {pdf_text[:1000]!r}")
         else:
@@ -719,7 +737,10 @@ async def _scrape_trial(
     opening, closing = extract_dates(home_text, start_date)
     if opening or closing:
         _log_found(opening, closing, "homepage")
-        return opening, closing
+        if not _entry_dates_plausible(opening, start_date):
+            print(f"  ⚠️  Opening date {opening} is >6 months before trial start {start_date} — skipping")
+        else:
+            return opening, closing
 
     # ── Step B: Navigation links ───────────────────────────────────────────────
     nav_links = _find_nav_links(home_html, home_links, club_url)
@@ -759,6 +780,9 @@ async def _scrape_trial(
         opening, closing = extract_dates(nav_text, start_date)
         if opening or closing:
             _log_found(opening, closing, f"nav page {nav_url}")
+            if not _entry_dates_plausible(opening, start_date):
+                print(f"  ⚠️  Opening date {opening} is >6 months before trial start {start_date} — skipping")
+                continue
             return opening, closing
 
         # While here, opportunistically try premium PDFs found on this nav page
@@ -781,6 +805,9 @@ async def _scrape_trial(
             opening, closing = extract_dates(pdf_text, start_date)
             if opening or closing:
                 _log_found(opening, closing, f"PDF {pdf_url}")
+                if not _entry_dates_plausible(opening, start_date):
+                    print(f"  ⚠️  Opening date {opening} is >6 months before trial start {start_date} — stale PDF, skipping")
+                    continue
                 return opening, closing
             else:
                 print(f"      ❌ No date labels found in PDF")
@@ -808,6 +835,9 @@ async def _scrape_trial(
         opening, closing = extract_dates(pdf_text, start_date)
         if opening or closing:
             _log_found(opening, closing, f"PDF {pdf_url}")
+            if not _entry_dates_plausible(opening, start_date):
+                print(f"  ⚠️  Opening date {opening} is >6 months before trial start {start_date} — stale PDF, skipping")
+                continue
             return opening, closing
         else:
             print(f"      ❌ No date labels found in PDF")
