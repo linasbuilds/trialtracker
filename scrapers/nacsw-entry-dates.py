@@ -132,8 +132,12 @@ def _parse_date(s: str) -> str | None:
     m = re.match(r"(\d{1,2})/(\d{1,2})/(\d{4})", s)
     if m:
         return f"{m[3]}-{m[1].zfill(2)}-{m[2].zfill(2)}"
-    # "March 4, 2026" / "Mar. 4, 2026" / "Mar 4 2026"
-    m = re.match(r"([A-Za-z]+)\.?\s+(\d{1,2}),?\s*(\d{4})", s)
+    # M-D-YYYY (e.g. 3-4-2026)
+    m = re.match(r"(\d{1,2})-(\d{1,2})-(\d{4})", s)
+    if m:
+        return f"{m[3]}-{m[1].zfill(2)}-{m[2].zfill(2)}"
+    # "March 4, 2026" / "Mar. 4, 2026" / "Mar 4 2026" / "March 4th, 2026"
+    m = re.match(r"([A-Za-z]+)\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s*(\d{4})", s)
     if m:
         mo = _MONTH.get(m[1].lower().rstrip("."))
         if mo:
@@ -149,10 +153,11 @@ def _parse_date(s: str) -> str | None:
 
 # Regex that finds any common date expression within a larger string
 _DATE_RE = re.compile(
-    r"([A-Za-z]+\.?\s+\d{1,2},?\s*\d{4}"   # March 4, 2026 / Mar. 4 2026
-    r"|\d{1,2}/\d{1,2}/\d{4}"               # 03/04/2026
-    r"|\d{4}-\d{2}-\d{2}"                   # 2026-03-04
-    r"|\d{1,2}\s+[A-Za-z]+\s+\d{4})",       # 4 March 2026
+    r"([A-Za-z]+\.?\s+\d{1,2}(?:st|nd|rd|th)?,?\s*\d{4}"  # March 4th, 2026 / Mar. 4 2026
+    r"|\d{1,2}/\d{1,2}/\d{4}"                               # 03/04/2026
+    r"|\d{4}-\d{2}-\d{2}"                                   # 2026-03-04
+    r"|\d{1,2}-\d{1,2}-\d{4}"                               # 3-4-2026
+    r"|\d{1,2}\s+[A-Za-z]+\s+\d{4})",                       # 4 March 2026
     re.IGNORECASE,
 )
 
@@ -169,14 +174,25 @@ _SECTION_HEADING_RE = re.compile(
 # Within the section: signals for the OPENING date line.
 # Stored as a list so TEST_MODE can test and log each pattern individually.
 _SECTION_OPEN_PATTERNS = [
+    # Draw-period language (most specific first)
     r"draw\s+period\s+for\s+the\s+trial\s+will\s+open\s+on",
     r"trial\s+will\s+open\s+on",
     r"draw\s+period.*?open\s+on",
     r"draw\s+will\s+open\s+on",
+    # Multi-word entry phrases
+    r"entries\s+accepted\s+beginning",
+    r"entries\s+will\s+open",
+    r"entry\s+period\s+opens?",
+    r"registration\s+opens?",
+    r"open\s+for\s+entries",
+    r"entry\s+opens?",
+    r"entries\s+open",
+    # Shorter signals
     r"open\s+on\b",
     r"opens\s+on\b",
     r"opening\s+date",
-    r"entries\s+open",
+    r"\bopen\s*:",
+    r"\bopens\s*:",
 ]
 _SECTION_OPEN_RE = re.compile("|".join(_SECTION_OPEN_PATTERNS), re.IGNORECASE)
 
