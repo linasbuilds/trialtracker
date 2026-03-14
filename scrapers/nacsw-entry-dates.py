@@ -736,6 +736,8 @@ def _find_nav_links(html: str, crawl_links: list[dict], base_url: str) -> list[s
             return
         if ".pdf" in full.lower():
             return  # PDFs handled separately
+        if re.search(r"ort", text, re.IGNORECASE):
+            return  # Skip sport/nosesport/etc nav links
         score = 0
         if _NAV_KEYWORDS_RE.search(urlparse(full).path):
             score += 2
