@@ -738,6 +738,8 @@ def _find_nav_links(html: str, crawl_links: list[dict], base_url: str) -> list[s
             return  # PDFs handled separately
         if re.search(r"\bORT\b", text, re.IGNORECASE):
             return  # Skip nav links for ORT (a different nosework organization)
+        if re.search(r"\bakc\b", text + " " + full, re.IGNORECASE):
+            return  # Skip nav links mentioning AKC (different organization)
         score = 0
         if _NAV_KEYWORDS_RE.search(urlparse(full).path):
             score += 2
