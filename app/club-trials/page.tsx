@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRef, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 const US_STATES = [
@@ -9,6 +9,11 @@ const US_STATES = [
   "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
   "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
   "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"
+];
+
+const CSV_COLUMNS = [
+  "organization","sport","trial_name","trial_start_date","trial_end_date",
+  "city","state","trial_location","trial_address","entry_open_date","entry_close_date","premium_url",
 ];
 
 const getOneYearAgoIso = () => {
@@ -40,6 +45,53 @@ interface Trial {
   data_source: string | null;
 }
 
+// ── Simple CSV parser (handles quoted fields) ─────────────────────────────────
+
+function parseCSV(text: string): Record<string, string>[] {
+  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim().split("\n");
+  if (lines.length < 2) return [];
+
+  const headers = splitCSVLine(lines[0]).map((h) => h.toLowerCase().trim());
+  const rows: Record<string, string>[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const fields = splitCSVLine(line);
+    const row: Record<string, string> = {};
+    headers.forEach((h, idx) => { row[h] = (fields[idx] || "").trim(); });
+    rows.push(row);
+  }
+  return rows;
+}
+
+function splitCSVLine(line: string): string[] {
+  const fields: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+      else { inQuotes = !inQuotes; }
+    } else if (ch === "," && !inQuotes) {
+      fields.push(current);
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  fields.push(current);
+  return fields;
+}
+
+function makeUploadLink(userId: string, trialName: string, startDate: string): string {
+  const slug = trialName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return `club-upload://${userId}/${slug}/${startDate}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function ClubTrialsPage() {
   const [trials, setTrials] = useState<Trial[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +112,11 @@ export default function ClubTrialsPage() {
     entry_closing_date: "",
   });
   const [claimSaving, setClaimSaving] = useState(false);
+
+  // CSV state
+  const csvFileRef = useRef<HTMLInputElement>(null);
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvError, setCsvError] = useState("");
 
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error">("success");
@@ -116,6 +173,95 @@ export default function ClubTrialsPage() {
     setMessage(text);
     setMessageType(type);
     setTimeout(() => setMessage(""), 5000);
+  };
+
+  // ── CSV template download ───────────────────────────────────────────────────
+
+  const downloadTemplate = () => {
+    const header = CSV_COLUMNS.join(",");
+    const example = [
+      "NACSW", "Nosework", "Spring Nosework Trial", "2026-05-01", "2026-05-02",
+      "Portland", "OR", "Expo Center", "123 Main St", "2026-03-15", "2026-04-01", "https://example.com/premium.pdf",
+    ].join(",");
+    const csv = `${header}\n${example}\n`;
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "trialtracker-upload-template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // ── CSV upload ──────────────────────────────────────────────────────────────
+
+  const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+    e.target.value = "";   // allow re-uploading same file
+
+    setCsvError("");
+    setCsvImporting(true);
+
+    const text = await file.text();
+    const rows = parseCSV(text);
+
+    if (rows.length === 0) {
+      setCsvError("The file appears to be empty or could not be parsed.");
+      setCsvImporting(false);
+      return;
+    }
+
+    // Validate required columns
+    const firstRow = rows[0];
+    const missing = ["organization", "sport", "trial_name", "trial_start_date", "city", "state"]
+      .filter((col) => !(col in firstRow));
+    if (missing.length > 0) {
+      setCsvError(`Missing required columns: ${missing.join(", ")}. Please use the downloaded template.`);
+      setCsvImporting(false);
+      return;
+    }
+
+    // Build upsert payload
+    const payload = rows
+      .filter((r) => r.trial_name && r.trial_start_date)
+      .map((r) => ({
+        official_link: makeUploadLink(userId, r.trial_name, r.trial_start_date),
+        organization: r.organization || "NACSW",
+        sport: r.sport || "Nosework",
+        trial_name: r.trial_name,
+        trial_host: clubName,
+        city: r.city,
+        state: r.state,
+        location_name: r.trial_location || null,
+        street: r.trial_address || null,
+        trial_start_date: r.trial_start_date,
+        trial_end_date: r.trial_end_date || r.trial_start_date,
+        entry_opening_date: r.entry_open_date || null,
+        entry_closing_date: r.entry_close_date || null,
+        premium_url: r.premium_url || null,
+        user_id: userId,
+        data_source: "club-upload",
+        cancelled: false,
+      }));
+
+    if (payload.length === 0) {
+      setCsvError("No valid rows found. Each row needs at least trial_name and trial_start_date.");
+      setCsvImporting(false);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("trials")
+      .upsert(payload, { onConflict: "official_link" });
+
+    if (error) {
+      setCsvError(`Import failed: ${error.message}`);
+    } else {
+      showMessage(`✅ Imported ${payload.length} trial${payload.length !== 1 ? "s" : ""} successfully!`, "success");
+      fetchTrials();
+    }
+    setCsvImporting(false);
   };
 
   // ── Full edit (submitted trials only) ──────────────────────────────────────
@@ -271,20 +417,52 @@ export default function ClubTrialsPage() {
       <div className="max-w-3xl mx-auto px-4 py-10">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-start justify-between mb-8 gap-4 flex-wrap">
           <div>
             <h1 className="text-3xl font-bold text-slate-800 mb-1">My Trials</h1>
             <p className="text-slate-500">
               Manage your submitted trials, or claim scraped ones to add entry dates.
             </p>
           </div>
-          <a
-            href="/submit"
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-xl font-semibold text-sm hover:from-blue-700 hover:to-indigo-700 transition-all shadow"
-          >
-            + Submit New Trial
-          </a>
+          <div className="flex flex-wrap gap-2 items-center">
+            {/* CSV buttons */}
+            <button
+              onClick={downloadTemplate}
+              className="text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-2 rounded-xl transition-all border border-slate-200"
+            >
+              ⬇ CSV Template
+            </button>
+            <button
+              onClick={() => csvFileRef.current?.click()}
+              disabled={csvImporting}
+              className="text-sm bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-2 rounded-xl transition-all disabled:opacity-50"
+            >
+              {csvImporting ? "Importing…" : "⬆ Upload CSV"}
+            </button>
+            <input
+              ref={csvFileRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={handleCSVUpload}
+            />
+            {/* Submit new trial */}
+            <a
+              href="/submit"
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-xl font-semibold text-sm hover:from-blue-700 hover:to-indigo-700 transition-all shadow"
+            >
+              + Submit New Trial
+            </a>
+          </div>
         </div>
+
+        {/* CSV error */}
+        {csvError && (
+          <div className="mb-6 rounded-xl p-4 bg-red-50 text-red-800 border border-red-200 text-sm font-medium">
+            {csvError}
+            <button onClick={() => setCsvError("")} className="ml-3 text-red-500 hover:text-red-700 font-bold">✕</button>
+          </div>
+        )}
 
         {/* Toast message */}
         {message && (
@@ -303,12 +481,20 @@ export default function ClubTrialsPage() {
             <div className="text-5xl mb-4">🐾</div>
             <h2 className="text-xl font-semibold text-slate-700 mb-2">No trials found</h2>
             <p className="text-slate-500 mb-6">
-              Submit a trial manually, or make sure your club name in your profile
+              Submit a trial manually, upload a CSV, or make sure your club name in your profile
               matches the host name on any scraped trials.
             </p>
-            <a href="/submit" className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700">
-              Submit a Trial
-            </a>
+            <div className="flex gap-3 justify-center flex-wrap">
+              <a href="/submit" className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700">
+                Submit a Trial
+              </a>
+              <button
+                onClick={downloadTemplate}
+                className="bg-slate-100 text-slate-700 px-6 py-3 rounded-xl font-semibold hover:bg-slate-200 border border-slate-200"
+              >
+                Download CSV Template
+              </button>
+            </div>
           </div>
         )}
 
@@ -364,6 +550,11 @@ export default function ClubTrialsPage() {
                         {trial.data_source && !isOwnSubmission(trial) && (
                           <span className="text-xs text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200">
                             scraped · {trial.data_source}
+                          </span>
+                        )}
+                        {trial.data_source === "club-upload" && isOwnSubmission(trial) && (
+                          <span className="text-xs text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200">
+                            CSV upload
                           </span>
                         )}
                       </div>
@@ -432,10 +623,10 @@ export default function ClubTrialsPage() {
                       {formatDate(trial.entry_closing_date)}
                     </div>
                     <div className="flex items-center gap-3 flex-wrap">
-                      {trial.official_link && (
+                      {trial.official_link && !trial.official_link.startsWith("club-upload://") && (
                         <a href={trial.official_link} target="_blank" rel="noopener noreferrer"
                           className="text-blue-600 hover:underline font-medium">
-                          View official link ?
+                          View official link ↗
                         </a>
                       )}
                       {trial.premium_url && (
@@ -653,4 +844,3 @@ export default function ClubTrialsPage() {
     </div>
   );
 }
-

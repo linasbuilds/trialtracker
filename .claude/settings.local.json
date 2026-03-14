@@ -17,7 +17,9 @@
       "Read(//c/Users/linas/trialtracker/**)",
       "Bash(done)",
       "Bash(python -c \":*)",
-      "Bash(python -m json.tool)"
+      "Bash(python -m json.tool)",
+      "Bash(find /c/Users/linas/trialtracker -type f -name *auth*)",
+      "Bash(find /c/Users/linas/trialtracker -maxdepth 1 -name middleware* -o -name *.ts -maxdepth 1)"
     ]
   }
 }
