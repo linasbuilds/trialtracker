@@ -36,7 +36,7 @@ const supabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
 const NACSW_URL   = 'https://www.nacsw.net/calendar/trials';
 const OUTPUT_FILE = path.join(__dirname, '..', 'trials.json');
 
-const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+const ONE_TWENTY_DAYS_MS = 120 * 24 * 60 * 60 * 1000;
 const ONE_YEAR_DAYS_MS = 365 * 24 * 60 * 60 * 1000;
 
 const BLOCKED = [
@@ -93,12 +93,12 @@ function parseDateRange(text) {
   return { start: null, end: null };
 }
 
-function isWithin90Days(dateStr) {
+function isWithin120Days(dateStr) {
   if (!dateStr) return false;
   const trialDate = new Date(dateStr + 'T00:00:00');
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const limit = new Date(today.getTime() + NINETY_DAYS_MS);
+  const limit = new Date(today.getTime() + ONE_TWENTY_DAYS_MS);
   return trialDate >= today && trialDate <= limit;
 }
 
@@ -418,8 +418,8 @@ async function main() {
   }
 
   // ── 90-day filter ─────────────────────────────────────────────────────────
-  const qualifying = rawTrials.filter(t => isWithin90Days(t.startDate));
-  console.log(`📅 ${qualifying.length} trials within 90 days`);
+  const qualifying = rawTrials.filter(t => isWithin120Days(t.startDate));
+  console.log(`📅 ${qualifying.length} trials within 120 days`);
 
   if (qualifying.length === 0) {
     console.log('No trials within 90 days — saving empty file.');
