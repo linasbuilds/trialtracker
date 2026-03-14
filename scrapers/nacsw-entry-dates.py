@@ -268,6 +268,33 @@ def _validate_date(raw: str, trial_start_date: str, label: str) -> str | None:
     return d
 
 
+def _infer_year(month: int, day: int, trial_start_date: str) -> str | None:
+    """
+    Infer the year for a 'Month Day' string that has no year written.
+    Tries years near trial_start_date — the entry date must precede trial start
+    and must not already be in the past.
+    """
+    try:
+        ref = date.fromisoformat(trial_start_date) if trial_start_date else None
+    except ValueError:
+        ref = None
+
+    today = date.today()
+    candidates = [ref.year, ref.year - 1, ref.year + 1] if ref else [today.year, today.year + 1]
+
+    for year in candidates:
+        try:
+            d = date(year, month, day)
+            if ref and d.isoformat() >= ref.isoformat():
+                continue  # entry must precede trial start
+            if d.isoformat() < today.isoformat():
+                continue  # skip dates already in the past
+            return d.isoformat()
+        except ValueError:
+            pass
+    return None
+
+
 def _entry_dates_plausible(opening: str | None, trial_start_date: str) -> bool:
     """
     Return False if the opening date is more than ~6 months (183 days) before the
@@ -296,7 +323,19 @@ _INLINE_OPEN_PATTERNS = re.compile(
     r"opening\s+date\s*:"
     r"|\bentry\s+open\b"
     r"|\bentries\s+open\b"
-    r"|\bopens\b",
+    r"|\bopens\b"
+    # Day-of-week anchored variants (Sites 1–3: "Opens Thursday, March 26", etc.)
+    r"|\bopens?\s+(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)"
+    r"|\bentries?\s+open\s+(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)"
+    r"|\bentry\s+open\s+(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)",
+    re.IGNORECASE,
+)
+
+# Matches "Month Day" with no year — e.g. "April 8" — used as fallback
+# when _DATE_RE fails because no year is present on the line.
+_DATE_MONTH_DAY_RE = re.compile(
+    r"\b(January|February|March|April|May|June|July|August|September|October|November|December"
+    r"|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b",
     re.IGNORECASE,
 )
 
@@ -306,25 +345,37 @@ def extract_dates_inline(text: str, trial_start_date: str = "") -> tuple[str | N
     Fallback extraction: scan every line for plain-text opening date signals
     without requiring a section heading.
 
-    Patterns matched:
-      "Opening Date:"    — e.g. "Opening Date: Tuesday, April 14, 2026"
-      "Entry Open"       — e.g. "ENTRY OPEN 4/14/26"
-      "Entries Open"     — e.g. "Entries Open April 14, 2026"
+    Patterns matched (see _INLINE_OPEN_PATTERNS):
+      "Opening Date:"           — e.g. "Opening Date: Tuesday, April 14, 2026"
+      "Entry Open / ENTRY OPEN" — e.g. "ENTRY OPEN 4/14/26"
+      "Entries Open"            — e.g. "Entries Open April 14, 2026"
+      "Opens [DOW]"             — e.g. "Opens Thursday, March 26, 2026 at 12 PM"
+      "Entries Open [DOW]"      — e.g. "Entries Open Wednesday, April 8"
 
-    Returns (opening_date, None) — closing date is not extracted here
-    (no section heading means lower confidence; opening alone is sufficient).
+    Opening date alone is sufficient — closing date is not extracted here.
+    Returns (opening_date, None).
     """
     for line in text.splitlines():
         line = line.strip()
         if not line:
             continue
         if _INLINE_OPEN_PATTERNS.search(line):
+            # Primary: _DATE_RE finds full dates that include a year
             m = _DATE_RE.search(line)
             if m:
                 opening = _validate_date(m.group(), trial_start_date, "inline-open")
                 if opening:
                     _dbg(f"  🔎 inline match on: {line!r}  → {opening}")
                     return opening, None
+            # Fallback: "Month Day" with no year (e.g. "Entries Open Wednesday, April 8")
+            m = _DATE_MONTH_DAY_RE.search(line)
+            if m:
+                mo = _MONTH.get(m.group(1).lower().rstrip("."))
+                if mo:
+                    opening = _infer_year(int(mo), int(m.group(2)), trial_start_date)
+                    if opening:
+                        _dbg(f"  🔎 inline month+day (no year) match on: {line!r}  → {opening}")
+                        return opening, None
     return None, None
 
 
