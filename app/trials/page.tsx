@@ -115,51 +115,11 @@ export default function TrialsPage() {
   const [selectedLevel, setSelectedLevel] = useState("All Levels");
 
   const [keyword, setKeyword] = useState("");
-  const [prefsLoaded, setPrefsLoaded] = useState(false);
   const oneYearAgo = getOneYearAgoIso();
   const todayIso   = getTodayIso();
 
-  // Load saved preferences and apply to filters, then fetch trials
   useEffect(() => {
-    const loadPrefs = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (user) {
-          const { data: profile } = await supabase
-            .from("user_profiles")
-            .select("preferred_venues, preferred_states, preferred_orgs")
-            .eq("user_id", user.id)
-            .single();
-
-          if (profile) {
-            if (profile.preferred_venues?.length === 1) {
-              setSelectedSport(profile.preferred_venues[0]);
-            }
-            if (profile.preferred_orgs?.length === 1) {
-              setSelectedOrg(profile.preferred_orgs[0]);
-            }
-            if (profile.preferred_states?.length === 1) {
-              setSelectedState(profile.preferred_states[0]);
-            }
-
-            if (
-              profile.preferred_venues?.length ||
-              profile.preferred_orgs?.length ||
-              profile.preferred_states?.length
-            ) {
-              setPrefsLoaded(true);
-            }
-          }
-        }
-      } catch (err) {
-        console.warn("Failed to load user preferences:", err);
-      }
-
-      fetchTrials();
-    };
-
-    loadPrefs();
+    fetchTrials();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -237,7 +197,6 @@ export default function TrialsPage() {
     setSelectedState("All States");
     setSelectedLevel("All Levels");
     setKeyword("");
-    setPrefsLoaded(false);
   };
 
   const selectClass =
@@ -249,19 +208,6 @@ export default function TrialsPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-4xl mx-auto px-4 py-6">
-
-        {/* Prefs loaded banner */}
-        {prefsLoaded && (
-          <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-blue-700 text-sm flex items-center justify-between">
-            <span>✨ Showing trials based on your saved preferences</span>
-            <button
-              onClick={clearFilters}
-              className="text-blue-500 hover:text-blue-700 underline text-xs ml-4"
-            >
-              Show all
-            </button>
-          </div>
-        )}
 
         {/* Filter Bar */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6">

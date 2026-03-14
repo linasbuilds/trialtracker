@@ -90,7 +90,7 @@ export default function PreferencesPage() {
 
     setSaving(false)
     setSaved(true)
-    setTimeout(() => setSaved(false), 6000)
+    setTimeout(() => setSaved(false), 5000)
   }
 
   if (loading) return (
@@ -113,8 +113,14 @@ export default function PreferencesPage() {
               </span>
             )}
           </div>
-          <p className="text-slate-500 mt-1 text-sm">Set your preferences to filter trials by organization, sport, and location. Email alerts are coming soon as we expand our entry date coverage.</p>
+          <p className="text-slate-500 mt-1 text-sm">Set your preferences so we know when to send you email alerts when entries open.</p>
         </div>
+
+        {saved && (
+          <div className="bg-green-100 border border-green-300 text-green-800 rounded-xl p-4 text-sm font-bold w-full">
+            ✅ Preferences saved! We&apos;ll use these to send you email alerts.
+          </div>
+        )}
 
         {/* Home Base & Travel */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
@@ -322,12 +328,6 @@ export default function PreferencesPage() {
             ← Back to Trials
           </button>
         </div>
-
-        {saved && (
-          <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-center text-sm font-medium">
-            ✅ Preferences saved! Trials page will now auto-filter for you.
-          </div>
-        )}
 
       </div>
     </div>
