@@ -417,12 +417,12 @@ async function main() {
     process.exit(1);
   }
 
-  // ── 90-day filter ─────────────────────────────────────────────────────────
+  // ── 120-day filter ────────────────────────────────────────────────────────
   const qualifying = rawTrials.filter(t => isWithin120Days(t.startDate));
   console.log(`📅 ${qualifying.length} trials within 120 days`);
 
   if (qualifying.length === 0) {
-    console.log('No trials within 90 days — saving empty file.');
+    console.log('No trials within 120 days — saving empty file.');
     fs.writeFileSync(OUTPUT_FILE, JSON.stringify([], null, 2), 'utf8');
     await browser.close();
     return;
