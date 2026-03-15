@@ -42,7 +42,7 @@ export default function LoginPage() {
         .single();
 
       if (profile?.role === "club") {
-        router.push("/submit");
+        router.push("/club-trials");
       } else {
         router.push("/trials");
       }

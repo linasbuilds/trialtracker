@@ -172,7 +172,7 @@ export default function ClubTrialsPage() {
   const showMessage = (text: string, type: "success" | "error") => {
     setMessage(text);
     setMessageType(type);
-    setTimeout(() => setMessage(""), 5000);
+    setTimeout(() => setMessage(""), 10000);
   };
 
   // ── CSV template download ───────────────────────────────────────────────────
@@ -196,8 +196,13 @@ export default function ClubTrialsPage() {
   // ── CSV upload ──────────────────────────────────────────────────────────────
 
   const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("handleCSVUpload called, userId:", userId, "file:", e.target.files?.[0]?.name);
     const file = e.target.files?.[0];
-    if (!file || !userId) return;
+    if (!file) return;
+    if (!userId) {
+      setCsvError("Not signed in — please refresh the page and try again.");
+      return;
+    }
     e.target.value = "";   // allow re-uploading same file
 
     setCsvError("");
@@ -446,13 +451,6 @@ export default function ClubTrialsPage() {
               className="hidden"
               onChange={handleCSVUpload}
             />
-            {/* Submit new trial */}
-            <a
-              href="/submit"
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-xl font-semibold text-sm hover:from-blue-700 hover:to-indigo-700 transition-all shadow"
-            >
-              + Submit New Trial
-            </a>
           </div>
         </div>
 
@@ -466,9 +464,9 @@ export default function ClubTrialsPage() {
 
         {/* Toast message */}
         {message && (
-          <div className={`mb-6 rounded-xl p-4 text-center font-medium ${
+          <div className={`mb-6 rounded-xl p-5 text-center font-bold ${
             messageType === "success"
-              ? "bg-green-100 text-green-800 border border-green-200"
+              ? "bg-green-100 text-green-800 border border-green-300 text-lg"
               : "bg-red-100 text-red-800 border border-red-200"
           }`}>
             {message}
@@ -481,13 +479,10 @@ export default function ClubTrialsPage() {
             <div className="text-5xl mb-4">🐾</div>
             <h2 className="text-xl font-semibold text-slate-700 mb-2">No trials found</h2>
             <p className="text-slate-500 mb-6">
-              Submit a trial manually, upload a CSV, or make sure your club name in your profile
+              Upload a CSV to add trials, or make sure your club name in your profile
               matches the host name on any scraped trials.
             </p>
             <div className="flex gap-3 justify-center flex-wrap">
-              <a href="/submit" className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700">
-                Submit a Trial
-              </a>
               <button
                 onClick={downloadTemplate}
                 className="bg-slate-100 text-slate-700 px-6 py-3 rounded-xl font-semibold hover:bg-slate-200 border border-slate-200"

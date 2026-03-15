@@ -31,8 +31,8 @@ export default function AuthCallbackPage() {
         .single();
 
       if (profile?.role === "club") {
-        setStatus("Welcome! Taking you to submit your first trial...");
-        setTimeout(() => router.push("/submit"), 1000);
+        setStatus("Welcome! Taking you to your club dashboard...");
+        setTimeout(() => router.push("/club-trials"), 1000);
       } else {
         setStatus("Welcome to TrialTracker! Taking you to find trials...");
         setTimeout(() => router.push("/trials"), 1000);
