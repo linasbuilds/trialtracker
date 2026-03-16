@@ -152,6 +152,18 @@ def _parse_date(s: str) -> str | None:
         mo = _MONTH.get(m[2].lower())
         if mo:
             return f"{m[3]}-{mo}-{m[1].zfill(2)}"
+    # "March 15" / "Mar. 15" / "March 15th" (no year → infer current or next year)
+    m = re.match(r"([A-Za-z]+)\.?\s+(\d{1,2})(?:st|nd|rd|th)?$", s)
+    if m:
+        mo = _MONTH.get(m[1].lower().rstrip("."))
+        if mo:
+            try:
+                candidate = date(_today.year, int(mo), int(m[2]))
+                if candidate.isoformat() >= _today.isoformat():
+                    return candidate.isoformat()
+                return date(_today.year + 1, int(mo), int(m[2])).isoformat()
+            except ValueError:
+                return None
     return None
 
 
@@ -162,7 +174,8 @@ _DATE_RE = re.compile(
     r"|\d{1,2}/\d{1,2}/(?<!\d)\d{2}(?!\d)"                  # 4/14/26 (2-digit year)
     r"|\d{4}-\d{2}-\d{2}"                                   # 2026-03-04
     r"|\d{1,2}-\d{1,2}-\d{4}"                               # 3-4-2026
-    r"|\d{1,2}\s+[A-Za-z]+\s+\d{4})",                       # 4 March 2026
+    r"|\d{1,2}\s+[A-Za-z]+\s+\d{4}"                         # 4 March 2026
+    r"|[A-Za-z]+\.?\s+\d{1,2}(?:st|nd|rd|th)?\b)",          # March 12 / Mar. 15 (no year)
     re.IGNORECASE,
 )
 
@@ -218,9 +231,7 @@ _NAV_KEYWORDS_RE = re.compile(
 
 # Nav link URLs matching these patterns are stale archive pages — skip them.
 _ARCHIVE_URL_RE = re.compile(
-    r"\b(2020|2021|2022|2023|2024)\b"                      # four-digit stale years
-    r"|[-_](20|21|22|23|24)[-_](21|22|23|24|25)[-_]?"     # two-digit year pairs: 22-23, 23-24, etc.
-    r"|archive|old[-_]|past[-_]|previous|history|results",
+    r"archive|old[-_]|past[-_]|previous|history|results",
     re.IGNORECASE,
 )
 
@@ -923,12 +934,6 @@ async def _scrape_trial(
             continue
         if pages_visited_in_b >= 3:
             break
-
-        # Skip pages whose URL contains a year before 2026 — stale content
-        year_m = re.search(r'\b((?:19|20)\d{2})\b', nav_url)
-        if year_m and int(year_m.group(1)) < 2026:
-            print(f"    ⏭️  Skipping old page: {nav_url}")
-            continue
 
         print(f"    → Visiting nav page: {nav_url}")
         await asyncio.sleep(1)
