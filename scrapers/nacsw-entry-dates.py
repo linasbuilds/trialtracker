@@ -941,6 +941,8 @@ async def _scrape_trial(
         nav_html    = _get_html(nav_result)
         nav_links_b = _get_links(nav_result)
 
+        print(f"  📄 Nav page text preview (first 500 chars): {nav_text[:500]!r}")
+
         if TEST_MODE:
             print(f"\n{'='*60}")
             print(f"📄 FULL PAGE TEXT — {nav_url} ({len(nav_text)} chars):")
@@ -1110,6 +1112,11 @@ async def main() -> None:
                     payload["entry_opening_date"] = opening
 
                 if closing:
+                    payload["entry_closing_date"] = closing
+
+                if opening and not closing:
+                    closing = (date.fromisoformat(opening) + timedelta(days=2)).isoformat()
+                    print(f"  📅 Closing date calculated as opening + 2 days: {closing}")
                     payload["entry_closing_date"] = closing
 
                 if payload:
