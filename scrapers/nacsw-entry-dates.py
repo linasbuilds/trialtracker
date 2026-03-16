@@ -216,6 +216,14 @@ _NAV_KEYWORDS_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Nav link URLs matching these patterns are stale archive pages — skip them.
+_ARCHIVE_URL_RE = re.compile(
+    r"\b(2020|2021|2022|2023|2024)\b"                      # four-digit stale years
+    r"|[-_](20|21|22|23|24)[-_](21|22|23|24|25)[-_]?"     # two-digit year pairs: 22-23, 23-24, etc.
+    r"|archive|old[-_]|past[-_]|previous|history|results",
+    re.IGNORECASE,
+)
+
 # Scoring tokens for PDF URL relevance
 _PDF_TOKENS = {"premium", "trial", "entry", "nosework", "nacsw", "nw"}
 
@@ -740,6 +748,8 @@ def _find_nav_links(html: str, crawl_links: list[dict], base_url: str) -> list[s
             return  # Skip nav links for ORT (a different nosework organization)
         if re.search(r"\bakc\b", text + " " + full, re.IGNORECASE):
             return  # Skip nav links mentioning AKC (different organization)
+        if _ARCHIVE_URL_RE.search(urlparse(full).path):
+            return  # Skip archive/stale year pages
         score = 0
         if _NAV_KEYWORDS_RE.search(urlparse(full).path):
             score += 2
@@ -766,7 +776,7 @@ def _find_nav_links(html: str, crawl_links: list[dict], base_url: str) -> list[s
     # Deduplicate, sort by descending score, return top 5
     seen: set[str] = set()
     result: list[str] = []
-    for _score, url in sorted(candidates, key=lambda x: -x[0]):
+    for _score, url in sorted(candidates, key=lambda x: (-x[0], len(x[1]))):
         if url not in seen:
             seen.add(url)
             result.append(url)
