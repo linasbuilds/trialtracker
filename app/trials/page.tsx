@@ -71,6 +71,14 @@ const getTodayIso = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+const toCalDate = (d: string) => d.replace(/-/g, "");
+
+const addOneDay = (dateStr: string) => {
+  const d = new Date(dateStr + "T12:00:00");
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+};
+
 interface Trial {
   id: string;
   organization: string;
@@ -104,6 +112,59 @@ interface Trial {
   claimed?: boolean;
 }
 
+const buildGCalTrialUrl = (trial: Trial) => {
+  const start = toCalDate(trial.trial_start_date);
+  const end = addOneDay(trial.trial_end_date || trial.trial_start_date);
+  const link = trial.official_link || trial.club_website || "";
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE`
+    + `&text=${encodeURIComponent(`${trial.trial_host} — ${trial.organization} Trial`)}`
+    + `&dates=${start}/${end}`
+    + `&location=${encodeURIComponent(`${trial.city}, ${trial.state}`)}`
+    + `&details=${encodeURIComponent(`View & Register: ${link}`)}`;
+};
+
+const buildGCalReminderUrl = (trial: Trial) => {
+  const date = toCalDate(trial.entry_opening_date);
+  const link = trial.official_link || trial.club_website || "";
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE`
+    + `&text=${encodeURIComponent(`⚡ Entries Open: ${trial.trial_host} ${trial.organization}`)}`
+    + `&dates=${date}/${date}`
+    + `&details=${encodeURIComponent(`Entry window opens today. View & Register: ${link}`)}`;
+};
+
+const downloadTrialIcs = (trial: Trial) => {
+  const link = trial.official_link || trial.club_website || "";
+  const ics = [
+    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//TrialTracker//EN", "BEGIN:VEVENT",
+    `DTSTART:${toCalDate(trial.trial_start_date)}`,
+    `DTEND:${addOneDay(trial.trial_end_date || trial.trial_start_date)}`,
+    `SUMMARY:${trial.trial_host} — ${trial.organization} Trial`,
+    `LOCATION:${trial.city}, ${trial.state}`,
+    `DESCRIPTION:View & Register: ${link}`,
+    "END:VEVENT", "END:VCALENDAR",
+  ].join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
+  a.download = `trial-${trial.id}.ics`;
+  a.click();
+};
+
+const downloadReminderIcs = (trial: Trial) => {
+  const date = toCalDate(trial.entry_opening_date);
+  const link = trial.official_link || trial.club_website || "";
+  const ics = [
+    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//TrialTracker//EN", "BEGIN:VEVENT",
+    `DTSTART:${date}`, `DTEND:${date}`,
+    `SUMMARY:⚡ Entries Open: ${trial.trial_host} ${trial.organization}`,
+    `DESCRIPTION:Entry window opens today. View & Register: ${link}`,
+    "END:VEVENT", "END:VCALENDAR",
+  ].join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
+  a.download = `entry-reminder-${trial.id}.ics`;
+  a.click();
+};
+
 export default function TrialsPage() {
   const [trials, setTrials] = useState<Trial[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,12 +176,19 @@ export default function TrialsPage() {
   const [selectedLevel, setSelectedLevel] = useState("All Levels");
 
   const [keyword, setKeyword] = useState("");
+  const [openDropdown, setOpenDropdown] = useState<{ trialId: string; type: "trial" | "reminder" } | null>(null);
   const oneYearAgo = getOneYearAgoIso();
   const todayIso   = getTodayIso();
 
   useEffect(() => {
     fetchTrials();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const close = () => setOpenDropdown(null);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
   }, []);
 
   const fetchTrials = async () => {
@@ -434,16 +502,61 @@ export default function TrialsPage() {
                   </div>
                 )}
 
-                {trialLink && (
-                  <a
-                    href={trialLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={btnClass}
-                  >
-                    View &amp; Register
-                  </a>
-                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  {trialLink && (
+                    <a href={trialLink} target="_blank" rel="noopener noreferrer" className={btnClass}>
+                      View &amp; Register
+                    </a>
+                  )}
+
+                  {/* 📅 Add Trial */}
+                  {trial.trial_start_date && (
+                    <div className="relative">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown?.trialId === trial.id && openDropdown.type === "trial" ? null : { trialId: trial.id, type: "trial" }); }}
+                        className="text-sm bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium px-3 py-1.5 rounded-full border border-slate-200 transition-colors"
+                      >
+                        📅 Add Trial
+                      </button>
+                      {openDropdown?.trialId === trial.id && openDropdown.type === "trial" && (
+                        <div className="absolute left-0 top-full mt-1 z-10 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[190px]" onClick={(e) => e.stopPropagation()}>
+                          <a href={buildGCalTrialUrl(trial)} target="_blank" rel="noopener noreferrer" onClick={() => setOpenDropdown(null)}
+                            className="flex px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                            Google Calendar
+                          </a>
+                          <button onClick={() => { downloadTrialIcs(trial); setOpenDropdown(null); }}
+                            className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                            Download .ics (Apple / Outlook)
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ⏰ Entry Reminder */}
+                  {trial.entry_opening_date && (
+                    <div className="relative">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown?.trialId === trial.id && openDropdown.type === "reminder" ? null : { trialId: trial.id, type: "reminder" }); }}
+                        className="text-sm bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium px-3 py-1.5 rounded-full border border-slate-200 transition-colors"
+                      >
+                        ⏰ Entry Reminder
+                      </button>
+                      {openDropdown?.trialId === trial.id && openDropdown.type === "reminder" && (
+                        <div className="absolute left-0 top-full mt-1 z-10 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[190px]" onClick={(e) => e.stopPropagation()}>
+                          <a href={buildGCalReminderUrl(trial)} target="_blank" rel="noopener noreferrer" onClick={() => setOpenDropdown(null)}
+                            className="flex px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                            Google Calendar
+                          </a>
+                          <button onClick={() => { downloadReminderIcs(trial); setOpenDropdown(null); }}
+                            className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                            Download .ics (Apple / Outlook)
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}
