@@ -3,3 +3,5 @@ supabase
 httpx
 pdfplumber
 pypdf
+beautifulsoup4
+playwright
