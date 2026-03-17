@@ -383,11 +383,24 @@ export default function TrialsPage() {
 
         <div className="space-y-4">
           {filteredTrials.map((trial) => {
-            const daysUntil = getDaysUntilOpen(trial.entry_opening_date);
-            const isOpeningSoon = daysUntil >= 0 && daysUntil <= 14;
-            const isOpeningToday = daysUntil === 0;
-            const isOpeningTomorrow = daysUntil === 1;
-            const alreadyOpen = trial.entry_opening_date && daysUntil < 0;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const openingDate  = trial.entry_opening_date ? parseDate(trial.entry_opening_date) : null;
+            const closingDate  = trial.entry_closing_date ? parseDate(trial.entry_closing_date) : null;
+            const trialStart   = trial.trial_start_date   ? parseDate(trial.trial_start_date)   : null;
+
+            const entriesClosed  = closingDate !== null && today > closingDate;
+            const entriesOpenNow = openingDate !== null && closingDate !== null
+              && today >= openingDate && today <= closingDate;
+            const daysUntilOpen  = openingDate !== null && !entriesClosed && today < openingDate
+              ? Math.round((openingDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+              : null;
+            const openingSoon    = daysUntilOpen !== null && daysUntilOpen <= 14;
+            const daysUntilTrial = trialStart !== null
+              ? Math.round((trialStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+              : null;
+            const noEntryDates   = !trial.entry_opening_date && !trial.entry_closing_date;
+            const showEntryReminder = !!trial.entry_opening_date && !entriesClosed;
 
             // NACSW: club_website first (more useful for registration);
             // all other orgs: official_link first, club_website as fallback
@@ -404,7 +417,7 @@ export default function TrialsPage() {
             return (
               <div
                 key={trial.id}
-                className={`bg-white rounded-xl border shadow-sm p-5 ${isOpeningSoon ? "border-amber-300" : "border-slate-200"}`}
+                className={`bg-white rounded-xl border shadow-sm p-5 ${openingSoon ? "border-amber-300" : "border-slate-200"}`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
                   <h2 className="text-lg font-bold text-slate-800">
@@ -489,18 +502,26 @@ export default function TrialsPage() {
                   )}
                 </div>
 
-                {isOpeningSoon && !alreadyOpen && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-amber-800 text-sm font-medium mb-3">
-                    ⚡{" "}
-                    {isOpeningToday ? "Opens TODAY!" : isOpeningTomorrow ? "Opens TOMORROW!" : `Opens in ${daysUntil} days`}
-                  </div>
-                )}
-
-                {alreadyOpen && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-green-700 text-sm font-medium mb-3">
-                    ✅ Entries are open now!
-                  </div>
-                )}
+                {entriesClosed ? null
+                  : entriesOpenNow ? (
+                    <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-green-700 text-sm font-medium mb-3">
+                      ✅ Entries are open now!
+                    </div>
+                  ) : openingSoon ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-amber-800 text-sm font-medium mb-3">
+                      ⚡{" "}
+                      {daysUntilOpen === 0 ? "Opens TODAY!" : daysUntilOpen === 1 ? "Opens TOMORROW!" : `Opens in ${daysUntilOpen} days`}
+                    </div>
+                  ) : trial.entry_opening_date ? (
+                    <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-600 text-sm font-medium mb-3">
+                      Entry opens {formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                    </div>
+                  ) : noEntryDates && daysUntilTrial !== null && daysUntilTrial <= 14 ? null
+                  : noEntryDates ? (
+                    <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-500 text-sm font-medium mb-3">
+                      Entry dates TBD
+                    </div>
+                  ) : null}
 
                 <div className="flex flex-wrap items-center gap-2">
                   {trialLink && (
@@ -534,7 +555,7 @@ export default function TrialsPage() {
                   )}
 
                   {/* ⏰ Entry Reminder */}
-                  {trial.entry_opening_date && (
+                  {showEntryReminder && (
                     <div className="relative">
                       <button
                         onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown?.trialId === trial.id && openDropdown.type === "reminder" ? null : { trialId: trial.id, type: "reminder" }); }}
