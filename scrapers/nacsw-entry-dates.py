@@ -924,7 +924,11 @@ async def _fetch(crawler, url: str):
             return None
 
     # Production path — Crawl4AI
-    cfg = CrawlerRunConfig(page_timeout=20000, word_count_threshold=0)
+    cfg = CrawlerRunConfig(
+        page_timeout=30000,
+        word_count_threshold=0,
+        wait_for="networkidle",
+    )
     try:
         result = await crawler.arun(url=url, config=cfg)
         return result
