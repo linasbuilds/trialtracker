@@ -1013,6 +1013,12 @@ async def _scrape_trial(
     opening, closing = extract_dates(home_text, start_date)
     if not (opening or closing):
         opening, closing = extract_dates_inline(home_text, start_date)
+    if not (opening or closing) and home_html:
+        print("  🔄 Retrying Step A with raw HTML...")
+        _stripped = re.sub(r'<[^>]+>', ' ', home_html)
+        opening, closing = extract_dates_inline(_stripped, start_date)
+        if opening or closing:
+            print("  ✅ Found dates in raw HTML fallback")
     if opening or closing:
         _log_found(opening, closing, "homepage")
         if not _entry_dates_plausible(opening, start_date):
@@ -1068,6 +1074,12 @@ async def _scrape_trial(
         opening, closing = extract_dates(nav_text, start_date)
         if not (opening or closing):
             opening, closing = extract_dates_inline(nav_text, start_date)
+        if not (opening or closing) and nav_html:
+            print("  🔄 Retrying Step B with raw HTML...")
+            _stripped = re.sub(r'<[^>]+>', ' ', nav_html)
+            opening, closing = extract_dates_inline(_stripped, start_date)
+            if opening or closing:
+                print("  ✅ Found dates in raw HTML fallback")
         if opening or closing:
             _log_found(opening, closing, f"nav page {nav_url}")
             if not _entry_dates_plausible(opening, start_date):
