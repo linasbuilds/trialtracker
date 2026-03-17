@@ -41,7 +41,7 @@ import io
 import os
 import re
 from datetime import date, timedelta
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, urlunparse
 from urllib.robotparser import RobotFileParser
 import urllib.request
 
@@ -498,6 +498,43 @@ def extract_dates(text: str, trial_start_date: str = "") -> tuple[str | None, st
         if opening and closing:
             break
 
+    # Full-page fallback: if anchor window found nothing, scan entire text
+    if not opening and not closing:
+        print("  🔍 Anchor window found nothing — scanning full page text as fallback")
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            if re.search(r"\bbetween\b", line, re.IGNORECASE):
+                found = [
+                    _validate_date(m.group(), trial_start_date, "between")
+                    for m in _DATE_RE.finditer(line)
+                ]
+                found = [d for d in found if d]
+                if len(found) >= 2:
+                    opening = opening or found[0]
+                    closing = closing or found[-1]
+                    continue
+                elif len(found) == 1:
+                    opening = opening or found[0]
+                    continue
+            if opening is None:
+                for pat in _SECTION_OPEN_PATTERNS:
+                    if re.search(pat, line, re.IGNORECASE):
+                        m = _DATE_RE.search(line)
+                        if m:
+                            opening = _validate_date(m.group(), trial_start_date, "full-scan-open")
+                        break
+            if closing is None:
+                for pat in _SECTION_CLOSE_PATTERNS:
+                    if re.search(pat, line, re.IGNORECASE):
+                        m = _DATE_RE.search(line)
+                        if m:
+                            closing = _validate_date(m.group(), trial_start_date, "full-scan-close")
+                        break
+            if opening and closing:
+                break
+
     if TEST_MODE:
         print(f"\n{'─'*60}")
         print(f"RESULT:  opening={opening or 'NO DATE FOUND'}  closing={closing or 'NO DATE FOUND'}")
@@ -734,6 +771,24 @@ def _find_pdf_links(html: str, crawl_links: list[dict], base_url: str) -> list[s
     return sorted(found, key=_score_pdf_url, reverse=True)[:5]
 
 
+def _strip_year_suffix(url: str) -> str | None:
+    """
+    If the URL path ends in a 2- or 4-digit year-range slug
+    (e.g. /trials-22-23.html, /events-2024-2025), return the URL
+    with that suffix stripped. Otherwise return None.
+    """
+    parsed = urlparse(url)
+    path = parsed.path
+    m = re.match(r'^(.*?)[-_](?:\d{4}|\d{2})[-_](?:\d{4}|\d{2})(\.\w+)?$', path)
+    if m:
+        base = m.group(1)
+        ext  = m.group(2) or ""
+        cleaned = base + ext
+        if cleaned and cleaned != "/":
+            return urlunparse(parsed._replace(path=cleaned, fragment=""))
+    return None
+
+
 def _find_nav_links(html: str, crawl_links: list[dict], base_url: str) -> list[str]:
     """
     Find same-domain navigation links whose URL path or link text contains
@@ -935,6 +990,12 @@ async def _scrape_trial(
         if pages_visited_in_b >= 3:
             break
 
+        # Strip URL fragment before visiting
+        if "#" in nav_url:
+            nav_url = nav_url.split("#")[0]
+        if not nav_url or nav_url == club_url:
+            continue
+
         print(f"    → Visiting nav page: {nav_url}")
         await asyncio.sleep(1)
         nav_result = await _fetch(crawler, nav_url)
@@ -993,6 +1054,26 @@ async def _scrape_trial(
             else:
                 print(f"      ❌ No date labels found in PDF")
                 print(f"      🔍 PDF first 1000 chars: {pdf_text[:1000]!r}")
+
+        # If year-range suffix in URL and no dates found, also try cleaned URL
+        cleaned_url = _strip_year_suffix(nav_url)
+        if cleaned_url and cleaned_url != nav_url and cleaned_url != club_url:
+            print(f"  🔁 Also trying cleaned URL: {cleaned_url}")
+            await asyncio.sleep(1)
+            clean_result = await _fetch(crawler, cleaned_url)
+            if clean_result is not None:
+                pages_visited_in_b += 1
+                clean_text = _get_text(clean_result)
+                print(f"  📄 Cleaned URL text preview (first 500 chars): {clean_text[:500]!r}")
+                opening, closing = extract_dates(clean_text, start_date)
+                if not (opening or closing):
+                    opening, closing = extract_dates_inline(clean_text, start_date)
+                if opening or closing:
+                    _log_found(opening, closing, f"cleaned nav page {cleaned_url}")
+                    if not _entry_dates_plausible(opening, start_date):
+                        print(f"  ⚠️  Opening date {opening} is >6 months before trial start {start_date} — skipping")
+                    else:
+                        return opening, closing
 
     # ── Step C: PDFs linked from the homepage ──────────────────────────────────
     pdf_links = _find_pdf_links(home_html, home_links, club_url)
