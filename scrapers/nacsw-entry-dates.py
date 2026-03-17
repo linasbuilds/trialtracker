@@ -342,6 +342,7 @@ _INLINE_OPEN_PATTERNS = re.compile(
     r"opening\s+date\b"
     r"|\bentry\s+open\b"
     r"|\bentries\s+open\b"
+    r"|\bentries\s+accepted\s+beginning\b"
     r"|\bopens\b"
     # Day-of-week anchored variants (Sites 1–3: "Opens Thursday, March 26", etc.)
     r"|\bopens?\s+(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)"
