@@ -25,7 +25,9 @@
       "WebFetch(domain:mountaindogs.org)",
       "WebFetch(domain:www.pinkbiscuitk9s.com)",
       "WebFetch(domain:sniffsniffhooray.com)",
-      "WebFetch(domain:nwk9sniffers.org)"
+      "WebFetch(domain:nwk9sniffers.org)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''scrapers/nacsw-entry-dates.py''\\).read\\(\\)\\); print\\(''syntax OK''\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''scrapers/nacsw-entry-dates.py'', encoding=''utf-8''\\).read\\(\\)\\); print\\(''syntax OK''\\)\")"
     ]
   }
 }

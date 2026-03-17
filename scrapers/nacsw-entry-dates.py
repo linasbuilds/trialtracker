@@ -1282,70 +1282,72 @@ async def main() -> None:
 
     updated = skipped = errors = no_dates = 0
 
-    async with AsyncWebCrawler(config=browser_cfg) as crawler:
-        for i, trial in enumerate(trials):
-            name  = trial.get("trial_host") or trial.get("trial_name") or "?"
-            start = trial.get("trial_start_date", "?")
-            print(f"[{i + 1}/{len(trials)}] {name}  ({start})")
+    try:
+        async with AsyncWebCrawler(config=browser_cfg) as crawler:
+            for i, trial in enumerate(trials):
+                name  = trial.get("trial_host") or trial.get("trial_name") or "?"
+                start = trial.get("trial_start_date", "?")
+                print(f"[{i + 1}/{len(trials)}] {name}  ({start})")
 
-            # Never update a trial that a club has claimed and is managing directly
-            if trial.get("claimed"):
-                print(f"  ⏭️  Skipping — trial is claimed by club")
-                skipped += 1
-                continue
+                # Never update a trial that a club has claimed and is managing directly
+                if trial.get("claimed"):
+                    print(f"  ⏭️  Skipping — trial is claimed by club")
+                    skipped += 1
+                    continue
 
-            try:
-                opening, closing = await _scrape_trial(crawler, trial)
-            except Exception as exc:
-                print(f"  ❌ Unexpected error scraping {name}: {exc}")
-                errors += 1
+                try:
+                    opening, closing = await _scrape_trial(crawler, trial)
+                except Exception as exc:
+                    print(f"  ❌ Unexpected error scraping {name}: {exc}")
+                    errors += 1
+                    if i < len(trials) - 1:
+                        print(f"  ⏳ Waiting {DELAY}s...\n")
+                        await asyncio.sleep(DELAY)
+                    continue
+
+                if opening or closing:
+                    payload: dict[str, str] = {}
+
+                    if opening:
+                        payload["entry_opening_date"] = opening
+
+                    if closing:
+                        payload["entry_closing_date"] = closing
+
+                    if opening and not closing:
+                        closing = (date.fromisoformat(opening) + timedelta(days=2)).isoformat()
+                        print(f"  📅 Closing date calculated as opening + 2 days: {closing}")
+                        payload["entry_closing_date"] = closing
+
+                    if payload:
+                        if TEST_MODE:
+                            print(f"  🧪 TEST MODE — would save to Supabase: {payload}")
+                        else:
+                            try:
+                                db.table("trials").update(payload).eq("id", trial["id"]).execute()
+                                print(f"  ☁️  Saved to Supabase: {payload}")
+                                updated += 1
+                            except Exception as exc:
+                                print(f"  ❌ Supabase update failed: {exc}")
+                                errors += 1
+                    else:
+                        no_dates += 1
+                else:
+                    no_dates += 1
+
                 if i < len(trials) - 1:
                     print(f"  ⏳ Waiting {DELAY}s...\n")
                     await asyncio.sleep(DELAY)
-                continue
 
-            if opening or closing:
-                payload: dict[str, str] = {}
-
-                if opening:
-                    payload["entry_opening_date"] = opening
-
-                if closing:
-                    payload["entry_closing_date"] = closing
-
-                if opening and not closing:
-                    closing = (date.fromisoformat(opening) + timedelta(days=2)).isoformat()
-                    print(f"  📅 Closing date calculated as opening + 2 days: {closing}")
-                    payload["entry_closing_date"] = closing
-
-                if payload:
-                    if TEST_MODE:
-                        print(f"  🧪 TEST MODE — would save to Supabase: {payload}")
-                    else:
-                        try:
-                            db.table("trials").update(payload).eq("id", trial["id"]).execute()
-                            print(f"  ☁️  Saved to Supabase: {payload}")
-                            updated += 1
-                        except Exception as exc:
-                            print(f"  ❌ Supabase update failed: {exc}")
-                            errors += 1
-                else:
-                    no_dates += 1
-            else:
-                no_dates += 1
-
-            if i < len(trials) - 1:
-                print(f"  ⏳ Waiting {DELAY}s...\n")
-                await asyncio.sleep(DELAY)
-
-    print("\n══════════════════════════════════════")
-    print("📊 Run complete")
-    if not TEST_MODE:
-        print(f"   ✅ Updated:          {updated}")
-    print(f"   ⏭️  Skipped:         {skipped}")
-    print(f"   ❌ No dates found:   {no_dates}")
-    print(f"   ⚠️  Errors:          {errors}")
-    print("══════════════════════════════════════")
+    finally:
+        print("\n══════════════════════════════════════")
+        print("📊 Run complete")
+        if not TEST_MODE:
+            print(f"   ✅ Updated:          {updated}")
+        print(f"   ⏭️  Skipped:         {skipped}")
+        print(f"   ❌ No dates found:   {no_dates}")
+        print(f"   ⚠️  Errors:          {errors}")
+        print("══════════════════════════════════════")
 
 
 if __name__ == "__main__":
