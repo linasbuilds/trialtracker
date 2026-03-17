@@ -339,7 +339,7 @@ def _dbg(msg: str) -> None:
 # Plain-text inline signals for the opening date that appear WITHOUT a section heading.
 # Used by extract_dates_inline() as a fallback when extract_dates() finds nothing.
 _INLINE_OPEN_PATTERNS = re.compile(
-    r"opening\s+date\s*:"
+    r"opening\s+date\b"
     r"|\bentry\s+open\b"
     r"|\bentries\s+open\b"
     r"|\bopens\b"
