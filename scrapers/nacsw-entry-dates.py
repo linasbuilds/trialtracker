@@ -385,6 +385,11 @@ def extract_dates_inline(text: str, trial_start_date: str = "") -> tuple[str | N
             if m:
                 opening = _validate_date(m.group(), trial_start_date, "inline-open")
                 if opening:
+                    cutoff = (date.today() - timedelta(days=30)).isoformat()
+                    if opening < cutoff:
+                        _dbg(f"  ⏭️  Skipping stale inline date {opening} (>30 days past)")
+                        opening = None
+                        continue
                     _dbg(f"  🔎 inline match on: {line!r}  → {opening}")
                     return opening, None
             # Fallback: "Month Day" with no year (e.g. "Entries Open Wednesday, April 8")
