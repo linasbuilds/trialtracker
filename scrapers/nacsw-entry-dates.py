@@ -850,6 +850,41 @@ def _find_nav_links(html: str, crawl_links: list[dict], base_url: str) -> list[s
                 break
     return result
 
+_TRIAL_DETAIL_PATH_RE = re.compile(r'/trial-', re.IGNORECASE)
+
+
+def _find_trial_detail_links(html: str, crawl_links: list[dict], base_url: str) -> list[str]:
+    """
+    Find same-domain links whose path contains /trial- — individual trial
+    detail pages (e.g. /trial-florissant-06%2F2026).
+    """
+    found: list[str] = []
+    seen:  set[str]  = set()
+
+    def _try(href: str) -> None:
+        if not href or href.startswith(("#", "mailto:")):
+            return
+        try:
+            full = urljoin(base_url, href).split("#")[0]
+        except Exception:
+            return
+        if not _same_host(full, base_url):
+            return
+        if ".pdf" in full.lower():
+            return
+        if _TRIAL_DETAIL_PATH_RE.search(urlparse(full).path) and full not in seen:
+            seen.add(full)
+            found.append(full)
+
+    for m in _A_TAG_RE.finditer(html):
+        _try(m[1])
+    for link in crawl_links:
+        href = link.get("href", "") if isinstance(link, dict) else str(link)
+        _try(href)
+
+    return found
+
+
 # ── Page fetch wrapper ────────────────────────────────────────────────────────
 
 async def _fetch(crawler, url: str):
@@ -983,6 +1018,9 @@ async def _scrape_trial(
     nav_links = _find_nav_links(home_html, home_links, club_url)
     print(f"  🔗 Step B — Found {len(nav_links)} navigation link(s) to check")
 
+    detail_links: list[str] = []
+    detail_seen:  set[str]  = set()
+
     pages_visited_in_b = 0
     for nav_url in nav_links:
         if nav_url == club_url:
@@ -1006,6 +1044,11 @@ async def _scrape_trial(
         nav_text    = _get_text(nav_result)
         nav_html    = _get_html(nav_result)
         nav_links_b = _get_links(nav_result)
+
+        for dl in _find_trial_detail_links(nav_html, nav_links_b, nav_url):
+            if dl not in detail_seen:
+                detail_seen.add(dl)
+                detail_links.append(dl)
 
         print(f"  📄 Nav page text preview (first 500 chars): {nav_text[:500]!r}")
 
@@ -1074,6 +1117,70 @@ async def _scrape_trial(
                         print(f"  ⚠️  Opening date {opening} is >6 months before trial start {start_date} — skipping")
                     else:
                         return opening, closing
+
+    # ── Step B2: Trial detail pages ───────────────────────────────────────────
+    if detail_links:
+        print(f"  🔎 Step B2 — Found {len(detail_links)} trial detail page(s) to check")
+        details_visited = 0
+        for d_url in detail_links:
+            if details_visited >= 3:
+                break
+            print(f"    → Visiting detail page: {d_url}")
+            await asyncio.sleep(1)
+            d_result = await _fetch(crawler, d_url)
+            if d_result is None:
+                continue
+            details_visited += 1
+
+            d_text  = _get_text(d_result)
+            d_html  = _get_html(d_result)
+            d_links = _get_links(d_result)
+
+            print(f"  📄 Detail page text preview (first 500 chars): {d_text[:500]!r}")
+
+            if TEST_MODE:
+                print(f"\n{'='*60}")
+                print(f"📄 FULL PAGE TEXT — {d_url} ({len(d_text)} chars):")
+                print(f"{'='*60}")
+                print(d_text)
+                print(f"{'='*60}\n")
+
+            opening, closing = extract_dates(d_text, start_date)
+            if not (opening or closing):
+                opening, closing = extract_dates_inline(d_text, start_date)
+            if opening or closing:
+                _log_found(opening, closing, f"trial detail page {d_url}")
+                if not _entry_dates_plausible(opening, start_date):
+                    print(f"  ⚠️  Opening date {opening} is >6 months before trial start {start_date} — skipping")
+                    continue
+                return opening, closing
+
+            # Check PDFs on the detail page (e.g. "Trial Premium" button → PDF)
+            d_pdfs = _find_pdf_links(d_html, d_links, d_url)
+            for pdf_url in d_pdfs[:2]:
+                if _is_non_entry_pdf(pdf_url):
+                    print(f"    ⏭️  Skipping rulebook/non-entry PDF: {pdf_url}")
+                    continue
+                pdf_filename = pdf_url.rstrip("/").split("/")[-1].split("?")[0]
+                year_m = re.search(r'\b((?:19|20)\d{2})\b', pdf_filename)
+                if year_m and int(year_m.group(1)) < 2026:
+                    print(f"    ⏭️  Skipping old PDF: {pdf_url}")
+                    continue
+                print(f"    📋 PDF from detail page: {pdf_url}")
+                await asyncio.sleep(1)
+                pdf_text = await _fetch_pdf_text(crawler, pdf_url, cfg)
+                if not pdf_text.strip():
+                    continue
+                opening, closing = extract_dates(pdf_text, start_date)
+                if opening or closing:
+                    _log_found(opening, closing, f"PDF {pdf_url}")
+                    if not _entry_dates_plausible(opening, start_date):
+                        print(f"  ⚠️  Opening date {opening} is >6 months before trial start {start_date} — stale PDF, skipping")
+                        continue
+                    return opening, closing
+                else:
+                    print(f"      ❌ No date labels found in PDF")
+                    print(f"      🔍 PDF first 1000 chars: {pdf_text[:1000]!r}")
 
     # ── Step C: PDFs linked from the homepage ──────────────────────────────────
     pdf_links = _find_pdf_links(home_html, home_links, club_url)

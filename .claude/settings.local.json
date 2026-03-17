@@ -22,7 +22,10 @@
       "Bash(find /c/Users/linas/trialtracker -maxdepth 1 -name middleware* -o -name *.ts -maxdepth 1)",
       "WebFetch(domain:www.google.com)",
       "WebFetch(domain:www.dooverdogtraining.com)",
-      "WebFetch(domain:mountaindogs.org)"
+      "WebFetch(domain:mountaindogs.org)",
+      "WebFetch(domain:www.pinkbiscuitk9s.com)",
+      "WebFetch(domain:sniffsniffhooray.com)",
+      "WebFetch(domain:nwk9sniffers.org)"
     ]
   }
 }
