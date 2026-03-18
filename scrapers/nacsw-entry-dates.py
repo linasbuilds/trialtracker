@@ -932,6 +932,22 @@ async def _fetch(crawler, url: str):
         print(f"    ⚠️  Fetch failed ({url}): {exc}")
         return None
 
+async def _fetch_with_playwright(url: str) -> str:
+    """Playwright fallback for JS-rendered pages. Returns stripped plain text."""
+    try:
+        from playwright.async_api import async_playwright
+        async with async_playwright() as pw:
+            browser = await pw.chromium.launch(headless=True)
+            page = await browser.new_page()
+            await page.goto(url, wait_until="domcontentloaded")
+            await page.wait_for_timeout(3000)
+            html = await page.content()
+            await browser.close()
+        return re.sub(r'<[^>]+>', ' ', html)
+    except Exception as exc:
+        print(f"    ⚠️  Playwright fallback failed ({url}): {exc}")
+        return ""
+
 # ── Per-trial scraping ────────────────────────────────────────────────────────
 
 async def _scrape_trial(
@@ -1019,6 +1035,13 @@ async def _scrape_trial(
         opening, closing = extract_dates_inline(_stripped, start_date)
         if opening or closing:
             print("  ✅ Found dates in raw HTML fallback")
+    if not (opening or closing) and len(home_text) < 200:
+        print("  🎭 Trying Playwright fallback for JS-rendered page...")
+        pw_text = await _fetch_with_playwright(club_url)
+        if pw_text:
+            opening, closing = extract_dates_inline(pw_text, start_date)
+            if opening or closing:
+                print("  ✅ Found dates via Playwright fallback")
     if opening or closing:
         _log_found(opening, closing, "homepage")
         if not _entry_dates_plausible(opening, start_date):
