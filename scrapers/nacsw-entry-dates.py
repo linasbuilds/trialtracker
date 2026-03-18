@@ -933,14 +933,23 @@ async def _fetch(crawler, url: str):
         return None
 
 async def _fetch_with_playwright(url: str) -> str:
-    """Playwright fallback for JS-rendered pages. Returns stripped plain text."""
+    """Playwright fallback for JS-rendered pages like Wix.
+    Waits for actual content to appear rather than a fixed timer."""
     try:
         from playwright.async_api import async_playwright
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(headless=True)
             page = await browser.new_page()
             await page.goto(url, wait_until="domcontentloaded")
-            await page.wait_for_timeout(3000)
+            # Wait for any of these content signals to appear
+            try:
+                await page.wait_for_selector(
+                    "text=ENTRY OPEN, text=Entry Open, text=Opening Date, text=Entries Open, text=entries open",
+                    timeout=8000
+                )
+            except Exception:
+                # Content signal not found — still grab whatever rendered
+                await page.wait_for_timeout(3000)
             html = await page.content()
             await browser.close()
         return re.sub(r'<[^>]+>', ' ', html)
