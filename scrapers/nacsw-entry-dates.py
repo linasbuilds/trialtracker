@@ -1050,6 +1050,8 @@ async def _scrape_trial(
     if not (opening or closing):
         print("  🎭 Trying Playwright fallback for JS-rendered page...")
         pw_text = await _fetch_with_playwright(club_url)
+        print(f"  🔍 Playwright text length: {len(pw_text)}")
+        print(f"  🔍 Playwright first 500 chars: {pw_text[:500]}")
         if pw_text:
             opening, closing = extract_dates_inline(pw_text, start_date)
             if opening or closing:
@@ -1335,6 +1337,9 @@ async def main() -> None:
                 name  = trial.get("trial_host") or trial.get("trial_name") or "?"
                 start = trial.get("trial_start_date", "?")
                 print(f"[{i + 1}/{len(trials)}] {name}  ({start})")
+
+                if "mountaindogs" not in (trial.get("club_website") or "").lower():
+                    continue
 
                 # Never update a trial that a club has claimed and is managing directly
                 if trial.get("claimed"):
