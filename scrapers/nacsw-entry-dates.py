@@ -1018,9 +1018,9 @@ async def _fetch_with_playwright(url: str) -> str:
             except Exception:
                 # Content signal not found — still grab whatever rendered
                 await page.wait_for_timeout(3000)
-            html = await page.content()
+            text = await page.inner_text("body")
             await browser.close()
-        return re.sub(r'<[^>]+>', ' ', html)
+        return text
     except Exception as exc:
         print(f"    ⚠️  Playwright fallback failed ({url}): {exc}")
         return ""
@@ -1095,10 +1095,6 @@ async def _scrape_trial(
     home_text  = _get_text(home_result)
     home_html  = _get_html(home_result)
     home_links = _get_links(home_result)
-    if "mountaindogs" in club_url.lower():
-        print(f"  🔍 DEBUG home_text length: {len(home_text)}")
-        print(f"  🔍 DEBUG home_text first 1000 chars:\n{home_text[:1000]}")
-
     if TEST_MODE:
         print(f"\n{'='*60}")
         print(f"📄 FULL PAGE TEXT — homepage ({len(home_text)} chars):")
@@ -1409,9 +1405,6 @@ async def main() -> None:
                 name  = trial.get("trial_host") or trial.get("trial_name") or "?"
                 start = trial.get("trial_start_date", "?")
                 print(f"[{i + 1}/{len(trials)}] {name}  ({start})")
-
-                if "mountaindogs" not in (trial.get("club_website") or "").lower():
-                    continue
 
                 # Never update a trial that a club has claimed and is managing directly
                 if trial.get("claimed"):
