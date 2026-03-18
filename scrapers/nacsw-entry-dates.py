@@ -306,8 +306,8 @@ def _infer_year(month: int, day: int, trial_start_date: str) -> str | None:
             d = date(year, month, day)
             if ref and d.isoformat() >= ref.isoformat():
                 continue  # entry must precede trial start
-            if d.isoformat() < today.isoformat():
-                continue  # skip dates already in the past
+            if d < today - timedelta(days=45):
+                continue  # skip dates more than 45 days in the past
             return d.isoformat()
         except ValueError:
             pass
@@ -343,6 +343,7 @@ _INLINE_OPEN_PATTERNS = re.compile(
     r"|\bentry\s+open\b"
     r"|\bentries\s+open\b"
     r"|\bentries\s+accepted\s+beginning\b"
+    r"|\bregistration\s+opens?\b"
     r"|\bopens\b"
     # Day-of-week anchored variants (Sites 1–3: "Opens Thursday, March 26", etc.)
     r"|\bopens?\s+(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)"
@@ -401,6 +402,73 @@ def extract_dates_inline(text: str, trial_start_date: str = "") -> tuple[str | N
                     if opening:
                         _dbg(f"  🔎 inline month+day (no year) match on: {line!r}  → {opening}")
                         return opening, None
+    return None, None
+
+
+def _extract_contextual(text: str, trial_start_date: str) -> tuple[str | None, str | None]:
+    """
+    Context-anchored extraction for multi-trial pages.
+
+    Strategy:
+      1. Find all lines that contain a date within ±14 days of trial_start_date
+         (these are "anchor" lines — the page is talking about our trial here).
+      2. For each anchor, scan ±5 lines for an _INLINE_OPEN_PATTERNS match.
+      3. Return the first opening date found in that window.
+
+    This prevents multi-trial pages (e.g. mountaindogs.org) from returning
+    the entry date of the wrong trial.
+    """
+    if not trial_start_date:
+        return None, None
+    try:
+        trial_dt = date.fromisoformat(trial_start_date)
+    except ValueError:
+        return None, None
+
+    low  = (trial_dt - timedelta(days=14)).isoformat()
+    high = (trial_dt + timedelta(days=14)).isoformat()
+
+    lines = text.splitlines()
+
+    # Step 1: find anchor line indices
+    anchor_indices: list[int] = []
+    for i, line in enumerate(lines):
+        for m in _DATE_RE.finditer(line):
+            parsed = _parse_date(m.group())
+            if parsed and low <= parsed <= high:
+                anchor_indices.append(i)
+                break
+
+    if not anchor_indices:
+        return None, None
+
+    # Step 2: scan ±5 lines around each anchor for an open-pattern + date
+    for anchor_i in anchor_indices:
+        window_start = max(0, anchor_i - 5)
+        window_end   = min(len(lines), anchor_i + 6)
+        for line in lines[window_start:window_end]:
+            line = line.strip()
+            if not line:
+                continue
+            if not _INLINE_OPEN_PATTERNS.search(line):
+                continue
+            # Primary: full date with year
+            m = _DATE_RE.search(line)
+            if m:
+                opening = _validate_date(m.group(), trial_start_date, "contextual-open")
+                if opening:
+                    print(f"  🎯 Contextual match near trial date: {line!r}  → {opening}")
+                    return opening, None
+            # Fallback: month + day, no year
+            m = _DATE_MONTH_DAY_RE.search(line)
+            if m:
+                mo = _MONTH.get(m.group(1).lower().rstrip("."))
+                if mo:
+                    opening = _infer_year(int(mo), int(m.group(2)), trial_start_date)
+                    if opening:
+                        print(f"  🎯 Contextual month+day match: {line!r}  → {opening}")
+                        return opening, None
+
     return None, None
 
 
@@ -1040,6 +1108,8 @@ async def _scrape_trial(
 
     opening, closing = extract_dates(home_text, start_date)
     if not (opening or closing):
+        opening, closing = _extract_contextual(home_text, start_date)
+    if not (opening or closing):
         opening, closing = extract_dates_inline(home_text, start_date)
     if not (opening or closing) and home_html:
         print("  🔄 Retrying Step A with raw HTML...")
@@ -1109,6 +1179,8 @@ async def _scrape_trial(
             print(f"{'='*60}\n")
 
         opening, closing = extract_dates(nav_text, start_date)
+        if not (opening or closing):
+            opening, closing = _extract_contextual(nav_text, start_date)
         if not (opening or closing):
             opening, closing = extract_dates_inline(nav_text, start_date)
         if not (opening or closing) and nav_html:

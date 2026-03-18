@@ -27,7 +27,9 @@
       "WebFetch(domain:sniffsniffhooray.com)",
       "WebFetch(domain:nwk9sniffers.org)",
       "Bash(python -c \"import ast; ast.parse\\(open\\(''scrapers/nacsw-entry-dates.py''\\).read\\(\\)\\); print\\(''syntax OK''\\)\")",
-      "Bash(python -c \"import ast; ast.parse\\(open\\(''scrapers/nacsw-entry-dates.py'', encoding=''utf-8''\\).read\\(\\)\\); print\\(''syntax OK''\\)\")"
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''scrapers/nacsw-entry-dates.py'', encoding=''utf-8''\\).read\\(\\)\\); print\\(''syntax OK''\\)\")",
+      "WebFetch(domain:canineconnection23.godaddysites.com)",
+      "WebFetch(domain:www.cleversniffers.com)"
     ]
   }
 }
