@@ -1027,6 +1027,9 @@ async def _scrape_trial(
     home_text  = _get_text(home_result)
     home_html  = _get_html(home_result)
     home_links = _get_links(home_result)
+    if "mountaindogs" in club_url.lower():
+        print(f"  🔍 DEBUG home_text length: {len(home_text)}")
+        print(f"  🔍 DEBUG home_text first 1000 chars:\n{home_text[:1000]}")
 
     if TEST_MODE:
         print(f"\n{'='*60}")
@@ -1044,7 +1047,7 @@ async def _scrape_trial(
         opening, closing = extract_dates_inline(_stripped, start_date)
         if opening or closing:
             print("  ✅ Found dates in raw HTML fallback")
-    if not (opening or closing) and len(home_text) < 200:
+    if not (opening or closing):
         print("  🎭 Trying Playwright fallback for JS-rendered page...")
         pw_text = await _fetch_with_playwright(club_url)
         if pw_text:
