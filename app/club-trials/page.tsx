@@ -231,7 +231,6 @@ export default function ClubTrialsPage() {
     const payload = rows
       .filter((r) => r.trial_name && r.trial_start_date)
       .map((r) => ({
-        official_link: makeUploadLink(userId, r.trial_name, r.trial_start_date),
         organization: r.organization || "NACSW",
         sport: r.sport || "Nosework",
         trial_name: r.trial_name,
@@ -248,6 +247,8 @@ export default function ClubTrialsPage() {
         user_id: userId,
         data_source: "club-upload",
         cancelled: false,
+        claimed: true,
+        claimed_by: userId,
       }));
 
     if (payload.length === 0) {
@@ -258,7 +259,7 @@ export default function ClubTrialsPage() {
 
     const { error } = await supabase
       .from("trials")
-      .upsert(payload, { onConflict: "official_link" });
+      .upsert(payload, { onConflict: "trial_host,trial_start_date,organization,city" });
 
     if (error) {
       setCsvError(`Import failed: ${error.message}`);
