@@ -10,6 +10,16 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const handleCallback = async () => {
+      // Check for password recovery flow before anything else
+      const hash = window.location.hash;
+      if (hash) {
+        const params = new URLSearchParams(hash.substring(1));
+        if (params.get("type") === "recovery") {
+          router.replace("/reset-password" + hash);
+          return;
+        }
+      }
+
       // Give Supabase a moment to process the token from the URL
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
