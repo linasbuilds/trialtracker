@@ -73,6 +73,16 @@ const getTodayIso = () => {
 
 const toCalDate = (d: string) => d.replace(/-/g, "");
 
+// Parse NACSW level abbreviations from trial_name (e.g. "NW1/NW2 Trials" → ["nw1","nw2"])
+const parseLevelsFromTrial = (trial: Trial): string[] => {
+  if (trial.level) return [normalizeLevel(trial.level)];
+  if (trial.organization === "NACSW") {
+    const tokens = (trial.trial_name || "").toUpperCase().match(/\b(NW[123]|ELT|SMT)\b/g) ?? [];
+    return tokens.map(t => normalizeLevel(t));
+  }
+  return [];
+};
+
 const addOneDay = (dateStr: string) => {
   const d = new Date(dateStr + "T12:00:00");
   d.setDate(d.getDate() + 1);
@@ -134,13 +144,16 @@ const buildGCalReminderUrl = (trial: Trial) => {
 
 const downloadTrialIcs = (trial: Trial) => {
   const link = trial.official_link || trial.club_website || "";
+  const name = trial.trial_name || trial.trial_host || "Trial";
+  const address = buildAddress(trial);
+  const locationLine = [trial.location_name, address].filter(Boolean).join(" · ");
   const ics = [
     "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//TrialTracker//EN", "BEGIN:VEVENT",
     `DTSTART:${toCalDate(trial.trial_start_date)}`,
     `DTEND:${addOneDay(trial.trial_end_date || trial.trial_start_date)}`,
-    `SUMMARY:${trial.trial_host} — ${trial.organization} Trial`,
-    `LOCATION:${trial.city}, ${trial.state}`,
-    `DESCRIPTION:View & Register: ${link}`,
+    `SUMMARY:${name} — ${trial.organization} Trial`,
+    `LOCATION:${address || `${trial.city}, ${trial.state}`}`,
+    `DESCRIPTION:${locationLine ? locationLine + "\\n" : ""}View & Register: ${link}`,
     "END:VEVENT", "END:VCALENDAR",
   ].join("\r\n");
   const a = document.createElement("a");
@@ -232,8 +245,8 @@ export default function TrialsPage() {
     if (selectedState !== "All States" && trial.state !== selectedState) return false;
 
     if (selectedLevel !== "All Levels") {
-      const tLevel = normalizeLevel(trial.level || "");
-      if (tLevel !== normalizeLevel(selectedLevel)) return false;
+      const tLevels = parseLevelsFromTrial(trial);
+      if (!tLevels.includes(normalizeLevel(selectedLevel))) return false;
     }
 
     if (selectedMonth) {
@@ -409,7 +422,8 @@ export default function TrialsPage() {
               ? (trial.club_website || trial.official_link || null)
               : (trial.official_link || trial.club_website || null);
 
-            const level = normalizeLevel(trial.level || "");
+            const levelList = parseLevelsFromTrial(trial);
+            const level = levelList.join("/").toUpperCase();
 
             const trialLocation = trial.location_name || getHostName(trial) || "TBD";
             const fullAddress = buildAddress(trial) || `${trial.city || ""}${trial.city && trial.state ? ", " : ""}${trial.state || ""}` || "TBD";
@@ -502,8 +516,11 @@ export default function TrialsPage() {
                   )}
                 </div>
 
-                {entriesClosed ? null
-                  : entriesOpenNow ? (
+                {entriesClosed ? (
+                  <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-500 text-sm font-medium mb-3">
+                    Entries Closed
+                  </div>
+                ) : entriesOpenNow ? (
                     <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-green-700 text-sm font-medium mb-3">
                       ✅ Entries are open now!
                     </div>
@@ -534,10 +551,10 @@ export default function TrialsPage() {
                   {trial.trial_start_date && (
                     <div className="relative">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown?.trialId === trial.id && openDropdown.type === "trial" ? null : { trialId: trial.id, type: "trial" }); }}
+                        onClick={(e) => { e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); setOpenDropdown(openDropdown?.trialId === trial.id && openDropdown.type === "trial" ? null : { trialId: trial.id, type: "trial" }); }}
                         className="text-sm bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium px-3 py-1.5 rounded-full border border-slate-200 transition-colors"
                       >
-                        📅 Add Trial
+                        📅 Add to Calendar
                       </button>
                       {openDropdown?.trialId === trial.id && openDropdown.type === "trial" && (
                         <div className="absolute left-0 top-full mt-1 z-10 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[190px]" onClick={(e) => e.stopPropagation()}>
@@ -554,29 +571,6 @@ export default function TrialsPage() {
                     </div>
                   )}
 
-                  {/* ⏰ Entry Reminder */}
-                  {showEntryReminder && (
-                    <div className="relative">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown?.trialId === trial.id && openDropdown.type === "reminder" ? null : { trialId: trial.id, type: "reminder" }); }}
-                        className="text-sm bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium px-3 py-1.5 rounded-full border border-slate-200 transition-colors"
-                      >
-                        ⏰ Entry Reminder
-                      </button>
-                      {openDropdown?.trialId === trial.id && openDropdown.type === "reminder" && (
-                        <div className="absolute left-0 top-full mt-1 z-10 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[190px]" onClick={(e) => e.stopPropagation()}>
-                          <a href={buildGCalReminderUrl(trial)} target="_blank" rel="noopener noreferrer" onClick={() => setOpenDropdown(null)}
-                            className="flex px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
-                            Google Calendar
-                          </a>
-                          <button onClick={() => { downloadReminderIcs(trial); setOpenDropdown(null); }}
-                            className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
-                            Download .ics (Apple / Outlook)
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             );
