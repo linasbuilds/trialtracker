@@ -15,37 +15,27 @@ export default function ResetPasswordPage() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
-    const handleSession = async () => {
-      const hash = window.location.hash;
-
-      if (hash) {
-        const params = new URLSearchParams(hash.substring(1));
-        const accessToken = params.get("access_token");
-        const refreshToken = params.get("refresh_token");
-
-        if (accessToken && refreshToken) {
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-          if (error) {
-            setMessage("expired");
-            return;
-          }
-          setSessionReady(true);
-          return;
-        }
-      }
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setSessionReady(true);
-      } else {
+    // Check for error params first — expired/invalid links arrive as
+    // #error=access_denied&error_description=...
+    const hash = window.location.hash;
+    if (hash) {
+      const params = new URLSearchParams(hash.substring(1));
+      if (params.get("error")) {
         setMessage("expired");
+        return;
       }
-    };
+    }
 
-    handleSession();
+    // Supabase JS v2 automatically processes the hash tokens on page load
+    // and fires PASSWORD_RECOVERY once the session is established.
+    // Manually calling setSession() after that would fail (tokens already consumed).
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setSessionReady(true);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleReset = async (e: React.FormEvent) => {
@@ -93,13 +83,13 @@ export default function ResetPasswordPage() {
 
         {message === "expired" && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
-            <p className="font-medium">This reset link has expired.</p>
+            <p className="font-medium">This link has expired.</p>
             <p className="mt-1">Password reset links expire after 1 hour for security.</p>
             <a
-              href="/login"
-              className="mt-3 inline-block text-blue-600 font-medium hover:underline"
+              href="/forgot-password"
+              className="mt-3 inline-block bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
-              ← Go back to login and request a new link
+              Request a new link
             </a>
           </div>
         )}
