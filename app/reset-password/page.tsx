@@ -13,11 +13,15 @@ export default function ResetPasswordPage() {
   const [sessionReady, setSessionReady] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [debugInfo, setDebugInfo] = useState("");
 
   useEffect(() => {
     const handleSession = async () => {
-      // Expired/invalid link arrives as #error=access_denied
+      const search = window.location.search;
       const hash = window.location.hash;
+      setDebugInfo(`search: ${search || "(empty)"} | hash: ${hash || "(empty)"}`);
+
+      // Expired/invalid link arrives as #error=access_denied
       if (hash) {
         const hashParams = new URLSearchParams(hash.substring(1));
         if (hashParams.get("error")) {
@@ -27,13 +31,30 @@ export default function ResetPasswordPage() {
       }
 
       // PKCE flow: Supabase redirects with ?code= query param
-      const code = new URLSearchParams(window.location.search).get("code");
+      const code = new URLSearchParams(search).get("code");
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
+        setDebugInfo(prev => prev + ` | exchangeCode: ${error ? error.message : "ok"}`);
         if (error) {
           setMessage("expired");
         }
+        return;
       }
+
+      // Implicit flow fallback: check for hash tokens
+      if (hash) {
+        const hashParams = new URLSearchParams(hash.substring(1));
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          setDebugInfo(prev => prev + ` | setSession: ${error ? error.message : "ok"}`);
+          if (error) setMessage("expired");
+          return;
+        }
+      }
+
+      setDebugInfo(prev => prev + " | no code or tokens found");
     };
 
     handleSession();
@@ -81,6 +102,11 @@ export default function ResetPasswordPage() {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 max-w-md w-full">
         <h1 className="text-2xl font-bold text-slate-800 mb-1">Reset Password</h1>
         <p className="text-slate-500 text-sm mb-6">Enter your new password below.</p>
+        {debugInfo && (
+          <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded p-2 text-xs text-yellow-800 break-all">
+            🔍 DEBUG: {debugInfo}
+          </div>
+        )}
 
         {message === "expired" && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
