@@ -77,7 +77,7 @@ const toCalDate = (d: string) => d.replace(/-/g, "");
 const parseLevelsFromTrial = (trial: Trial): string[] => {
   if (trial.level) return [normalizeLevel(trial.level)];
   if (trial.organization === "NACSW") {
-    const tokens = (trial.trial_name || "").toUpperCase().match(/\b(NW[123]|ELT|SMT)\b/g) ?? [];
+    const tokens = (trial.trial_name || "").toUpperCase().match(/\b(NW[123]|ELT-P|ELT|SMT)\b/g) ?? [];
     return tokens.map(t => normalizeLevel(t));
   }
   return [];
