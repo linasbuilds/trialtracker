@@ -15,27 +15,28 @@ export default function ResetPasswordPage() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
-    // Check for error params first — expired/invalid links arrive as
-    // #error=access_denied&error_description=...
-    const hash = window.location.hash;
-    if (hash) {
-      const params = new URLSearchParams(hash.substring(1));
-      if (params.get("error")) {
-        setMessage("expired");
-        return;
+    const handleSession = async () => {
+      // Expired/invalid link arrives as #error=access_denied
+      const hash = window.location.hash;
+      if (hash) {
+        const hashParams = new URLSearchParams(hash.substring(1));
+        if (hashParams.get("error")) {
+          setMessage("expired");
+          return;
+        }
       }
-    }
 
-    // Supabase JS v2 automatically processes the hash tokens on page load
-    // and fires PASSWORD_RECOVERY once the session is established.
-    // Manually calling setSession() after that would fail (tokens already consumed).
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setSessionReady(true);
+      // PKCE flow: Supabase redirects with ?code= query param
+      const code = new URLSearchParams(window.location.search).get("code");
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          setMessage("expired");
+        }
       }
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    handleSession();
   }, []);
 
   const handleReset = async (e: React.FormEvent) => {
