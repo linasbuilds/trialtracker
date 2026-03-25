@@ -30,14 +30,23 @@ export default function ResetPasswordPage() {
         }
       }
 
-      // PKCE flow: Supabase redirects with ?code= query param
-      const code = new URLSearchParams(search).get("code");
+      // PKCE / OTP flows
+      const params = new URLSearchParams(search);
+      const code = params.get("code");
+      const tokenHash = params.get("token_hash");
+      const type = params.get("type");
+
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         setDebugInfo(prev => prev + ` | exchangeCode: ${error ? error.message : "ok"}`);
-        if (error) {
-          setMessage("expired");
-        }
+        if (error) { setMessage("expired"); }
+        return;
+      }
+
+      if (tokenHash && type === "recovery") {
+        const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" });
+        setDebugInfo(prev => prev + ` | verifyOtp: ${error ? error.message : "ok"}`);
+        if (error) { setMessage("expired"); return; }
         return;
       }
 
