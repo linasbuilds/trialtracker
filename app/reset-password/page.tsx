@@ -47,9 +47,15 @@ export default function ResetPasswordPage() {
         const accessToken = hashParams.get("access_token");
         const refreshToken = hashParams.get("refresh_token");
         if (accessToken && refreshToken) {
-          const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-          setDebugInfo(prev => prev + ` | setSession: ${error ? error.message : "ok"}`);
-          if (error) setMessage("expired");
+          // Supabase may have auto-processed the hash already — check first
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+            setDebugInfo(prev => prev + ` | setSession: ${error ? error.message : "ok"}`);
+            if (error) { setMessage("expired"); return; }
+          } else {
+            setDebugInfo(prev => prev + " | session auto-established by Supabase");
+          }
           return;
         }
       }
