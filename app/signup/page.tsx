@@ -71,9 +71,8 @@ export default function SignUpPage() {
         .insert([profileData]);
 
       if (profileError) {
-        setMessage("Error creating profile: " + profileError.message);
-        setLoading(false);
-        return;
+        console.error("Profile insert failed:", profileError.message);
+        // Auth succeeded — don't block the user, still show success
       }
 
       // Update spots left
