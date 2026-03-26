@@ -22,11 +22,9 @@ export default function SignUpPage() {
   // Fetch current handler count to calculate spots left
   useEffect(() => {
     const fetchCount = async () => {
-      const { count } = await supabase
-        .from("user_profiles")
-        .select("*", { count: "exact", head: true })
-        .eq("role", "handler");
-      if (count !== null) setSpotsLeft(BETA_LIMIT - count);
+      const res = await fetch('/api/beta-count');
+      const { count } = await res.json();
+      setSpotsLeft(BETA_LIMIT - (count ?? 0));
     };
     fetchCount();
   }, []);
@@ -39,6 +37,12 @@ export default function SignUpPage() {
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+        },
+      },
     });
 
     if (authError) {
