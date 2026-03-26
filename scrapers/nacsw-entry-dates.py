@@ -1412,6 +1412,15 @@ async def main() -> None:
                     skipped += 1
                     continue
 
+                # Skip trials too far out — premium won't exist yet
+                if start and start != "?":
+                    days_away = (date.fromisoformat(start) - date.today()).days
+                    if days_away > 84:
+                        due = (date.fromisoformat(start) - timedelta(days=84)).isoformat()
+                        print(f"  ⏭️  Skipping {name} — premium not due until {due}")
+                        skipped += 1
+                        continue
+
                 try:
                     opening, closing = await _scrape_trial(crawler, trial)
                 except Exception as exc:
@@ -1457,14 +1466,14 @@ async def main() -> None:
                     await asyncio.sleep(DELAY)
 
     finally:
-        print("\n══════════════════════════════════════")
-        print("📊 Run complete")
+        print("\n══════════════════════════════════════", flush=True)
+        print("📊 Run complete", flush=True)
         if not TEST_MODE:
-            print(f"   ✅ Updated:          {updated}")
-        print(f"   ⏭️  Skipped:         {skipped}")
-        print(f"   ❌ No dates found:   {no_dates}")
-        print(f"   ⚠️  Errors:          {errors}")
-        print("══════════════════════════════════════")
+            print(f"   ✅ Updated:          {updated}", flush=True)
+        print(f"   ⏭️  Skipped:         {skipped}", flush=True)
+        print(f"   ❌ No dates found:   {no_dates}", flush=True)
+        print(f"   ⚠️  Errors:          {errors}", flush=True)
+        print("══════════════════════════════════════", flush=True)
 
 
 if __name__ == "__main__":
