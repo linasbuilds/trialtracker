@@ -321,7 +321,7 @@ async function main() {
       const hbm = fullTitle.match(/hosted by\s+(.+)$/i);
       if (hbm) trialHost = hbm[1].trim();
 
-      const trialName = fullTitle.split(/[-–]/)[0].trim() || fullTitle;
+      const trialName = fullTitle.split(/\s[-–]\s/)[0].trim() || fullTitle;
 
       // Detail row is the NEXT sibling: <tr class="event5139" style="display:none">
       // It is already in the DOM — just hidden. Must use textContent / child queries,
