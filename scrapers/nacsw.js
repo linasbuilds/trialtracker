@@ -495,27 +495,30 @@ async function main() {
         continue;
       }
       try {
+        const payload = {
+          organization:       t.organization,
+          sport:              t.sport,
+          trial_name:         t.trial_name,
+          trial_host:         t.trial_host,
+          location_name:      t.location_name,
+          street:             t.street,
+          city:               t.city,
+          state:              t.state,
+          zip:                null,
+          trial_start_date:   t.trial_start_date,
+          trial_end_date:     t.trial_end_date,
+          premium_url:        t.premium_url,
+          official_link:      t.official_link,
+          club_website:       t.club_website,
+          cancelled:          false,
+          data_source:        'nacsw',
+        };
+        // Only include entry dates if we actually found them — never overwrite with null
+        if (t.entry_opening_date) payload.entry_opening_date = t.entry_opening_date;
+        if (t.entry_closing_date) payload.entry_closing_date = t.entry_closing_date;
+
         const { error } = await supabase.from('trials').upsert(
-          {
-            organization:        t.organization,
-            sport:               t.sport,
-            trial_name:          t.trial_name,
-            trial_host:          t.trial_host,
-            location_name:       t.location_name,
-            street:              t.street,
-            city:                t.city,
-            state:               t.state,
-            zip:                 null,
-            trial_start_date:    t.trial_start_date,
-            trial_end_date:      t.trial_end_date,
-            entry_opening_date:  t.entry_opening_date,
-            entry_closing_date:  t.entry_closing_date,
-            premium_url:         t.premium_url,
-            official_link:       t.official_link,
-            club_website:        t.club_website,
-            cancelled:           false,
-            data_source:         'nacsw',
-          },
+          payload,
           { onConflict: 'official_link' }
         );
         if (error) throw error;
