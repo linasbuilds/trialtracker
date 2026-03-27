@@ -110,11 +110,11 @@ export default function SignUpPage() {
             <div className="space-y-3">
               <div>
                 <p className="text-blue-700 text-sm font-semibold">🍎 iPhone (Safari):</p>
-                <p className="text-blue-600 text-sm">Tap the <strong>Share</strong> button (box with arrow) → scroll down → tap <strong>&quot;Add to Home Screen&quot;</strong></p>
+                <p className="text-blue-600 text-sm">Tap the <strong>Share icon</strong> (□↑) at the bottom of your Safari browser → scroll down → tap <strong>&quot;Add to Home Screen&quot;</strong></p>
               </div>
               <div>
                 <p className="text-blue-700 text-sm font-semibold">🤖 Android (Chrome):</p>
-                <p className="text-blue-600 text-sm">Tap the <strong>three dots menu</strong> (⋮) → tap <strong>&quot;Add to Home Screen&quot;</strong> or <strong>&quot;Install App&quot;</strong></p>
+                <p className="text-blue-600 text-sm">Tap the <strong>three dots menu</strong> (⋮) in Chrome → tap <strong>&quot;Add to Home Screen&quot;</strong> or <strong>&quot;Install App&quot;</strong></p>
               </div>
             </div>
           </div>
