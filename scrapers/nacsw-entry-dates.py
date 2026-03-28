@@ -1008,7 +1008,7 @@ async def _fetch_with_playwright(url: str) -> str:
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(headless=True)
             page = await browser.new_page()
-            await page.goto(url, wait_until="domcontentloaded")
+            await page.goto(url, wait_until="domcontentloaded", timeout=15000)
             # Wait for any of these content signals to appear
             try:
                 await page.wait_for_selector(
@@ -1022,7 +1022,7 @@ async def _fetch_with_playwright(url: str) -> str:
             await browser.close()
         return text
     except Exception as exc:
-        print(f"    ⚠️  Playwright fallback failed ({url}): {exc}")
+        print(f"⚠️ Playwright timeout/error on {url}: {exc}", flush=True)
         return ""
 
 # ── Per-trial scraping ────────────────────────────────────────────────────────
