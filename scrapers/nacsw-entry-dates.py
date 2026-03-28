@@ -1019,6 +1019,12 @@ async def _fetch_with_playwright(url: str) -> str:
                 # Content signal not found — still grab whatever rendered
                 await page.wait_for_timeout(3000)
             text = await page.inner_text("body")
+            if len(text.strip()) < 500:
+                import re as _re
+                html = await page.inner_html("body")
+                text = _re.sub(r"<[^>]+>", " ", html)
+                text = _re.sub(r"\s+", " ", text).strip()
+                print(f"    🔄 inner_text short ({len(text.strip())} chars) — using innerHTML fallback", flush=True)
             await browser.close()
         return text
     except Exception as exc:
