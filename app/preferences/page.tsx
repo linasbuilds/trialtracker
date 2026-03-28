@@ -30,6 +30,8 @@ export default function PreferencesPage() {
   const [overnightMiles, setOvernightMiles] = useState('300')
   const [alertTiming, setAlertTiming] = useState('day_of')
   const [isFoundingHandler, setIsFoundingHandler] = useState(false)
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
 
   useEffect(() => {
     const loadPreferences = async () => {
@@ -38,7 +40,7 @@ export default function PreferencesPage() {
 
       const { data: profile, error } = await supabase
         .from('user_profiles')
-        .select('preferred_venues, preferred_states, preferred_orgs, preferred_levels, home_zip, day_trip_miles, overnight_miles, alert_timing, role, created_at')
+        .select('preferred_venues, preferred_states, preferred_orgs, preferred_levels, home_zip, day_trip_miles, overnight_miles, alert_timing, role, created_at, first_name, last_name')
         .eq('user_id', user.id)
         .single()
 
@@ -59,6 +61,8 @@ export default function PreferencesPage() {
         if (profile.role === 'handler' && profile.created_at) {
           setIsFoundingHandler(new Date(profile.created_at) < new Date('2026-07-01'))
         }
+        setFirstName(profile.first_name || '')
+        setLastName(profile.last_name || '')
       }
       setLoading(false)
     }
@@ -113,6 +117,9 @@ export default function PreferencesPage() {
               </span>
             )}
           </div>
+          {(firstName || lastName) && (
+            <p className="text-slate-700 font-medium mt-1">Welcome, {firstName} {lastName}!</p>
+          )}
           <p className="text-slate-500 mt-1 text-sm">Set your preferences so we know when to send you email alerts when entries open.</p>
         </div>
 

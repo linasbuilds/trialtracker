@@ -55,7 +55,7 @@ function Header() {
                   🔍 Find Trials
                 </a>
                 <a href="/preferences" className="px-4 py-2 text-slate-600 hover:text-blue-600 font-medium transition-all">
-                  ⚙️ Preferences
+                  🐾 Preferences
                 </a>
               </>
             )}

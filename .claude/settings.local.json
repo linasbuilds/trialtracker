@@ -29,7 +29,9 @@
       "Bash(python -c \"import ast; ast.parse\\(open\\(''scrapers/nacsw-entry-dates.py''\\).read\\(\\)\\); print\\(''syntax OK''\\)\")",
       "Bash(python -c \"import ast; ast.parse\\(open\\(''scrapers/nacsw-entry-dates.py'', encoding=''utf-8''\\).read\\(\\)\\); print\\(''syntax OK''\\)\")",
       "WebFetch(domain:canineconnection23.godaddysites.com)",
-      "WebFetch(domain:www.cleversniffers.com)"
+      "WebFetch(domain:www.cleversniffers.com)",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(t.get\\(''''trial_name'''',''''''''\\)\\) for t in data[:20]]\")",
+      "Bash(python3 -c \"import json; data=json.load\\(open\\(''trials.json''\\)\\); [print\\(t.get\\(''trial_name'',''''\\)\\) for t in data[:20]]\")"
     ]
   }
 }

@@ -190,6 +190,8 @@ export default function TrialsPage() {
 
   const [keyword, setKeyword] = useState("");
   const [openDropdown, setOpenDropdown] = useState<{ trialId: string; type: "trial" | "reminder" } | null>(null);
+  const [firstName, setFirstName] = useState("");
+  const [isFoundingHandler, setIsFoundingHandler] = useState(false);
   const oneYearAgo = getOneYearAgoIso();
   const todayIso   = getTodayIso();
 
@@ -202,6 +204,22 @@ export default function TrialsPage() {
     const close = () => setOpenDropdown(null);
     document.addEventListener("click", close);
     return () => document.removeEventListener("click", close);
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("first_name, role, created_at")
+        .eq("user_id", user.id)
+        .single();
+      if (profile) {
+        setFirstName(profile.first_name || "");
+        setIsFoundingHandler(profile.role === "handler" && !!profile.created_at && new Date(profile.created_at) < new Date("2026-07-01"));
+      }
+    })();
   }, []);
 
   const fetchTrials = async () => {
@@ -289,6 +307,21 @@ export default function TrialsPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-4xl mx-auto px-4 py-6">
+
+        {/* Header bar */}
+        <div className="flex items-center gap-2 mb-4">
+          {firstName ? (
+            <span className="text-lg font-bold text-slate-800">Hi, {firstName}! 🐾</span>
+          ) : (
+            <span className="text-lg font-bold text-slate-800">🐾 TrialTracker</span>
+          )}
+          {isFoundingHandler && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
+              style={{ background: '#fffbeb', color: '#92400e', border: '1px solid #fcd34d' }}>
+              ⭐ Founding Handler
+            </span>
+          )}
+        </div>
 
         {/* Filter Bar */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6">
