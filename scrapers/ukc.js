@@ -16,7 +16,7 @@
 // in the slug URL (e.g. "club-name-mar-14-2026"). The end date is the latest
 // calendar day on which the same slug appears across scanned months.
 //
-// For trials within the 90-day window, the scraper visits each event's detail
+// For trials within the 120-day window, the scraper visits each event's detail
 // page to collect entry_opening_date and entry_closing_date.
 
 const { chromium } = require('playwright');
@@ -42,7 +42,7 @@ const SPORT_PAGES = [
   { slug: 'obedience-events',       sport: 'Obedience'  },
 ];
 
-// How many monthly calendar pages to scan (4 covers today + ~90 days)
+// How many monthly calendar pages to scan (4 covers today + ~120 days)
 const MONTHS_TO_SCAN = 4;
 
 const US_STATES = new Set([
@@ -64,7 +64,7 @@ const ENTRY_MONTHS = {
   aug:'08', sep:'09', oct:'10', nov:'11', dec:'12',
 };
 
-const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+const ONE_TWENTY_DAYS_MS = 120 * 24 * 60 * 60 * 1000;
 const ONE_YEAR_DAYS_MS = 365 * 24 * 60 * 60 * 1000;
 
 function sleep(ms) {
@@ -93,11 +93,11 @@ function extractSlug(href) {
   return m ? m[1] : null;
 }
 
-function isWithin90Days(dateStr) {
+function isWithin120Days(dateStr) {
   if (!dateStr) return false;
   const d = new Date(dateStr + 'T00:00:00');
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const limit = new Date(today.getTime() + NINETY_DAYS_MS);
+  const limit = new Date(today.getTime() + ONE_TWENTY_DAYS_MS);
   return d >= today && d <= limit;
 }
 
@@ -270,7 +270,7 @@ async function main() {
 
     let added = 0;
     for (const ev of events) {
-      if (!isWithin90Days(ev.startDate)) continue;
+      if (!isWithin120Days(ev.startDate)) continue;
 
       // End date = latest calendar date the event appears on
       const sortedCal = [...ev.calDates].sort();
@@ -299,7 +299,7 @@ async function main() {
       });
       added++;
     }
-    console.log(`  → ${added} within 90 days`);
+    console.log(`  → ${added} within 120 days`);
   }
 
   // Deduplicate: same event can appear in multiple sport calendars
@@ -316,7 +316,7 @@ async function main() {
     !isOlderThanOneYear(t.entry_opening_date)
   );
 
-  console.log(`\n🎯 Total: ${freshnessFiltered.length} UKC trials within 90 days`);
+  console.log(`\n🎯 Total: ${freshnessFiltered.length} UKC trials within 120 days`);
   freshnessFiltered.forEach((t, i) =>
     console.log(`  [${i + 1}] ${t.trial_start_date}${t.trial_end_date ? ' – ' + t.trial_end_date : ''} | ${t.sport.padEnd(10)} | ${t.trial_host} | ${t.city}, ${t.state}`)
   );
@@ -324,8 +324,8 @@ async function main() {
   // ── Collect entry dates from individual detail pages ──────────────────────
   console.log(`\n📅 Collecting entry dates for ${freshnessFiltered.length} trials...`);
   for (const t of freshnessFiltered) {
-    if (!isWithin90Days(t.trial_start_date)) {
-      console.log(`  Skipping ${t.trial_host} — outside 90-day window`);
+    if (!isWithin120Days(t.trial_start_date)) {
+      console.log(`  Skipping ${t.trial_host} — outside 120-day window`);
       continue;
     }
 

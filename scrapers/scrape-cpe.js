@@ -6,7 +6,7 @@
 //   inline: date range, title, city/state, closing date, website, Details link.
 //   All data is extracted in one page.evaluate() call — no detail page visits,
 //   no + button clicking needed (textContent reads CSS-hidden content directly).
-//   Events outside the 90-day window are skipped immediately from list data.
+//   Events outside the 120-day window are skipped immediately from list data.
 //
 // LEGAL SAFEGUARDS:
 //   - Honest bot User-Agent — never disguised as a browser.
@@ -64,7 +64,7 @@ function getTodayStr() {
 
 function getLimitStr() {
   const d = new Date();
-  d.setDate(d.getDate() + 90);
+  d.setDate(d.getDate() + 120);
   return localDateStr(d);
 }
 
@@ -76,9 +76,9 @@ function parseMDY(str) {
   return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
 }
 
-// Returns true if dateStr (YYYY-MM-DD) falls between today and today+90 days.
+// Returns true if dateStr (YYYY-MM-DD) falls between today and today+120 days.
 // Pure string comparison — no Date objects, no timezone conversion bugs.
-function isWithin90Days(dateStr) {
+function isWithin120Days(dateStr) {
   if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
   const today = getTodayStr();
   const limit = getLimitStr();
@@ -261,7 +261,7 @@ async function main() {
   const limitStr = getLimitStr();
 
   console.log('🐾 CPE Scraper starting...');
-  console.log(`📅 Today: ${todayStr} — window closes ${limitStr} (90 days)`);
+  console.log(`📅 Today: ${todayStr} — window closes ${limitStr} (120 days)`);
   console.log(`🤖 User-Agent: ${BOT_UA}`);
 
   const allowed = await checkRobotsTxt(CPE_LIST_URL);
@@ -302,7 +302,7 @@ async function main() {
     process.exit(1);
   }
 
-  // ── Filter by 90-day window and build trial objects ───────────────────────
+  // ── Filter by 120-day window and build trial objects ───────────────────────
   const trials  = [];
   let   skipped = 0;
 
@@ -315,8 +315,8 @@ async function main() {
       continue;
     }
 
-    if (!isWithin90Days(startDate)) {
-      console.log(`⏭️  Skipping ${ev.titleText || '?'} (${startDate}) — outside 90-day window`);
+    if (!isWithin120Days(startDate)) {
+      console.log(`⏭️  Skipping ${ev.titleText || '?'} (${startDate}) — outside 120-day window`);
       skipped++;
       continue;
     }
@@ -371,7 +371,7 @@ async function main() {
   console.log('\n══════════════════════════════════════════');
   console.log('📊 Run summary:');
   console.log(`   🔎 Total events on list page:     ${rawEvents.length}`);
-  console.log(`   ⏭️  Skipped (outside 90 days):    ${skipped}`);
+  console.log(`   ⏭️  Skipped (outside 120 days):   ${skipped}`);
   console.log(`   ✅ Qualifying trials found:        ${trials.length}`);
   console.log('══════════════════════════════════════════');
 

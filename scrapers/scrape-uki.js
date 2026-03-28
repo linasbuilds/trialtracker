@@ -9,7 +9,7 @@
 //   2. Select "US Only" from the country dropdown (ASP.NET postback)
 //   3. Parse all table rows in one pass — no need to navigate to individual trials
 //   4. Skip virtual trials (Video Agility / "Your Place" location)
-//   5. Filter to 90-day window; upsert qualifying trials to Supabase
+//   5. Filter to 120-day window; upsert qualifying trials to Supabase
 //
 // Date formats on this page:
 //   Trial Dates  — "Jan 01, 2026" or "Jan 02 - 04, 2026" or "Jan 30 - Feb 1, 2026"
@@ -34,7 +34,7 @@ const ROBOTS_URL = 'https://entries.ukagilityinternational.com/robots.txt';
 const USER_AGENT = 'TrialTracker-Bot/1.0 (trialtrackerapp@gmail.com)';
 const OUTPUT_FILE = path.join(__dirname, '..', 'trials.json');
 
-const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+const ONE_TWENTY_DAYS_MS = 120 * 24 * 60 * 60 * 1000;
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -131,12 +131,12 @@ function parseTrialDates(str) {
   return { start: null, end: null };
 }
 
-function isWithin90Days(dateStr) {
+function isWithin120Days(dateStr) {
   if (!dateStr) return false;
   const d = new Date(dateStr + 'T00:00:00');
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return d >= today && d <= new Date(today.getTime() + NINETY_DAYS_MS);
+  return d >= today && d <= new Date(today.getTime() + ONE_TWENTY_DAYS_MS);
 }
 
 function isFuture(dateStr) {
@@ -306,9 +306,9 @@ async function main() {
       continue;
     }
 
-    // 90-day window
-    if (!isWithin90Days(startDate)) {
-      console.log(`  Skipping ${raw.trialName} — outside 90-day window`);
+    // 120-day window
+    if (!isWithin120Days(startDate)) {
+      console.log(`  Skipping ${raw.trialName} — outside 120-day window`);
       skippedWindow++;
       continue;
     }
@@ -358,7 +358,7 @@ async function main() {
     });
   }
 
-  console.log(`\nResults: ${trials.length} qualifying | ${skippedPast} past | ${skippedWindow} outside 90-day window | ${skippedVirtual} virtual | ${skippedNonUS} non-US`);
+  console.log(`\nResults: ${trials.length} qualifying | ${skippedPast} past | ${skippedWindow} outside 120-day window | ${skippedVirtual} virtual | ${skippedNonUS} non-US`);
 
   trials.forEach((t, i) =>
     console.log(`  [${i + 1}] ${t.trial_start_date}${t.trial_end_date ? ' - ' + t.trial_end_date : ''} | ${t.trial_host || '?'} | ${t.city || '?'}, ${t.state || '?'}`)
