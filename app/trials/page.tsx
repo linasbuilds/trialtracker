@@ -566,6 +566,14 @@ export default function TrialsPage() {
                     <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-600 text-sm font-medium mb-3">
                       Entry opens {formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
                     </div>
+                  ) : noEntryDates && isNACSW && daysUntilTrial !== null && daysUntilTrial >= 84 ? (
+                    <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-500 text-sm font-medium mb-3">
+                      Entry Dates TBD
+                    </div>
+                  ) : noEntryDates && isNACSW ? (
+                    <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-500 text-sm font-medium mb-3">
+                      Entries Closed
+                    </div>
                   ) : noEntryDates && daysUntilTrial !== null && daysUntilTrial <= 14 ? null
                   : noEntryDates ? (
                     <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-500 text-sm font-medium mb-3">

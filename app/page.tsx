@@ -49,7 +49,7 @@ export default function Home() {
 
         {/* 90-day tagline */}
         <p className="text-base font-semibold text-blue-600 mb-6">
-          🐾 Sniffing out trials within the next 90 days — fresh finds, updated weekly!
+          🐾 Sniffing out trials within the next 120 days — fresh finds, updated weekly!
         </p>
 
         {/* Beta / community note */}
@@ -58,7 +58,7 @@ export default function Home() {
             We&apos;re in beta and growing! Clubs and organizations are always free — claim
             your trials, add entry dates, and help us build the most complete dog sport
             trial finder out there. TrialTracker only aggregates trial information from
-            publicly accessible websites, shows trials opening within the next 90 days,
+            publicly accessible websites, shows trials opening within the next 120 days,
             and respects all organization terms of service. We never access protected or
             private data. This is a community platform, built for handlers, by a handler
             — peek at your host club in case anything shifted.
