@@ -49,6 +49,13 @@ import httpx
 import pdfplumber
 from supabase import create_client, Client
 
+try:
+    import fitz          # PyMuPDF (installed as part of pymupdf4llm)
+    import pymupdf4llm
+    _PYMUPDF_AVAILABLE = True
+except ImportError:
+    _PYMUPDF_AVAILABLE = False
+
 # ── Test mode ─────────────────────────────────────────────────────────────────
 # Set TEST_MODE = True to run against a single club URL locally.
 # Uses plain httpx instead of crawl4ai — no browser install needed.
@@ -751,9 +758,10 @@ def _get_links(result) -> list[dict]:
 
 async def _pypdf_text(pdf_url: str) -> str:
     """
-    Download a PDF with httpx and extract text using pdfplumber.
-    Reads ALL pages and concatenates their text.
-    In TEST_MODE prints the full text; otherwise prints a 300-char preview.
+    Download a PDF with httpx and extract text.
+    Primary: pymupdf4llm — returns clean markdown, page 2 searched first.
+    Fallback: pdfplumber — reads all pages, page 2 first.
+    In TEST_MODE prints the full text; otherwise prints a char count.
     Returns the combined text, or "" on any failure.
     """
     try:
@@ -767,18 +775,48 @@ async def _pypdf_text(pdf_url: str) -> str:
         print(f"      ⚠️  httpx download failed: {exc}")
         return ""
 
+    # ── Primary: pymupdf4llm (page 2 first, then remaining pages) ─────────────
+    if _PYMUPDF_AVAILABLE:
+        try:
+            doc = fitz.open(stream=data, filetype="pdf")
+            if doc.page_count >= 2:
+                page2_text = pymupdf4llm.to_markdown(doc, pages=[1])
+                other_idxs = [i for i in range(doc.page_count) if i != 1]
+                rest_text  = pymupdf4llm.to_markdown(doc, pages=other_idxs) if other_idxs else ""
+                md_text    = page2_text + ("\n" + rest_text if rest_text.strip() else "")
+            else:
+                md_text = pymupdf4llm.to_markdown(doc)
+            if len(md_text.strip()) >= 200:
+                if TEST_MODE:
+                    print(f"\n{'='*60}")
+                    print(f"📄 FULL PDF TEXT — pymupdf4llm ({doc.page_count} page(s), {len(md_text)} chars):")
+                    print(f"{'='*60}")
+                    print(md_text)
+                    print(f"{'='*60}\n")
+                else:
+                    print(f"  📄 PDF parsed with pymupdf4llm — {len(md_text)} chars")
+                return md_text
+            print(f"  📄 pymupdf4llm returned short text ({len(md_text.strip())} chars) — falling back to pdfplumber")
+        except Exception as exc:
+            print(f"      ⚠️  pymupdf4llm failed: {exc} — falling back to pdfplumber")
+
+    # ── Fallback: pdfplumber (page 2 first, then remaining pages) ─────────────
     try:
         with pdfplumber.open(io.BytesIO(data)) as pdf:
-            pages_text = [page.extract_text() or "" for page in pdf.pages]
+            if len(pdf.pages) >= 2:
+                page_order = [1] + [i for i in range(len(pdf.pages)) if i != 1]
+            else:
+                page_order = list(range(len(pdf.pages)))
+            pages_text = [pdf.pages[i].extract_text() or "" for i in page_order]
             text = "\n".join(pages_text)
             if TEST_MODE:
                 print(f"\n{'='*60}")
-                print(f"📄 FULL PDF TEXT ({len(pdf.pages)} page(s), {len(text)} chars):")
+                print(f"📄 FULL PDF TEXT — pdfplumber ({len(pdf.pages)} page(s), {len(text)} chars):")
                 print(f"{'='*60}")
                 print(text)
                 print(f"{'='*60}\n")
             else:
-                print(f"  📄 pdfplumber ({len(pdf.pages)} page(s)) preview: {text[:300]}")
+                print(f"  📄 PDF parsed with pdfplumber fallback — {len(text)} chars")
             return text
     except Exception as exc:
         print(f"      ⚠️  pdfplumber extraction failed: {exc}")
@@ -1151,6 +1189,7 @@ async def _scrape_trial(
 
     detail_links: list[str] = []
     detail_seen:  set[str]  = set()
+    accumulated_nav_pdfs: list[str] = []
 
     pages_visited_in_b = 0
     for nav_url in nav_links:
@@ -1210,6 +1249,10 @@ async def _scrape_trial(
 
         # While here, opportunistically try premium PDFs found on this nav page
         nav_pdfs = _find_pdf_links(nav_html, nav_links_b, nav_url)
+        for _np in nav_pdfs:
+            if _np not in accumulated_nav_pdfs:
+                print(f"    📎 Found PDF: {_np}")
+                accumulated_nav_pdfs.append(_np)
         for pdf_url in nav_pdfs[:2]:
             if _is_non_entry_pdf(pdf_url):
                 print(f"    ⏭️  Skipping rulebook/non-entry PDF: {pdf_url}")
@@ -1321,9 +1364,14 @@ async def _scrape_trial(
                     print(f"      ❌ No date labels found in PDF")
                     print(f"      🔍 PDF first 1000 chars: {pdf_text[:1000]!r}")
 
-    # ── Step C: PDFs linked from the homepage ──────────────────────────────────
+    # ── Step C: PDFs from homepage + all nav pages visited in Step B ───────────
     pdf_links = _find_pdf_links(home_html, home_links, club_url)
-    print(f"  📄 Step C — Found {len(pdf_links)} PDF link(s) on homepage")
+    _seen_c: set[str] = set(pdf_links)
+    for _np in accumulated_nav_pdfs:
+        if _np not in _seen_c:
+            pdf_links.append(_np)
+            _seen_c.add(_np)
+    print(f"  📄 Step C — Found {len(pdf_links)} PDF link(s) (homepage + nav pages)")
 
     for pdf_url in pdf_links:
         if _is_non_entry_pdf(pdf_url):
@@ -1376,7 +1424,7 @@ async def main() -> None:
     STALE_DATE_STR = (_today - timedelta(days=7)).isoformat()
     resp = (
         db.table("trials")
-        .select("id, trial_host, trial_name, trial_start_date, club_website, premium_url, claimed, entry_opening_date")
+        .select("id, trial_host, trial_name, trial_start_date, club_website, premium_url, claimed, entry_opening_date, data_source")
         .eq("organization", "NACSW")
         .or_(f"entry_opening_date.is.null,entry_opening_date.lt.{STALE_DATE_STR}")
         .gte("trial_start_date", EARLIEST_STR)
@@ -1385,10 +1433,13 @@ async def main() -> None:
     )
     all_trials = resp.data or []
 
-    # Keep only trials that have at least one URL we can visit
+    # Keep only trials that have at least one URL we can visit,
+    # and exclude claimed or manually entered trials (never overwrite those)
     trials = [
         t for t in all_trials
-        if t.get("club_website") or t.get("premium_url")
+        if (t.get("club_website") or t.get("premium_url"))
+        and not t.get("claimed")
+        and t.get("data_source") not in ("manual", "club_submitted")
     ]
 
     print(f"🔎 Found {len(trials)} trial(s) to check (of {len(all_trials)} queried)\n")
@@ -1425,6 +1476,12 @@ async def main() -> None:
                 saved_opening = trial.get("entry_opening_date")
                 if saved_opening:
                     print(f"  🔄 Re-scraping — saved opening date {saved_opening} is stale, trial not yet started")
+
+                # Safety: if the saved opening date is still valid (not stale), never overwrite
+                if saved_opening and saved_opening >= STALE_DATE_STR:
+                    print(f"  ⏭️  Skipping {name} — has valid manually entered dates, not overwriting")
+                    skipped += 1
+                    continue
 
                 # Never update a trial that a club has claimed and is managing directly
                 if trial.get("claimed"):
@@ -1480,6 +1537,13 @@ async def main() -> None:
                         no_dates += 1
                 else:
                     no_dates += 1
+                    if start and start != "?":
+                        try:
+                            days_away = (date.fromisoformat(start) - date.today()).days
+                            if days_away <= 14:
+                                print(f"  ⚠️  {name} starts in {days_away} days — entries likely closed, no dates found")
+                        except ValueError:
+                            pass
 
                 if i < len(trials) - 1:
                     print(f"  ⏳ Waiting {DELAY}s...\n")

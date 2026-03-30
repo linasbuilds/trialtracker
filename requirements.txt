@@ -2,6 +2,7 @@ crawl4ai
 supabase
 httpx
 pdfplumber
+pymupdf4llm
 pypdf
 beautifulsoup4
 playwright
