@@ -3,6 +3,7 @@ supabase
 httpx
 pdfplumber
 pymupdf4llm
+python-docx
 pypdf
 beautifulsoup4
 playwright

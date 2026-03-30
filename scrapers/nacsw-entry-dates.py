@@ -823,6 +823,33 @@ async def _pypdf_text(pdf_url: str) -> str:
         return ""
 
 
+async def _docx_text(url: str) -> str:
+    """
+    Download a .docx file with httpx and extract all paragraph text using python-docx.
+    Returns the combined paragraph text, or "" on any failure.
+    """
+    try:
+        data = httpx.get(
+            url,
+            headers={"User-Agent": BOT_UA},
+            timeout=30,
+            follow_redirects=True,
+        ).content
+    except Exception as exc:
+        print(f"      ⚠️  httpx download failed for .docx: {exc}")
+        return ""
+    try:
+        import docx as _docx
+        doc = _docx.Document(io.BytesIO(data))
+        paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+        text = "\n".join(paragraphs)
+        print(f"  📄 .docx extracted — {len(text)} chars")
+        return text
+    except Exception as exc:
+        print(f"      ⚠️  python-docx extraction failed: {exc}")
+        return ""
+
+
 async def _fetch_pdf_text(crawler, pdf_url: str, cfg) -> str:
     """
     Get usable text from a PDF URL.
@@ -1026,9 +1053,16 @@ async def _fetch(crawler, url: str):
     # Skip file types that crash crawl4ai ("Download is starting" / broken page)
     url_lower = url.lower()
     url_path  = url_lower.split("?")[0]
-    if (url_path.endswith((".docx", ".doc", ".ics"))
+    if (url_path.endswith((".doc", ".ics"))
             or "format=ical" in url_lower):
         print(f"    ⏭️  Skipping non-page file: {url}")
+        return None
+    if url_path.endswith(".docx"):
+        print(f"    📄 Detected .docx — extracting text: {url}")
+        docx_text = await _docx_text(url)
+        if docx_text.strip():
+            return _HttpxResult(docx_text)
+        print(f"    ⚠️  No text extracted from .docx: {url}")
         return None
 
     if TEST_MODE:
@@ -1127,6 +1161,26 @@ async def _scrape_trial(
                 print(f"    🔍 PDF first 1000 chars: {pdf_text[:1000]!r}")
         else:
             print("    ❌ No text extracted from PDF")
+        print("    Falling through to club website")
+        await asyncio.sleep(1)
+
+    # ── Fast Path: premium_url .docx ───────────────────────────────────────────
+    if premium_url and premium_url.lower().split("?")[0].endswith(".docx"):
+        print(f"  ⚡ Fast Path — fetching premium .docx: {premium_url}")
+        docx_text_fp = await _docx_text(premium_url)
+        if docx_text_fp.strip():
+            opening, closing = extract_dates(docx_text_fp, start_date)
+            if opening or closing:
+                _log_found(opening, closing, "premium .docx")
+                if not _entry_dates_plausible(opening, start_date):
+                    print(f"  ⚠️  Opening date {opening} is >6 months before trial start {start_date} — stale .docx, skipping")
+                else:
+                    return opening, closing
+            if not (opening or closing):
+                print("    ❌ No date labels found in .docx")
+                print(f"    🔍 .docx first 1000 chars: {docx_text_fp[:1000]!r}")
+        else:
+            print("    ❌ No text extracted from .docx")
         print("    Falling through to club website")
         await asyncio.sleep(1)
 
@@ -1561,4 +1615,9 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"💥 Top-level crash: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
