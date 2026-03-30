@@ -376,11 +376,13 @@ def extract_dates_inline(text: str, trial_start_date: str = "") -> tuple[str | N
     Opening date alone is sufficient — closing date is not extracted here.
     Returns (opening_date, None).
     """
-    for line in text.splitlines():
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
         line = line.strip()
         if not line:
             continue
         if _INLINE_OPEN_PATTERNS.search(line):
+            opening = None
             # Primary: _DATE_RE finds full dates that include a year
             m = _DATE_RE.search(line)
             if m:
@@ -392,16 +394,33 @@ def extract_dates_inline(text: str, trial_start_date: str = "") -> tuple[str | N
                         opening = None
                         continue
                     _dbg(f"  🔎 inline match on: {line!r}  → {opening}")
-                    return opening, None
             # Fallback: "Month Day" with no year (e.g. "Entries Open Wednesday, April 8")
-            m = _DATE_MONTH_DAY_RE.search(line)
-            if m:
-                mo = _MONTH.get(m.group(1).lower().rstrip("."))
-                if mo:
-                    opening = _infer_year(int(mo), int(m.group(2)), trial_start_date)
-                    if opening:
-                        _dbg(f"  🔎 inline month+day (no year) match on: {line!r}  → {opening}")
-                        return opening, None
+            if not opening:
+                m = _DATE_MONTH_DAY_RE.search(line)
+                if m:
+                    mo = _MONTH.get(m.group(1).lower().rstrip("."))
+                    if mo:
+                        opening = _infer_year(int(mo), int(m.group(2)), trial_start_date)
+                        if opening:
+                            _dbg(f"  🔎 inline month+day (no year) match on: {line!r}  → {opening}")
+            if opening:
+                # Scan the next 10 lines for a closing date
+                closing = None
+                for j in range(i + 1, min(i + 11, len(lines))):
+                    close_line = lines[j].strip()
+                    if not close_line:
+                        continue
+                    for pat in _SECTION_CLOSE_PATTERNS:
+                        if re.search(pat, close_line, re.IGNORECASE):
+                            mc = _DATE_RE.search(close_line)
+                            if mc:
+                                closing = _validate_date(mc.group(), trial_start_date, "inline-close")
+                                if closing:
+                                    _dbg(f"  🔎 inline close match on: {close_line!r}  → {closing}")
+                            break
+                    if closing:
+                        break
+                return opening, closing
     return None, None
 
 
@@ -572,9 +591,9 @@ def extract_dates(text: str, trial_start_date: str = "") -> tuple[str | None, st
         if opening and closing:
             break
 
-    # Full-page fallback: if anchor window found nothing, scan entire text
-    if not opening and not closing:
-        print("  🔍 Anchor window found nothing — scanning full page text as fallback")
+    # Full-page fallback: if no opening date found in section window, scan entire text
+    if not opening:
+        print("  🔍 Section window found no opening — scanning full page as fallback")
         for line in text.splitlines():
             line = line.strip()
             if not line:
@@ -593,12 +612,10 @@ def extract_dates(text: str, trial_start_date: str = "") -> tuple[str | None, st
                     opening = opening or found[0]
                     continue
             if opening is None:
-                for pat in _SECTION_OPEN_PATTERNS:
-                    if re.search(pat, line, re.IGNORECASE):
-                        m = _DATE_RE.search(line)
-                        if m:
-                            opening = _validate_date(m.group(), trial_start_date, "full-scan-open")
-                        break
+                if _INLINE_OPEN_PATTERNS.search(line):
+                    m = _DATE_RE.search(line)
+                    if m:
+                        opening = _validate_date(m.group(), trial_start_date, "full-scan-open")
             if closing is None:
                 for pat in _SECTION_CLOSE_PATTERNS:
                     if re.search(pat, line, re.IGNORECASE):
@@ -1363,11 +1380,12 @@ async def main() -> None:
     print(f"🤖 User-Agent: {BOT_UA}\n")
 
     EARLIEST_STR = (_today + timedelta(days=21)).isoformat()
+    STALE_DATE_STR = (_today - timedelta(days=7)).isoformat()
     resp = (
         db.table("trials")
-        .select("id, trial_host, trial_name, trial_start_date, club_website, premium_url, claimed")
+        .select("id, trial_host, trial_name, trial_start_date, club_website, premium_url, claimed, entry_opening_date")
         .eq("organization", "NACSW")
-        .is_("entry_opening_date", "null")
+        .or_(f"entry_opening_date.is.null,entry_opening_date.lt.{STALE_DATE_STR}")
         .gte("trial_start_date", EARLIEST_STR)
         .order("trial_start_date")
         .execute()
@@ -1411,6 +1429,9 @@ async def main() -> None:
                 name  = trial.get("trial_host") or trial.get("trial_name") or "?"
                 start = trial.get("trial_start_date", "?")
                 print(f"[{i + 1}/{len(trials)}] {name}  ({start})")
+                saved_opening = trial.get("entry_opening_date")
+                if saved_opening:
+                    print(f"  🔄 Re-scraping — saved opening date {saved_opening} is stale, trial not yet started")
 
                 # Never update a trial that a club has claimed and is managing directly
                 if trial.get("claimed"):
