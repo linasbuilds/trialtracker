@@ -18,8 +18,7 @@ const { chromium } = require('playwright');
 const { createClient } = require('@supabase/supabase-js');
 const https   = require('https');
 const http    = require('http');
-const _pdfParseModule = require('pdf-parse');
-const pdfParse = _pdfParseModule.default || _pdfParseModule;
+const { extractText } = require('unpdf');
 
 // ── Sport code map ────────────────────────────────────────────────────────────
 
@@ -183,10 +182,9 @@ function parseWordyDate(str) {
 
 async function parsePdfOpeningDate(pdfUrl) {
   try {
-    const buf  = await fetchBuffer(pdfUrl);
-    const data = await pdfParse(buf, { max: 1 }); // page 1 only
-    const text = data.text;
-    const m    = CPE_OPENING_RE.exec(text) || CPE_POSTMARK_RE.exec(text);
+    const buf = await fetchBuffer(pdfUrl);
+    const { text } = await extractText(new Uint8Array(buf), { mergePages: true });
+    const m = CPE_OPENING_RE.exec(text) || CPE_POSTMARK_RE.exec(text);
     return m ? parseWordyDate(m[1]) : null;
   } catch (err) {
     console.log(`    ⚠️  PDF parse error for ${pdfUrl}: ${err.message}`);
