@@ -16,8 +16,9 @@
 
 const { chromium } = require('playwright');
 const { createClient } = require('@supabase/supabase-js');
-const https = require('https');
-const http  = require('http');
+const https   = require('https');
+const http    = require('http');
+const pdfParse = require('pdf-parse');
 
 // ── Sport code map ────────────────────────────────────────────────────────────
 
@@ -109,6 +110,27 @@ function fetchText(url, timeoutMs = 10000, redirectCount = 0) {
   });
 }
 
+function fetchBuffer(url, timeoutMs = 15000, redirectCount = 0) {
+  if (redirectCount > 5) return Promise.reject(new Error('Too many redirects'));
+  return new Promise((resolve, reject) => {
+    const proto = url.startsWith('https') ? https : http;
+    const req = proto.get(url, { headers: { 'User-Agent': BOT_UA }, timeout: timeoutMs }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        const next = res.headers.location.startsWith('http')
+          ? res.headers.location
+          : new URL(res.headers.location, url).href;
+        return fetchBuffer(next, timeoutMs, redirectCount + 1).then(resolve).catch(reject);
+      }
+      const chunks = [];
+      res.on('data',  chunk => chunks.push(chunk));
+      res.on('end',   () => resolve(Buffer.concat(chunks)));
+      res.on('error', reject);
+    });
+    req.on('error',   reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('Request timed out')); });
+  });
+}
+
 function isAllowedByRobots(robotsText) {
   const lines = robotsText.split('\n');
   let inBlock = false;
@@ -133,6 +155,41 @@ async function checkRobotsTxt(siteUrl) {
     return isAllowedByRobots(text);
   } catch {
     return true; // assume allowed if unreachable
+  }
+}
+
+// ── PDF opening date helpers ──────────────────────────────────────────────────
+
+const CPE_OPENING_RE  = /opening\s+date[:\s]+([A-Za-z]+\.?\s+\d{1,2},?\s+\d{4}|\d{1,2}\/\d{1,2}\/\d{4})/i;
+const CPE_POSTMARK_RE = /postmark\s+date[:\s]+([A-Za-z]+\.?\s+\d{1,2},?\s+\d{4}|\d{1,2}\/\d{1,2}\/\d{4})/i;
+
+const MONTH_MAP = {
+  january:1, february:2, march:3, april:4, may:5, june:6,
+  july:7, august:8, september:9, october:10, november:11, december:12,
+};
+
+function parseWordyDate(str) {
+  if (!str) return null;
+  const mdy = str.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (mdy) return `${mdy[3]}-${mdy[1].padStart(2,'0')}-${mdy[2].padStart(2,'0')}`;
+  const wordy = str.match(/([A-Za-z]+)\.?\s+(\d{1,2}),?\s+(\d{4})/);
+  if (wordy) {
+    const month = MONTH_MAP[wordy[1].toLowerCase()];
+    if (month) return `${wordy[3]}-${String(month).padStart(2,'0')}-${wordy[2].padStart(2,'0')}`;
+  }
+  return null;
+}
+
+async function parsePdfOpeningDate(pdfUrl) {
+  try {
+    const buf  = await fetchBuffer(pdfUrl);
+    const data = await pdfParse(buf, { max: 1 }); // page 1 only
+    const text = data.text;
+    const m    = CPE_OPENING_RE.exec(text) || CPE_POSTMARK_RE.exec(text);
+    return m ? parseWordyDate(m[1]) : null;
+  } catch (err) {
+    console.log(`    ⚠️  PDF parse error for ${pdfUrl}: ${err.message}`);
+    return null;
   }
 }
 
@@ -245,7 +302,21 @@ async function extractAllEvents(page) {
         } catch {}
       }
 
-      results.push({ rawStart, rawEnd, titleText, rawClosing, city, state, website, officialLink });
+      // Premium PDF: /wp-content/uploads/*.pdf on cpe.dog
+      let premiumPdfUrl = null;
+      for (const a of Array.from(container.querySelectorAll('a[href]'))) {
+        try {
+          const u = new URL(a.href);
+          if (u.hostname === 'cpe.dog' &&
+              u.pathname.toLowerCase().includes('/wp-content/uploads/') &&
+              u.pathname.toLowerCase().endsWith('.pdf')) {
+            premiumPdfUrl = a.href;
+            break;
+          }
+        } catch {}
+      }
+
+      results.push({ rawStart, rawEnd, titleText, rawClosing, city, state, website, officialLink, premiumPdfUrl });
     }
 
     return results;
@@ -356,6 +427,18 @@ async function main() {
       cancelled:          false,
       data_source:        'cpe',
     };
+
+    if (ev.premiumPdfUrl && trial.entry_opening_date === null) {
+      console.log(`  📄 PDF: ${ev.premiumPdfUrl}`);
+      const opening = await parsePdfOpeningDate(ev.premiumPdfUrl);
+      if (opening) {
+        trial.entry_opening_date = opening;
+        console.log(`  📅 Opening date from PDF: ${opening}`);
+      } else {
+        console.log(`      ❌ No opening date found in PDF`);
+      }
+      await sleep(500);
+    }
 
     trials.push(trial);
     console.log(
