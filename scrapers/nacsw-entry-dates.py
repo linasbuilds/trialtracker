@@ -221,15 +221,6 @@ _SECTION_OPEN_PATTERNS = [
 ]
 _SECTION_OPEN_RE = re.compile("|".join(_SECTION_OPEN_PATTERNS), re.IGNORECASE)
 
-# Within the section: signals for the CLOSING date line.
-_SECTION_CLOSE_PATTERNS = [
-    r"draw.*?close",
-    r"closes?\b",
-    r"closing\b",
-    r"entry\s+deadline",
-]
-_SECTION_CLOSE_RE = re.compile("|".join(_SECTION_CLOSE_PATTERNS), re.IGNORECASE)
-
 # Keywords in a URL or link text suggesting a trials/events navigation page
 _NAV_KEYWORDS_RE = re.compile(
     r"trials?|nacsw|nosework|scent|premium|events?|upcoming|schedule|enter|registration",
@@ -419,23 +410,7 @@ def extract_dates_inline(text: str, trial_start_date: str = "") -> tuple[str | N
                         if opening:
                             _dbg(f"  🔎 inline month+day (no year) match on: {line!r}  → {opening}")
             if opening:
-                # Scan the next 10 lines for a closing date
-                closing = None
-                for j in range(i + 1, min(i + 11, len(lines))):
-                    close_line = lines[j].strip()
-                    if not close_line:
-                        continue
-                    for pat in _SECTION_CLOSE_PATTERNS:
-                        if re.search(pat, close_line, re.IGNORECASE):
-                            mc = _DATE_RE.search(close_line)
-                            if mc:
-                                closing = _validate_date(mc.group(), trial_start_date, "inline-close")
-                                if closing:
-                                    _dbg(f"  🔎 inline close match on: {close_line!r}  → {closing}")
-                            break
-                    if closing:
-                        break
-                return opening, closing
+                return opening, None
     return None, None
 
 
@@ -545,7 +520,7 @@ def extract_dates(text: str, trial_start_date: str = "") -> tuple[str | None, st
         print(repr(window))
         print()
 
-    opening = closing = None
+    opening = None
 
     for line in window.splitlines():
         line = line.strip()
@@ -554,23 +529,18 @@ def extract_dates(text: str, trial_start_date: str = "") -> tuple[str | None, st
 
         _dbg(f"\n  LINE: {line!r}")
 
-        # "entries received between DATE and DATE" — first=open, second=close
+        # "entries received between DATE and DATE" — take first date as opening
         if re.search(r"\bbetween\b", line, re.IGNORECASE):
-            _dbg(f"    ↳ contains 'between' — extracting two dates")
+            _dbg(f"    ↳ contains 'between' — extracting opening date")
             found = [
                 _validate_date(m.group(), trial_start_date, "between")
                 for m in _DATE_RE.finditer(line)
             ]
             found = [d for d in found if d]
             _dbg(f"    ↳ valid dates found: {found}")
-            if len(found) >= 2:
+            if found:
                 opening = opening or found[0]
-                closing = closing or found[-1]
-                _dbg(f"    ✅ between → opening={opening}, closing={closing}")
-                continue
-            elif len(found) == 1:
-                opening = opening or found[0]
-                _dbg(f"    ✅ between → opening={opening} (only 1 date)")
+                _dbg(f"    ✅ between → opening={opening}")
                 continue
 
         # Test each OPEN pattern individually
@@ -588,22 +558,7 @@ def extract_dates(text: str, trial_start_date: str = "") -> tuple[str | None, st
                         _dbg(f"      → no date found on this line")
                     break
 
-        # Test each CLOSE pattern individually
-        if closing is None:
-            _dbg(f"    Testing CLOSE patterns:")
-            for pat in _SECTION_CLOSE_PATTERNS:
-                matched = bool(re.search(pat, line, re.IGNORECASE))
-                _dbg(f"      {'✅' if matched else '❌'} {pat!r}")
-                if matched:
-                    m = _DATE_RE.search(line)
-                    if m:
-                        closing = _validate_date(m.group(), trial_start_date, "closing")
-                        _dbg(f"      → date extracted: {m.group()!r} → {closing}")
-                    else:
-                        _dbg(f"      → no date found on this line")
-                    break
-
-        if opening and closing:
+        if opening:
             break
 
     # Full-page fallback: if no opening date found in section window, scan entire text
@@ -619,11 +574,7 @@ def extract_dates(text: str, trial_start_date: str = "") -> tuple[str | None, st
                     for m in _DATE_RE.finditer(line)
                 ]
                 found = [d for d in found if d]
-                if len(found) >= 2:
-                    opening = opening or found[0]
-                    closing = closing or found[-1]
-                    continue
-                elif len(found) == 1:
+                if found:
                     opening = opening or found[0]
                     continue
             if opening is None:
@@ -631,22 +582,15 @@ def extract_dates(text: str, trial_start_date: str = "") -> tuple[str | None, st
                     m = _DATE_RE.search(line)
                     if m:
                         opening = _validate_date(m.group(), trial_start_date, "full-scan-open")
-            if closing is None:
-                for pat in _SECTION_CLOSE_PATTERNS:
-                    if re.search(pat, line, re.IGNORECASE):
-                        m = _DATE_RE.search(line)
-                        if m:
-                            closing = _validate_date(m.group(), trial_start_date, "full-scan-close")
-                        break
-            if opening and closing:
+            if opening:
                 break
 
     if TEST_MODE:
         print(f"\n{'─'*60}")
-        print(f"RESULT:  opening={opening or 'NO DATE FOUND'}  closing={closing or 'NO DATE FOUND'}")
+        print(f"RESULT:  opening={opening or 'NO DATE FOUND'}")
         print(f"{'─'*60}\n")
 
-    return opening, closing
+    return opening, None
 
 # ── Trial date matching ───────────────────────────────────────────────────────
 
@@ -898,6 +842,22 @@ def _is_non_entry_pdf(url: str) -> bool:
     return bool(_NON_ENTRY_PDF_RE.search(url))
 
 
+_PREMIUM_PDF_TOKENS_RE = re.compile(
+    r"premium|trial|entry|\b" + str(date.today().year) + r"\b",
+    re.IGNORECASE,
+)
+
+
+def _is_valid_premium_pdf(url: str, link_text: str = "") -> bool:
+    """
+    Return True only if the PDF filename or the anchor link text that pointed
+    to it contains at least one of: 'premium', 'trial', 'entry', or the
+    current 4-digit year. Rejects privacy policies, general docs, etc.
+    """
+    filename = url.rstrip("/").split("/")[-1].split("?")[0]
+    return bool(_PREMIUM_PDF_TOKENS_RE.search(filename) or _PREMIUM_PDF_TOKENS_RE.search(link_text))
+
+
 def _score_pdf_url(url: str) -> int:
     u = url.lower()
     return sum(1 for tok in _PDF_TOKENS if tok in u)
@@ -911,23 +871,40 @@ def _find_pdf_links(html: str, crawl_links: list[dict], base_url: str) -> list[s
     """
     found: set[str] = set()
 
-    # From raw HTML
+    # From raw HTML — capture anchor text alongside href for validity check
+    for m in _A_TAG_RE.finditer(html):
+        href = m[1]
+        if ".pdf" not in href.lower():
+            continue
+        link_text = re.sub(r"<[^>]+>", "", m[2]).strip()
+        try:
+            full = urljoin(base_url, href)
+            if not _is_blocked_domain(full) and _is_valid_premium_pdf(full, link_text):
+                found.add(full)
+        except Exception:
+            pass
+
+    # Also catch bare PDF hrefs not wrapped in <a> tags
     for m in _PDF_HREF_RE.finditer(html):
         raw = m[1]
         try:
             full = urljoin(base_url, raw)
-            if not _is_blocked_domain(full):
+            if not _is_blocked_domain(full) and _is_valid_premium_pdf(full) and full not in found:
                 found.add(full)
         except Exception:
             pass
 
     # From result.links
     for link in crawl_links:
-        href = link.get("href", "") if isinstance(link, dict) else str(link)
+        if isinstance(link, dict):
+            href      = link.get("href", "")
+            link_text = link.get("text", "")
+        else:
+            href, link_text = str(link), ""
         if href and ".pdf" in href.lower():
             try:
                 full = urljoin(base_url, href)
-                if not _is_blocked_domain(full):
+                if not _is_blocked_domain(full) and _is_valid_premium_pdf(full, link_text):
                     found.add(full)
             except Exception:
                 pass
@@ -1088,7 +1065,22 @@ async def _fetch(crawler, url: str):
             print(f"    ⚠️  Fetch failed ({url}): {exc}")
             return None
 
-    # Production path — Crawl4AI
+    # Production path — Jina Reader first, Crawl4AI fallback
+    jina_url = "https://r.jina.ai/" + url
+    try:
+        jina_resp = httpx.get(
+            jina_url,
+            headers={"User-Agent": BOT_UA, "Accept": "text/markdown"},
+            timeout=30,
+            follow_redirects=True,
+        )
+        if jina_resp.status_code == 200 and len(jina_resp.text.strip()) >= 200:
+            print(f"    🌐 Jina Reader — {len(jina_resp.text)} chars")
+            return _HttpxResult(jina_resp.text)
+        print(f"    ⚠️  Jina returned short/empty ({len(jina_resp.text.strip())} chars) — falling back to Crawl4AI")
+    except Exception as exc:
+        print(f"    ⚠️  Jina fetch failed: {exc} — falling back to Crawl4AI")
+
     cfg = CrawlerRunConfig(page_timeout=20000, word_count_threshold=0)
     try:
         result = await crawler.arun(url=url, config=cfg)
@@ -1161,26 +1153,6 @@ async def _scrape_trial(
             return None, None
 
     cfg = CrawlerRunConfig(page_timeout=20000)
-
-    # ── Fast Path: premium_url PDF ─────────────────────────────────────────────
-    if premium_url and premium_url.lower().split("?")[0].endswith(".pdf"):
-        print(f"  ⚡ Fast Path — fetching premium PDF: {premium_url}")
-        pdf_text = await _fetch_pdf_text(crawler, premium_url, cfg)
-        if pdf_text.strip():
-            opening, closing = extract_dates(pdf_text, start_date)
-            if opening or closing:
-                _log_found(opening, closing, "premium PDF")
-                if not _entry_dates_plausible(opening, start_date):
-                    print(f"  ⚠️  Opening date {opening} is >6 months before trial start {start_date} — stale PDF, skipping")
-                else:
-                    return opening, closing
-            if not (opening or closing):
-                print("    ❌ No date labels found in PDF")
-                print(f"    🔍 PDF first 1000 chars: {pdf_text[:1000]!r}")
-        else:
-            print("    ❌ No text extracted from PDF")
-        print("    Falling through to club website")
-        await asyncio.sleep(1)
 
     # ── Fast Path: premium_url .docx ───────────────────────────────────────────
     if premium_url and premium_url.lower().split("?")[0].endswith(".docx"):
@@ -1580,33 +1552,24 @@ async def main() -> None:
                         await asyncio.sleep(DELAY)
                     continue
 
-                if opening or closing:
-                    payload: dict[str, str] = {}
+                if opening:
+                    closing = (date.fromisoformat(opening) + timedelta(days=2)).isoformat()
+                    print(f"  📅 Closing date: opening + 2 days = {closing}")
+                    payload: dict[str, str] = {
+                        "entry_opening_date": opening,
+                        "entry_closing_date": closing,
+                    }
 
-                    if opening:
-                        payload["entry_opening_date"] = opening
-
-                    if closing:
-                        payload["entry_closing_date"] = closing
-
-                    if opening and not closing:
-                        closing = (date.fromisoformat(opening) + timedelta(days=2)).isoformat()
-                        print(f"  📅 Closing date calculated as opening + 2 days: {closing}")
-                        payload["entry_closing_date"] = closing
-
-                    if payload:
-                        if TEST_MODE:
-                            print(f"  🧪 TEST MODE — would save to Supabase: {payload}")
-                        else:
-                            try:
-                                db.table("trials").update(payload).eq("id", trial["id"]).execute()
-                                print(f"  ☁️  Saved to Supabase: {payload}")
-                                updated += 1
-                            except Exception as exc:
-                                print(f"  ❌ Supabase update failed: {exc}")
-                                errors += 1
+                    if TEST_MODE:
+                        print(f"  🧪 TEST MODE — would save to Supabase: {payload}")
                     else:
-                        no_dates += 1
+                        try:
+                            db.table("trials").update(payload).eq("id", trial["id"]).execute()
+                            print(f"  ☁️  Saved to Supabase: {payload}")
+                            updated += 1
+                        except Exception as exc:
+                            print(f"  ❌ Supabase update failed: {exc}")
+                            errors += 1
                 else:
                     no_dates += 1
                     if start and start != "?":
