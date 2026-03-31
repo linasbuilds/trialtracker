@@ -246,6 +246,9 @@ _NON_ENTRY_PDF_DOMAINS = {"akc.org", "usdaa.com"}
 # Regex to find PDF hrefs in raw HTML
 _PDF_HREF_RE = re.compile(r'href=["\']([^"\']+\.pdf[^"\']*)["\']', re.IGNORECASE)
 
+# Regex to find .docx hrefs in raw HTML
+_DOCX_HREF_RE = re.compile(r'href=["\']([^"\']+\.docx[^"\']*)["\']', re.IGNORECASE)
+
 # Regex to find all anchor tags in raw HTML: captures href and link text
 _A_TAG_RE = re.compile(
     r'<a\b[^>]*\bhref=["\']([^"\']*)["\'][^>]*>(.*?)</a>',
@@ -383,11 +386,16 @@ def extract_dates_inline(text: str, trial_start_date: str = "") -> tuple[str | N
     Returns (opening_date, None).
     """
     lines = text.splitlines()
+    candidates: list[str] = []
     for i, line in enumerate(lines):
         line = line.strip()
         if not line:
             continue
         if _INLINE_OPEN_PATTERNS.search(line):
+            # Skip lines about ORT (a different nosework organization, not NACSW)
+            if re.search(r'\bORT\b', line):
+                _dbg(f"  ⏭️  Skipping ORT line: {line!r}")
+                continue
             opening = None
             # Primary: _DATE_RE finds full dates that include a year
             m = _DATE_RE.search(line)
@@ -410,8 +418,19 @@ def extract_dates_inline(text: str, trial_start_date: str = "") -> tuple[str | N
                         if opening:
                             _dbg(f"  🔎 inline month+day (no year) match on: {line!r}  → {opening}")
             if opening:
-                return opening, None
-    return None, None
+                candidates.append(opening)
+
+    # Pick the candidate closest-before trial_start_date (handles multi-trial pages)
+    if not candidates:
+        return None, None
+    if not trial_start_date or len(candidates) == 1:
+        return candidates[0], None
+    before = [d for d in candidates if d < trial_start_date]
+    if before:
+        best = max(before)
+        _dbg(f"  🗂️  Multi-candidate: {candidates} → picked {best} (closest before {trial_start_date})")
+        return best, None
+    return candidates[0], None
 
 
 def _extract_contextual(text: str, trial_start_date: str) -> tuple[str | None, str | None]:
@@ -912,6 +931,55 @@ def _find_pdf_links(html: str, crawl_links: list[dict], base_url: str) -> list[s
     return sorted(found, key=_score_pdf_url, reverse=True)[:5]
 
 
+def _find_docx_links(html: str, crawl_links: list[dict], base_url: str) -> list[str]:
+    """
+    Collect .docx URLs from raw HTML href attributes and result links.
+    Applies the same _is_valid_premium_pdf() filter as PDF links.
+    Returns at most 5 unique URLs.
+    """
+    found: set[str] = set()
+
+    # From raw HTML — capture anchor text alongside href
+    for m in _A_TAG_RE.finditer(html):
+        href = m[1]
+        if ".docx" not in href.lower():
+            continue
+        link_text = re.sub(r"<[^>]+>", "", m[2]).strip()
+        try:
+            full = urljoin(base_url, href)
+            if not _is_blocked_domain(full) and _is_valid_premium_pdf(full, link_text):
+                found.add(full)
+        except Exception:
+            pass
+
+    # Also catch bare .docx hrefs not wrapped in <a> tags
+    for m in _DOCX_HREF_RE.finditer(html):
+        raw = m[1]
+        try:
+            full = urljoin(base_url, raw)
+            if not _is_blocked_domain(full) and _is_valid_premium_pdf(full) and full not in found:
+                found.add(full)
+        except Exception:
+            pass
+
+    # From result.links
+    for link in crawl_links:
+        if isinstance(link, dict):
+            href      = link.get("href", "")
+            link_text = link.get("text", "")
+        else:
+            href, link_text = str(link), ""
+        if href and ".docx" in href.lower():
+            try:
+                full = urljoin(base_url, href)
+                if not _is_blocked_domain(full) and _is_valid_premium_pdf(full, link_text):
+                    found.add(full)
+            except Exception:
+                pass
+
+    return list(found)[:5]
+
+
 def _strip_year_suffix(url: str) -> str | None:
     """
     If the URL path ends in a 2- or 4-digit year-range slug
@@ -1234,6 +1302,7 @@ async def _scrape_trial(
     detail_links: list[str] = []
     detail_seen:  set[str]  = set()
     accumulated_nav_pdfs: list[str] = []
+    accumulated_nav_docx: list[str] = []
 
     pages_visited_in_b = 0
     for nav_url in nav_links:
@@ -1291,12 +1360,17 @@ async def _scrape_trial(
                 continue
             return opening, closing
 
-        # While here, opportunistically try premium PDFs found on this nav page
+        # While here, opportunistically try premium PDFs and .docx files found on this nav page
         nav_pdfs = _find_pdf_links(nav_html, nav_links_b, nav_url)
         for _np in nav_pdfs:
             if _np not in accumulated_nav_pdfs:
                 print(f"    📎 Found PDF: {_np}")
                 accumulated_nav_pdfs.append(_np)
+        nav_docx = _find_docx_links(nav_html, nav_links_b, nav_url)
+        for _nd in nav_docx:
+            if _nd not in accumulated_nav_docx:
+                print(f"    📎 Found .docx: {_nd}")
+                accumulated_nav_docx.append(_nd)
         for pdf_url in nav_pdfs[:2]:
             if _is_non_entry_pdf(pdf_url):
                 print(f"    ⏭️  Skipping rulebook/non-entry PDF: {pdf_url}")
@@ -1443,6 +1517,34 @@ async def _scrape_trial(
         else:
             print(f"      ❌ No date labels found in PDF")
             print(f"      🔍 PDF first 1000 chars: {pdf_text[:1000]!r}")
+
+    # ── Step C2: .docx premiums from homepage + all nav pages visited in Step B ──
+    docx_links = _find_docx_links(home_html, home_links, club_url)
+    _seen_c2: set[str] = set(docx_links)
+    for _nd in accumulated_nav_docx:
+        if _nd not in _seen_c2:
+            docx_links.append(_nd)
+            _seen_c2.add(_nd)
+    print(f"  📄 Step C2 — Found {len(docx_links)} .docx link(s) (homepage + nav pages)")
+
+    for docx_url in docx_links:
+        print(f"    📋 Trying .docx: {docx_url}")
+        await asyncio.sleep(1)
+        docx_text = await _docx_text(docx_url)
+        if not docx_text.strip():
+            continue
+        opening, closing = extract_dates(docx_text, start_date)
+        if not opening:
+            opening, closing = extract_dates_inline(docx_text, start_date)
+        if opening:
+            _log_found(opening, closing, f".docx {docx_url}")
+            if not _entry_dates_plausible(opening, start_date):
+                print(f"  ⚠️  Opening date {opening} is >6 months before trial start {start_date} — stale .docx, skipping")
+                continue
+            return opening, closing
+        else:
+            print(f"      ❌ No date labels found in .docx")
+            print(f"      🔍 .docx first 1000 chars: {docx_text[:1000]!r}")
 
     # ── Step D: Give up ────────────────────────────────────────────────────────
     print(f"  ❌ Could not find entry dates for {trial_host} at {club_url}")
