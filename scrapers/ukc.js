@@ -146,10 +146,8 @@ function parseEntryDate(str) {
 }
 
 // Visit an event detail page and extract entry opening / closing dates and day-of-show fee.
-// Looks for these labels (case-insensitive):
-//   Opening: "Entries Open" (primary), "Entry Opening Date", "Opens"
-//   Closing: "Pre-Entry Deadline" (primary), "Entry Closing Date", "Entries Close", "Closes"
-//   Day of Show: "Day of Show Fees" — first dollar amount on same or next line
+// UKC detail pages return text as one continuous string with no line breaks, so all
+// patterns match against the full body without relying on \n as a delimiter.
 async function scrapeEntryDates(page, url) {
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
   await sleep(500);
@@ -157,29 +155,15 @@ async function scrapeEntryDates(page, url) {
   const rawDates = await page.evaluate(() => {
     const body = document.body.innerText || '';
 
-    function findAfterLabel(text, ...patterns) {
-      for (const pat of patterns) {
-        // Match label then optional colon/space then the value up to end of line
-        const re = new RegExp(pat + '[:\\s]+([^\\n]+)', 'i');
-        const m = text.match(re);
-        if (m) return m[1].trim();
-      }
-      return null;
-    }
+    const openMatch  = body.match(/Entries Open:\s*([A-Za-z]+ \d{1,2},? \d{4}|\d{1,2}\/\d{1,2}\/\d{4})/i);
+    const closeMatch = body.match(/Pre-Entry Deadline:\s*(?:Received By\s*)?([A-Za-z]+ \d{1,2},? \d{4}|\d{1,2}\/\d{1,2}\/\d{4})/i);
+    const dosMatch   = body.match(/Day of Show Fees[\s\S]*?\$([\d.]+)/i);
 
-    const openText  = findAfterLabel(body,
-      'entries open',
-      'entry opening date', '\\bopens\\b');
-    const closeText = findAfterLabel(body,
-      'pre-entry deadline',
-      'entry closing date', 'entries close', '\\bcloses\\b');
-
-    // Day of Show Fees — first dollar amount on same line or the line immediately after
-    const dosMatch = body.match(/day\s+of\s+show\s+fees?[^\n]*\$\s*([\d.,]+)/i)
-      || body.match(/day\s+of\s+show\s+fees?[^$\n]*\n[^\n]*\$\s*([\d.,]+)/i);
-    const dosText = dosMatch ? dosMatch[1].trim() : null;
-
-    return { openText, closeText, dosText };
+    return {
+      openText:  openMatch  ? openMatch[1].trim()  : null,
+      closeText: closeMatch ? closeMatch[1].trim() : null,
+      dosText:   dosMatch   ? dosMatch[1].trim()   : null,
+    };
   });
 
   return {
