@@ -435,7 +435,8 @@ export default function TrialsPage() {
             const closingDate  = trial.entry_closing_date ? parseDate(trial.entry_closing_date) : null;
             const trialStart   = trial.trial_start_date   ? parseDate(trial.trial_start_date)   : null;
 
-            const entriesClosed  = closingDate !== null && today >= closingDate;
+            const entriesClosed  = (closingDate !== null && today >= closingDate)
+                                 || (openingDate !== null && today > openingDate && closingDate === null);
             const entriesOpenNow = openingDate !== null && closingDate !== null
               && today >= openingDate && today <= closingDate;
             const daysUntilOpen  = openingDate !== null && !entriesClosed && today < openingDate

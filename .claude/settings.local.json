@@ -31,7 +31,8 @@
       "WebFetch(domain:canineconnection23.godaddysites.com)",
       "WebFetch(domain:www.cleversniffers.com)",
       "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(t.get\\(''''trial_name'''',''''''''\\)\\) for t in data[:20]]\")",
-      "Bash(python3 -c \"import json; data=json.load\\(open\\(''trials.json''\\)\\); [print\\(t.get\\(''trial_name'',''''\\)\\) for t in data[:20]]\")"
+      "Bash(python3 -c \"import json; data=json.load\\(open\\(''trials.json''\\)\\); [print\\(t.get\\(''trial_name'',''''\\)\\) for t in data[:20]]\")",
+      "Bash(python -m py_compile scrapers/nacsw-entry-dates.py)"
     ]
   }
 }
