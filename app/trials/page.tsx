@@ -550,7 +550,7 @@ export default function TrialsPage() {
                 </div>
 
                 {entriesClosed ? (
-                  <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-500 text-sm font-medium mb-3">
+                  <div className="bg-red-100 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-sm font-medium mb-3">
                     Entries Closed
                   </div>
                 ) : entriesOpenNow ? (
@@ -571,7 +571,7 @@ export default function TrialsPage() {
                       Entry Dates TBD
                     </div>
                   ) : noEntryDates && isNACSW ? (
-                    <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-500 text-sm font-medium mb-3">
+                    <div className="bg-red-100 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-sm font-medium mb-3">
                       Entries Closed
                     </div>
                   ) : noEntryDates && daysUntilTrial !== null && daysUntilTrial <= 14 ? null
