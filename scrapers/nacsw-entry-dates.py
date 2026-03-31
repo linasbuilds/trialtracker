@@ -95,7 +95,7 @@ BOT_UA = (
     "TrialTracker-Bot/1.0 (trial aggregator; "
     "contact: trialtrackerapp@gmail.com; info: trialtracker.app)"
 )
-DELAY = 3  # seconds between club website visits
+DELAY = 1  # seconds between club website visits
 
 _today    = date.today()
 TODAY_STR = _today.isoformat()
@@ -1602,6 +1602,9 @@ async def main() -> None:
                 if i < len(trials) - 1:
                     print(f"  ⏳ Waiting {DELAY}s...\n")
                     await asyncio.sleep(DELAY)
+
+                if (i + 1) % 10 == 0:
+                    print(f"📊 Checkpoint [{i+1}/{len(trials)}] — ✅ {updated} | ⏭️ {skipped} | ❌ {no_dates} | ⚠️ {errors}", flush=True)
 
     finally:
         print("\n══════════════════════════════════════", flush=True)
