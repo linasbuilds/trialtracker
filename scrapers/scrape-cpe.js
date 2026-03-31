@@ -184,6 +184,7 @@ async function parsePdfOpeningDate(pdfUrl) {
   try {
     const buf = await fetchBuffer(pdfUrl);
     const { text } = await extractText(new Uint8Array(buf), { mergePages: true });
+    console.log(`    🔍 PDF text preview: ${text.substring(0, 300)}`);
     const m = CPE_OPENING_RE.exec(text) || CPE_POSTMARK_RE.exec(text);
     return m ? parseWordyDate(m[1]) : null;
   } catch (err) {
