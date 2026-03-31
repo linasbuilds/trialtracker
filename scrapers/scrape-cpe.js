@@ -18,7 +18,8 @@ const { chromium } = require('playwright');
 const { createClient } = require('@supabase/supabase-js');
 const https   = require('https');
 const http    = require('http');
-const pdfParse = require('pdf-parse');
+const _pdfParseModule = require('pdf-parse');
+const pdfParse = _pdfParseModule.default || _pdfParseModule;
 
 // ── Sport code map ────────────────────────────────────────────────────────────
 
