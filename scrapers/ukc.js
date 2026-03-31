@@ -145,10 +145,11 @@ function parseEntryDate(str) {
   return null;
 }
 
-// Visit an event detail page and extract entry opening / closing dates.
+// Visit an event detail page and extract entry opening / closing dates and day-of-show fee.
 // Looks for these labels (case-insensitive):
-//   Opening: "Entry Opening Date", "Entries Open", "Opens"
-//   Closing: "Entry Closing Date", "Entries Close", "Closes"
+//   Opening: "Entries Open" (primary), "Entry Opening Date", "Opens"
+//   Closing: "Pre-Entry Deadline" (primary), "Entry Closing Date", "Entries Close", "Closes"
+//   Day of Show: "Day of Show Fees" — first dollar amount on same or next line
 async function scrapeEntryDates(page, url) {
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
   await sleep(500);
@@ -167,16 +168,24 @@ async function scrapeEntryDates(page, url) {
     }
 
     const openText  = findAfterLabel(body,
-      'entry opening date', 'entries open', '\\bopens\\b');
+      'entries open',
+      'entry opening date', '\\bopens\\b');
     const closeText = findAfterLabel(body,
+      'pre-entry deadline',
       'entry closing date', 'entries close', '\\bcloses\\b');
 
-    return { openText, closeText };
+    // Day of Show Fees — first dollar amount on same line or the line immediately after
+    const dosMatch = body.match(/day\s+of\s+show\s+fees?[^\n]*\$\s*([\d.,]+)/i)
+      || body.match(/day\s+of\s+show\s+fees?[^$\n]*\n[^\n]*\$\s*([\d.,]+)/i);
+    const dosText = dosMatch ? dosMatch[1].trim() : null;
+
+    return { openText, closeText, dosText };
   });
 
   return {
-    opening: parseEntryDate(rawDates.openText),
-    closing: parseEntryDate(rawDates.closeText),
+    opening:      parseEntryDate(rawDates.openText),
+    closing:      parseEntryDate(rawDates.closeText),
+    dayOfShowFee: rawDates.dosText || null,
   };
 }
 
@@ -255,7 +264,7 @@ async function main() {
   });
 
   const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    userAgent: 'TrialTracker-Bot/1.0 (trial aggregator; contact: trialtrackerapp@gmail.com; info: trialtracker.app)',
     viewport: { width: 1280, height: 800 },
   });
   const page = await context.newPage();
@@ -291,6 +300,7 @@ async function main() {
         entry_opening_date: null,
         entry_closing_date: null,
         pre_entry_date:     null,
+        day_of_show_fee:    null,
         official_link:      ev.officialLink,
         club_website:       null,
         data_source:        'scraper',
@@ -333,7 +343,7 @@ async function main() {
     await sleep(2000);
 
     try {
-      const { opening, closing } = await scrapeEntryDates(page, t.official_link);
+      const { opening, closing, dayOfShowFee } = await scrapeEntryDates(page, t.official_link);
       if (opening) {
         t.entry_opening_date = opening;
         console.log(`    Found opening date: ${opening}`);
@@ -342,7 +352,11 @@ async function main() {
         t.entry_closing_date = closing;
         console.log(`    Found closing date: ${closing}`);
       }
-      if (!opening && !closing) {
+      if (dayOfShowFee) {
+        t.day_of_show_fee = dayOfShowFee;
+        console.log(`    Found day-of-show fee: $${dayOfShowFee}`);
+      }
+      if (!opening && !closing && !dayOfShowFee) {
         console.log(`    No entry dates found`);
       }
     } catch (err) {
@@ -401,6 +415,7 @@ async function main() {
             entry_opening_date: t.entry_opening_date,
             entry_closing_date: t.entry_closing_date,
             pre_entry_date:     t.pre_entry_date,
+            day_of_show_fee:    t.day_of_show_fee,
             official_link:      t.official_link,
             club_website:       t.club_website,
             data_source:        t.data_source,

@@ -23,7 +23,11 @@ export const CATALOG: Record<string, Record<string, string[]>> = {
     Agility: ['Intro', 'Novice', 'Open', 'Elite'],
   },
   UKC: {
-    Nosework: ['Novice', 'Advanced', 'Superior', 'Elite'],
+    Nosework:        ['Novice', 'Advanced', 'Superior', 'Elite'],
+    Agility:         [],
+    'Dock Jumping':  [],
+    'Rally Obedience': [],
+    Obedience:       [],
   },
   BHA: {
     'Barn Hunt': ['Instinct', 'Novice', 'Open', 'Senior', 'Master', 'Champion'],
