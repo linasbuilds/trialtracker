@@ -479,18 +479,10 @@ export default function ClubTrialsPage() {
           <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
             <div className="text-5xl mb-4">🐾</div>
             <h2 className="text-xl font-semibold text-slate-700 mb-2">No trials found</h2>
-            <p className="text-slate-500 mb-6">
+            <p className="text-slate-500">
               Upload a CSV to add trials, or make sure your club name in your profile
               matches the host name on any scraped trials.
             </p>
-            <div className="flex gap-3 justify-center flex-wrap">
-              <button
-                onClick={downloadTemplate}
-                className="bg-slate-100 text-slate-700 px-6 py-3 rounded-xl font-semibold hover:bg-slate-200 border border-slate-200"
-              >
-                Download CSV Template
-              </button>
-            </div>
           </div>
         )}
 
