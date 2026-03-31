@@ -113,6 +113,12 @@ export default function ClubTrialsPage() {
   });
   const [claimSaving, setClaimSaving] = useState(false);
 
+  // Inline entry date state
+  const [entryDateEditId, setEntryDateEditId] = useState<string | null>(null);
+  const [entryDateValue, setEntryDateValue] = useState("");
+  const [entryDateSaving, setEntryDateSaving] = useState(false);
+  const [entryDateSuccessId, setEntryDateSuccessId] = useState<string | null>(null);
+
   // CSV state
   const csvFileRef = useRef<HTMLInputElement>(null);
   const [csvImporting, setCsvImporting] = useState(false);
@@ -374,6 +380,39 @@ export default function ClubTrialsPage() {
 
   const cancelClaimEdit = () => { setClaimEditId(null); };
 
+  const saveEntryDate = async (trial: Trial) => {
+    if (!entryDateValue || !userId) return;
+    setEntryDateSaving(true);
+    const opening = entryDateValue;
+    const closingDate = new Date(opening + "T12:00:00");
+    closingDate.setDate(closingDate.getDate() + 2);
+    const closing = closingDate.toISOString().split("T")[0];
+    const { error } = await supabase
+      .from("trials")
+      .update({
+        entry_opening_date: opening,
+        entry_closing_date: closing,
+        claimed: true,
+        data_source: "club_submitted",
+      })
+      .eq("id", trial.id);
+    if (error) {
+      showMessage("Error saving entry date. Please try again.", "error");
+    } else {
+      setTrials((prev) =>
+        prev.map((t) =>
+          t.id === trial.id
+            ? { ...t, entry_opening_date: opening, entry_closing_date: closing, claimed: true, data_source: "club_submitted" }
+            : t
+        )
+      );
+      setEntryDateEditId(null);
+      setEntryDateSuccessId(trial.id);
+      setTimeout(() => setEntryDateSuccessId((cur) => cur === trial.id ? null : cur), 5000);
+    }
+    setEntryDateSaving(false);
+  };
+
   const saveClaimEdit = async () => {
     if (!claimEditId || !userId) return;
     setClaimSaving(true);
@@ -602,9 +641,33 @@ export default function ClubTrialsPage() {
                         ? ` – ${formatDate(trial.trial_end_date)}`
                         : ""}
                     </div>
-                    <div>
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-slate-700">Trial Entry Opens: </span>
-                      {formatDate(trial.entry_opening_date)}
+                      {trial.entry_opening_date ? (
+                        <>
+                          {formatDate(trial.entry_opening_date)}
+                          {claimEditId !== trial.id && (
+                            <button
+                              onClick={() => { setEntryDateEditId(trial.id); setEntryDateValue(trial.entry_opening_date); }}
+                              className="text-blue-600 hover:underline font-medium"
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </>
+                      ) : claimEditId !== trial.id ? (
+                        <button
+                          onClick={() => { setEntryDateEditId(trial.id); setEntryDateValue(""); }}
+                          className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-medium px-2 py-0.5 rounded border border-emerald-200"
+                        >
+                          + Add Entry Date
+                        </button>
+                      ) : (
+                        <span className="text-slate-400 italic">TBD</span>
+                      )}
+                      {entryDateSuccessId === trial.id && (
+                        <span className="text-emerald-700 font-medium">Entry date saved ✓</span>
+                      )}
                     </div>
                     <div>
                       <span className="font-medium text-slate-700">Trial Entry Closes: </span>
@@ -624,6 +687,36 @@ export default function ClubTrialsPage() {
                         </a>
                       )}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Inline entry date form ── */}
+              {entryDateEditId === trial.id && (
+                <div className="border-t border-slate-100 px-5 py-4 bg-slate-50">
+                  <div className="flex items-end gap-3 flex-wrap">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Entry Opens</label>
+                      <input
+                        type="date"
+                        value={entryDateValue}
+                        onChange={(e) => setEntryDateValue(e.target.value)}
+                        className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                    <button
+                      onClick={() => saveEntryDate(trial)}
+                      disabled={entryDateSaving || !entryDateValue}
+                      className="bg-emerald-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-semibold"
+                    >
+                      {entryDateSaving ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      onClick={() => setEntryDateEditId(null)}
+                      className="text-slate-500 text-sm hover:underline"
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </div>
               )}
