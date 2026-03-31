@@ -261,6 +261,14 @@ _A_TAG_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
+# Matches "ENTRY OPEN <date>" in raw HTML — catches Beaver Builder / styled button text
+# that crawl4ai strips during markdown conversion but Playwright innerHTML preserves.
+# Handles M/D/YY (e.g. 3/3/26), M/D/YYYY, MM/DD/YYYY formats.
+_BUTTON_ENTRY_OPEN_RE = re.compile(
+    r"ENTRY\s+OPEN\s+(\d{1,2}/\d{1,2}/(?:\d{4}|\d{2})\b)",
+    re.IGNORECASE,
+)
+
 # ── httpx result wrapper (TEST_MODE) ─────────────────────────────────────────
 
 class _HttpxResult:
@@ -1091,7 +1099,8 @@ async def _fetch(crawler, url: str):
 
 async def _fetch_with_playwright(url: str) -> str:
     """Playwright fallback for JS-rendered pages (Wix, Beaver Builder, Squarespace, GoDaddy).
-    Waits for network idle + 3s buffer so page builders finish rendering before we read."""
+    Waits for network idle + 3s buffer so page builders finish rendering before we read.
+    Also scans raw innerHTML for button/widget entry dates that inner_text may miss."""
     try:
         from playwright.async_api import async_playwright
         async with async_playwright() as pw:
@@ -1101,12 +1110,21 @@ async def _fetch_with_playwright(url: str) -> str:
             await page.wait_for_load_state("networkidle")
             await asyncio.sleep(3)
             text = await page.inner_text("body")
+            html = await page.inner_html("body")
             if len(text.strip()) < 500:
-                import re as _re
-                html = await page.inner_html("body")
-                text = _re.sub(r"<[^>]+>", " ", html)
-                text = _re.sub(r"\s+", " ", text).strip()
+                text = re.sub(r"<[^>]+>", " ", html)
+                text = re.sub(r"\s+", " ", text).strip()
                 print(f"    🔄 inner_text short ({len(text.strip())} chars) — using innerHTML fallback", flush=True)
+            # Second pass: scan raw HTML for "ENTRY OPEN <date>" in button/widget elements.
+            # Page builders like Beaver Builder render these as styled divs that inner_text
+            # may not surface even after full JS render.
+            extra_lines = []
+            for m in _BUTTON_ENTRY_OPEN_RE.finditer(html):
+                snippet = m.group()
+                print(f"  🔍 Found date in raw HTML button/widget: {snippet!r}", flush=True)
+                extra_lines.append(snippet)
+            if extra_lines:
+                text = text + "\n" + "\n".join(extra_lines)
             await browser.close()
         return text
     except Exception as exc:
