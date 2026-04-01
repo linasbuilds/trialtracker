@@ -36,7 +36,7 @@ function Header() {
       <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
 
         {/* Logo */}
-        <a href={userRole === "club" ? "/submit" : "/trials"} className="flex items-center gap-3 hover:opacity-90 transition-opacity">
+        <a href={userRole === "club" ? "/club-trials" : "/trials"} className="flex items-center gap-3 hover:opacity-90 transition-opacity">
           <img src="/logo.png" alt="TrialTracker" className="h-14 w-auto" />
           <div>
             <div className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
@@ -63,9 +63,6 @@ function Header() {
               <>
                 <a href="/club-trials" className="px-4 py-2 text-slate-600 hover:text-blue-600 font-medium transition-all">
                   📋 My Trials
-                </a>
-                <a href="/submit" className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-full hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md">
-                  ➕ Submit Trial
                 </a>
               </>
             )}
@@ -106,9 +103,6 @@ function Header() {
             <>
               <a href="/club-trials" onClick={() => setMenuOpen(false)} className="block px-4 py-3 text-slate-700 hover:bg-slate-50 rounded-lg font-medium">
                 📋 My Trials
-              </a>
-              <a href="/submit" onClick={() => setMenuOpen(false)} className="block px-4 py-3 bg-blue-600 text-white rounded-lg font-bold text-center">
-                ➕ Submit Trial
               </a>
             </>
           )}
