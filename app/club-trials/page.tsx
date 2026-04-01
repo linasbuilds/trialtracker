@@ -3,13 +3,6 @@
 import { useRef, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
-const US_STATES = [
-  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
-  "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
-  "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
-  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
-  "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"
-];
 
 const CSV_COLUMNS = [
   "organization","sport","trial_name","trial_start_date","trial_end_date",
@@ -49,6 +42,15 @@ interface Trial {
   claimed_by: string | null;
   user_id: string | null;
   data_source: string | null;
+}
+
+interface TrialEditForm {
+  trial_name: string;
+  entry_opening_date: string;
+  entry_closing_date: string;
+  premium_url: string;
+  official_link: string;
+  location_name: string;
 }
 
 // ── Simple CSV parser (handles quoted fields) ─────────────────────────────────
@@ -99,25 +101,21 @@ export default function ClubTrialsPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [clubName, setClubName] = useState("");
 
-  // Full-edit state (for own submitted trials)
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<Partial<Trial>>({});
-  const [saving, setSaving] = useState(false);
-  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
-
-  // Entry date edit state (for managed trials)
-  const [claimEditId, setClaimEditId] = useState<string | null>(null);
-  const [claimEditForm, setClaimEditForm] = useState<{ entry_opening_date: string; entry_closing_date: string }>({
+  // Unified edit panel state
+  const [trialEditId, setTrialEditId] = useState<string | null>(null);
+  const [trialEditForm, setTrialEditForm] = useState<TrialEditForm>({
+    trial_name: "",
     entry_opening_date: "",
     entry_closing_date: "",
+    premium_url: "",
+    official_link: "",
+    location_name: "",
   });
-  const [claimSaving, setClaimSaving] = useState(false);
+  const [trialEditSaving, setTrialEditSaving] = useState(false);
+  const [trialEditError, setTrialEditError] = useState("");
 
-  // Inline entry date state
-  const [entryDateEditId, setEntryDateEditId] = useState<string | null>(null);
-  const [entryDateValue, setEntryDateValue] = useState("");
-  const [entryDateSaving, setEntryDateSaving] = useState(false);
-  const [entryDateSuccessId, setEntryDateSuccessId] = useState<string | null>(null);
+  // Cancel confirmation
+  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
 
   // CSV state
   const csvFileRef = useRef<HTMLInputElement>(null);
@@ -167,7 +165,6 @@ export default function ClubTrialsPage() {
     const name = profile?.club_name || "";
     setClubName(name);
 
-    // Only load trials this user owns or has claimed
     const { data, error } = await supabase
       .from("trials")
       .select("*")
@@ -218,7 +215,6 @@ export default function ClubTrialsPage() {
     if (res.ok) {
       showMessage("Trial added to your managed list! ✅", "success");
       fetchTrials();
-      // Refresh search so the button updates to "Managing"
       if (searchQuery.trim()) searchTrials(searchQuery);
     } else {
       const body = await res.json().catch(() => ({}));
@@ -319,51 +315,72 @@ export default function ClubTrialsPage() {
     setCsvImporting(false);
   };
 
-  // ── Full edit (own submitted trials) ──────────────────────────────────────
+  // ── Unified edit panel ─────────────────────────────────────────────────────
 
-  const startEdit = (trial: Trial) => {
-    setEditingId(trial.id);
-    setEditForm({ ...trial });
+  const startTrialEdit = (trial: Trial) => {
+    setTrialEditId(trial.id);
+    setTrialEditError("");
+    setTrialEditForm({
+      trial_name: trial.trial_name || "",
+      entry_opening_date: trial.entry_opening_date || "",
+      entry_closing_date: trial.entry_closing_date || "",
+      premium_url: trial.premium_url || "",
+      official_link: (trial.official_link && !trial.official_link.startsWith("club-upload://"))
+        ? trial.official_link
+        : "",
+      location_name: trial.location_name || "",
+    });
   };
 
-  const cancelEdit = () => { setEditingId(null); setEditForm({}); };
-
-  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setEditForm({ ...editForm, [e.target.name]: e.target.value });
+  const cancelTrialEdit = () => {
+    setTrialEditId(null);
+    setTrialEditError("");
   };
 
-  const saveEdit = async () => {
-    if (!editingId) return;
-    setSaving(true);
-    const { error } = await supabase
-      .from("trials")
-      .update({
-        organization: editForm.organization,
-        sport: editForm.sport,
-        trial_name: editForm.trial_name,
-        trial_host: editForm.trial_host,
-        location_name: editForm.location_name,
-        city: editForm.city,
-        state: editForm.state,
-        trial_start_date: editForm.trial_start_date,
-        trial_end_date: editForm.trial_end_date,
-        entry_opening_date: editForm.entry_opening_date,
-        entry_closing_date: editForm.entry_closing_date,
-        official_link: editForm.official_link,
-      })
-      .eq("id", editingId)
-      .eq("user_id", userId!);
+  const handleTrialEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTrialEditForm({ ...trialEditForm, [e.target.name]: e.target.value });
+  };
 
-    if (error) {
-      showMessage("Error saving changes. Please try again.", "error");
+  const saveTrialEdit = async () => {
+    if (!trialEditId) return;
+    setTrialEditSaving(true);
+    setTrialEditError("");
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch("/api/update-trial", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session?.access_token}`,
+      },
+      body: JSON.stringify({ trialId: trialEditId, ...trialEditForm }),
+    });
+    if (res.ok) {
+      const saved = trialEditForm;
+      setTrials((prev) =>
+        prev.map((t) =>
+          t.id === trialEditId
+            ? {
+                ...t,
+                trial_name: saved.trial_name || t.trial_name,
+                entry_opening_date: saved.entry_opening_date,
+                entry_closing_date: saved.entry_closing_date,
+                premium_url: saved.premium_url || undefined,
+                official_link: saved.official_link || t.official_link,
+                location_name: saved.location_name,
+              }
+            : t
+        )
+      );
+      setTrialEditId(null);
+      showMessage("Changes saved! ✅", "success");
     } else {
-      showMessage("Trial updated successfully! ✅", "success");
-      setEditingId(null);
-      setEditForm({});
-      fetchTrials();
+      const body = await res.json().catch(() => ({}));
+      setTrialEditError(body.error || "Save failed. Please try again.");
     }
-    setSaving(false);
+    setTrialEditSaving(false);
   };
+
+  // ── Cancel trial ──────────────────────────────────────────────────────────
 
   const cancelTrial = async (id: string) => {
     const { error } = await supabase
@@ -394,81 +411,6 @@ export default function ClubTrialsPage() {
     }
   };
 
-  // ── Entry date edit (managed trials) ─────────────────────────────────────
-
-  const startClaimEdit = (trial: Trial) => {
-    setClaimEditId(trial.id);
-    setClaimEditForm({
-      entry_opening_date: trial.entry_opening_date || "",
-      entry_closing_date: trial.entry_closing_date || "",
-    });
-  };
-
-  const cancelClaimEdit = () => { setClaimEditId(null); };
-
-  const saveEntryDate = async (trial: Trial) => {
-    if (!entryDateValue || !userId) return;
-    setEntryDateSaving(true);
-    const opening = entryDateValue;
-    const closingDate = new Date(opening + "T12:00:00");
-    closingDate.setDate(closingDate.getDate() + 2);
-    const closing = closingDate.toISOString().split("T")[0];
-    const { error } = await supabase
-      .from("trials")
-      .update({
-        entry_opening_date: opening,
-        entry_closing_date: closing,
-        claimed: true,
-        data_source: "club_submitted",
-      })
-      .eq("id", trial.id);
-    if (error) {
-      showMessage("Error saving entry date. Please try again.", "error");
-    } else {
-      setTrials((prev) =>
-        prev.map((t) =>
-          t.id === trial.id
-            ? { ...t, entry_opening_date: opening, entry_closing_date: closing, claimed: true, data_source: "club_submitted" }
-            : t
-        )
-      );
-      setEntryDateEditId(null);
-      setEntryDateSuccessId(trial.id);
-      setTimeout(() => setEntryDateSuccessId((cur) => cur === trial.id ? null : cur), 5000);
-    }
-    setEntryDateSaving(false);
-  };
-
-  const saveClaimEdit = async () => {
-    if (!claimEditId || !userId) return;
-    setClaimSaving(true);
-    const opening = claimEditForm.entry_opening_date || null;
-    const closing = claimEditForm.entry_closing_date || null;
-    const { error } = await supabase
-      .from("trials")
-      .update({
-        entry_opening_date: opening,
-        entry_closing_date: closing,
-      })
-      .eq("id", claimEditId)
-      .eq("claimed_by", userId);
-
-    if (error) {
-      showMessage("Error saving entry dates. Please try again.", "error");
-    } else {
-      setTrials((prev) =>
-        prev.map((t) =>
-          t.id === claimEditId
-            ? { ...t, entry_opening_date: opening ?? "", entry_closing_date: closing ?? "" }
-            : t
-        )
-      );
-      setClaimEditId(null);
-      showMessage("Entry dates saved! Handlers will see them right away. ✅", "success");
-    }
-    setClaimSaving(false);
-  };
-
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   const formatDate = (dateStr: string) => {
@@ -481,7 +423,6 @@ export default function ClubTrialsPage() {
   const isOwnSubmission = (t: Trial) => t.user_id === userId;
   const isClaimedByMe = (t: Trial) => t.claimed && t.claimed_by === userId;
 
-  // Is a search result already in my managed list?
   const isManagedByMe = (t: Trial) =>
     t.claimed_by === userId || t.user_id === userId ||
     trials.some((m) => m.id === t.id);
@@ -565,7 +506,6 @@ export default function ClubTrialsPage() {
             )}
           </div>
 
-          {/* Search results */}
           {searchQuery.trim() && !searchLoading && searchResults.length === 0 && (
             <p className="text-slate-500 text-sm mt-3 ml-1">No trials found matching &ldquo;{searchQuery}&rdquo;.</p>
           )}
@@ -654,7 +594,7 @@ export default function ClubTrialsPage() {
                 )}
 
                 {/* Trial summary */}
-                {editingId !== trial.id && (
+                {trialEditId !== trial.id && (
                   <div className="p-5">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
@@ -670,11 +610,6 @@ export default function ClubTrialsPage() {
                               CSV upload
                             </span>
                           )}
-                          {trial.data_source && !isOwnSubmission(trial) && trial.data_source !== "club_submitted" && (
-                            <span className="text-xs text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200">
-                              scraped · {trial.data_source}
-                            </span>
-                          )}
                         </div>
                         <h3 className="text-lg font-bold text-slate-800">{trial.trial_name}</h3>
                         <p className="text-sm text-slate-500">{trial.trial_host}</p>
@@ -684,33 +619,25 @@ export default function ClubTrialsPage() {
                         </p>
                       </div>
 
-                      {/* Action buttons — full edit for own submissions */}
-                      {isOwnSubmission(trial) && !trial.cancelled && (
-                        <div className="flex gap-2 flex-shrink-0">
+                      {/* Action buttons */}
+                      <div className="flex gap-2 flex-shrink-0">
+                        {!trial.cancelled && (
                           <button
-                            onClick={() => startEdit(trial)}
+                            onClick={() => startTrialEdit(trial)}
                             className="text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-1.5 rounded-lg transition-all"
                           >
-                            ✏️ Edit
+                            ✏️ Edit Trial
                           </button>
+                        )}
+                        {isOwnSubmission(trial) && !trial.cancelled && (
                           <button
                             onClick={() => setCancelConfirmId(trial.id)}
                             className="text-sm bg-red-50 hover:bg-red-100 text-red-600 font-medium px-3 py-1.5 rounded-lg transition-all"
                           >
                             🚫 Cancel
                           </button>
-                        </div>
-                      )}
-
-                      {/* Edit entry dates — managed by me (not own submission) */}
-                      {isClaimedByMe(trial) && !isOwnSubmission(trial) && claimEditId !== trial.id && (
-                        <button
-                          onClick={() => startClaimEdit(trial)}
-                          className="flex-shrink-0 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-1.5 rounded-lg transition-all"
-                        >
-                          ✏️ Edit Dates
-                        </button>
-                      )}
+                        )}
+                      </div>
                     </div>
 
                     {/* Dates row */}
@@ -722,37 +649,11 @@ export default function ClubTrialsPage() {
                           ? ` – ${formatDate(trial.trial_end_date)}`
                           : ""}
                       </div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-slate-700">Trial Entry Opens: </span>
-                        {trial.entry_opening_date ? (
-                          <>
-                            {formatDate(trial.entry_opening_date)}
-                            {claimEditId !== trial.id && (
-                              <button
-                                onClick={() => { setEntryDateEditId(trial.id); setEntryDateValue(trial.entry_opening_date); }}
-                                className="text-blue-600 hover:underline font-medium"
-                              >
-                                Edit
-                              </button>
-                            )}
-                          </>
-                        ) : claimEditId !== trial.id ? (
-                          <button
-                            onClick={() => { setEntryDateEditId(trial.id); setEntryDateValue(""); }}
-                            className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-medium px-2 py-0.5 rounded border border-emerald-200"
-                          >
-                            + Add Entry Date
-                          </button>
-                        ) : (
-                          <span className="text-slate-400 italic">TBD</span>
-                        )}
-                        {entryDateSuccessId === trial.id && (
-                          <span className="text-emerald-700 font-medium">Entry date saved ✓</span>
-                        )}
-                      </div>
                       <div>
-                        <span className="font-medium text-slate-700">Trial Entry Closes: </span>
-                        {trial.entry_closing_date ? formatDate(trial.entry_closing_date) : <span className="text-slate-400 italic">TBD</span>}
+                        <span className="font-medium text-slate-700">Trial Entry Opens: </span>
+                        {trial.entry_opening_date
+                          ? formatDate(trial.entry_opening_date)
+                          : <span className="text-slate-400 italic">TBD</span>}
                       </div>
                       <div className="flex items-center gap-3 flex-wrap">
                         {trial.official_link && !trial.official_link.startsWith("club-upload://") && (
@@ -768,51 +669,27 @@ export default function ClubTrialsPage() {
                           </a>
                         )}
                       </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── Inline entry date form ── */}
-                {entryDateEditId === trial.id && (
-                  <div className="border-t border-slate-100 px-5 py-4 bg-slate-50">
-                    <div className="flex items-end gap-3 flex-wrap">
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Entry Opens</label>
-                        <input
-                          type="date"
-                          value={entryDateValue}
-                          onChange={(e) => setEntryDateValue(e.target.value)}
-                          className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        />
+                        <span className="font-medium text-slate-700">Trial Entry Closes: </span>
+                        {trial.entry_closing_date
+                          ? formatDate(trial.entry_closing_date)
+                          : <span className="text-slate-400 italic">TBD</span>}
                       </div>
-                      <button
-                        onClick={() => saveEntryDate(trial)}
-                        disabled={entryDateSaving || !entryDateValue}
-                        className="bg-emerald-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-semibold"
-                      >
-                        {entryDateSaving ? "Saving..." : "Save"}
-                      </button>
-                      <button
-                        onClick={() => setEntryDateEditId(null)}
-                        className="text-slate-500 text-sm hover:underline"
-                      >
-                        Cancel
-                      </button>
                     </div>
                   </div>
                 )}
 
-                {/* ── Entry date edit (managed trials) ── */}
-                {claimEditId === trial.id && (
-                  <div className="border-t border-slate-100 px-5 py-4 bg-slate-50 space-y-3">
-                    <p className="text-sm font-semibold text-slate-700">Update entry dates</p>
+                {/* ── Unified edit panel ── */}
+                {trialEditId === trial.id && (
+                  <div className="p-5 space-y-4">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-medium text-slate-600 mb-1">Trial Entry Opens</label>
                         <input
                           type="date"
-                          value={claimEditForm.entry_opening_date}
-                          onChange={(e) => setClaimEditForm({ ...claimEditForm, entry_opening_date: e.target.value })}
+                          name="entry_opening_date"
+                          value={trialEditForm.entry_opening_date}
+                          onChange={handleTrialEditChange}
                           className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         />
                       </div>
@@ -820,23 +697,75 @@ export default function ClubTrialsPage() {
                         <label className="block text-xs font-medium text-slate-600 mb-1">Trial Entry Closes</label>
                         <input
                           type="date"
-                          value={claimEditForm.entry_closing_date}
-                          onChange={(e) => setClaimEditForm({ ...claimEditForm, entry_closing_date: e.target.value })}
+                          name="entry_closing_date"
+                          value={trialEditForm.entry_closing_date}
+                          onChange={handleTrialEditChange}
                           className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         />
                       </div>
                     </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Trial Name</label>
+                      <input
+                        type="text"
+                        name="trial_name"
+                        value={trialEditForm.trial_name}
+                        onChange={handleTrialEditChange}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Location Name</label>
+                      <input
+                        type="text"
+                        name="location_name"
+                        value={trialEditForm.location_name}
+                        onChange={handleTrialEditChange}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Premium URL</label>
+                      <input
+                        type="url"
+                        name="premium_url"
+                        value={trialEditForm.premium_url}
+                        onChange={handleTrialEditChange}
+                        placeholder="https://..."
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Official Link</label>
+                      <input
+                        type="url"
+                        name="official_link"
+                        value={trialEditForm.official_link}
+                        onChange={handleTrialEditChange}
+                        placeholder="https://..."
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    {trialEditError && (
+                      <p className="text-sm text-red-600 font-medium">{trialEditError}</p>
+                    )}
+
                     <div className="flex gap-3 pt-1">
                       <button
-                        onClick={saveClaimEdit}
-                        disabled={claimSaving}
-                        className="bg-emerald-600 text-white text-sm px-5 py-2 rounded-xl font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                        onClick={saveTrialEdit}
+                        disabled={trialEditSaving}
+                        className="bg-emerald-600 text-white text-sm px-5 py-2.5 rounded-xl font-semibold hover:bg-emerald-700 disabled:opacity-50"
                       >
-                        {claimSaving ? "Saving..." : "Save Dates"}
+                        {trialEditSaving ? "Saving..." : "Save Changes"}
                       </button>
                       <button
-                        onClick={cancelClaimEdit}
-                        className="text-slate-600 text-sm px-5 py-2 rounded-xl hover:bg-slate-100"
+                        onClick={cancelTrialEdit}
+                        className="text-slate-600 text-sm px-5 py-2.5 rounded-xl hover:bg-slate-100"
                       >
                         Cancel
                       </button>
@@ -862,112 +791,6 @@ export default function ClubTrialsPage() {
                         className="text-slate-600 text-sm px-4 py-2 rounded-lg hover:bg-slate-100"
                       >
                         Never mind
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── Full edit form (own submissions) ── */}
-                {editingId === trial.id && (
-                  <div className="p-5 space-y-4">
-                    <h3 className="font-bold text-slate-800 text-base">Editing: {trial.trial_name}</h3>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Organization</label>
-                        <select name="organization" value={editForm.organization} onChange={handleEditChange}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                          <option>NACSW</option><option>UKI</option><option>CPE</option><option>Other</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Sport</label>
-                        <select name="sport" value={editForm.sport} onChange={handleEditChange}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                          <option>Nosework</option><option>Agility</option><option>Rally</option><option>Obedience</option><option>Other</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Trial Name</label>
-                      <input name="trial_name" value={editForm.trial_name || ""} onChange={handleEditChange}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Trial Host</label>
-                      <input name="trial_host" value={editForm.trial_host || ""} onChange={handleEditChange}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Venue / Location Name</label>
-                      <input name="location_name" value={editForm.location_name || ""} onChange={handleEditChange}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">City</label>
-                        <input name="city" value={editForm.city || ""} onChange={handleEditChange}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">State</label>
-                        <select name="state" value={editForm.state || ""} onChange={handleEditChange}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                          <option value="">Select state</option>
-                          {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Trial Start Date</label>
-                        <input type="date" name="trial_start_date" value={editForm.trial_start_date || ""} onChange={handleEditChange}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Trial End Date</label>
-                        <input type="date" name="trial_end_date" value={editForm.trial_end_date || ""} onChange={handleEditChange}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Trial Entry Opens</label>
-                        <input type="date" name="entry_opening_date" value={editForm.entry_opening_date || ""} onChange={handleEditChange}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Trial Entry Closes</label>
-                        <input type="date" name="entry_closing_date" value={editForm.entry_closing_date || ""} onChange={handleEditChange}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Official Link</label>
-                      <input type="url" name="official_link" value={editForm.official_link || ""} onChange={handleEditChange}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    </div>
-
-                    <div className="flex gap-3 pt-2">
-                      <button
-                        onClick={saveEdit}
-                        disabled={saving}
-                        className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm px-5 py-2.5 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50"
-                      >
-                        {saving ? "Saving..." : "Save Changes"}
-                      </button>
-                      <button
-                        onClick={cancelEdit}
-                        className="text-slate-600 text-sm px-5 py-2.5 rounded-xl hover:bg-slate-100"
-                      >
-                        Cancel
                       </button>
                     </div>
                   </div>
