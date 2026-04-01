@@ -5,8 +5,10 @@ import { supabase } from "@/lib/supabaseClient";
 
 
 const CSV_COLUMNS = [
-  "organization","sport","trial_name","trial_start_date","trial_end_date",
-  "city","state","trial_location","trial_address","entry_open_date","entry_close_date","premium_url",
+  "organization","sport","trial_name","trial_host","location_name","street",
+  "city","state","zip","trial_start_date","trial_end_date",
+  "entry_opening_date","entry_closing_date","pre_entry_date","day_of_show_fee",
+  "premium_url","official_link","club_website",
 ];
 
 const getOneYearAgoIso = () => {
@@ -228,8 +230,10 @@ export default function ClubTrialsPage() {
   const downloadTemplate = () => {
     const header = CSV_COLUMNS.join(",");
     const example = [
-      "NACSW", "Nosework", "Spring Nosework Trial", "2026-05-01", "2026-05-02",
-      "Portland", "OR", "Expo Center", "123 Main St", "2026-03-15", "2026-04-01", "https://example.com/premium.pdf",
+      "NACSW", "Nosework", "Spring Trial", "My Nosework Club", "Canine Sports Center", "123 Main St",
+      "Chicago", "IL", "60601", "2026-06-01", "2026-06-02",
+      "2026-04-15", "2026-05-15", "", "",
+      "https://myclub.com/premium.pdf", "https://myclub.com", "https://myclub.com",
     ].join(",");
     const csv = `${header}\n${example}\n`;
     const blob = new Blob([csv], { type: "text/csv" });
@@ -279,16 +283,21 @@ export default function ClubTrialsPage() {
         organization: r.organization || "NACSW",
         sport: r.sport || "Nosework",
         trial_name: r.trial_name,
-        trial_host: clubName,
+        trial_host: r.trial_host || clubName,
         city: r.city,
         state: r.state,
-        location_name: r.trial_location || null,
-        street: r.trial_address || null,
+        zip: r.zip || null,
+        location_name: r.location_name || null,
+        street: r.street || null,
         trial_start_date: r.trial_start_date,
         trial_end_date: r.trial_end_date || r.trial_start_date,
-        entry_opening_date: r.entry_open_date || null,
-        entry_closing_date: r.entry_close_date || null,
+        entry_opening_date: r.entry_opening_date || null,
+        entry_closing_date: r.entry_closing_date || null,
+        pre_entry_date: r.pre_entry_date || null,
+        day_of_show_fee: r.day_of_show_fee || null,
         premium_url: r.premium_url || null,
+        official_link: r.official_link || null,
+        club_website: r.club_website || null,
         user_id: userId,
         data_source: "club_submitted",
         cancelled: false,
@@ -563,7 +572,11 @@ export default function ClubTrialsPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <>
+            <div className="bg-green-50 border border-green-200 rounded-xl px-5 py-3 mb-4">
+              <span className="text-green-700 text-sm font-semibold">✓ Managing</span>
+            </div>
+            <div className="space-y-4">
             {trials.map((trial) => (
               <div
                 key={trial.id}
@@ -605,11 +618,7 @@ export default function ClubTrialsPage() {
                           <span className="text-xs font-bold uppercase tracking-wide text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
                             {trial.sport}
                           </span>
-                          {trial.data_source === "club_submitted" && isOwnSubmission(trial) && (
-                            <span className="text-xs text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200">
-                              CSV upload
-                            </span>
-                          )}
+
                         </div>
                         <h3 className="text-lg font-bold text-slate-800">{trial.trial_name}</h3>
                         <p className="text-sm text-slate-500">{trial.trial_host}</p>
@@ -798,6 +807,7 @@ export default function ClubTrialsPage() {
               </div>
             ))}
           </div>
+          </>
         )}
       </div>
     </div>
