@@ -436,10 +436,16 @@ export default function TrialsPage() {
             const closingDate  = trial.entry_closing_date ? parseDate(trial.entry_closing_date) : null;
             const trialStart   = trial.trial_start_date   ? parseDate(trial.trial_start_date)   : null;
 
-            const entriesClosed  = (closingDate !== null && today >= closingDate)
-                                 || (openingDate !== null && today > openingDate && closingDate === null);
-            const entriesOpenNow = openingDate !== null && closingDate !== null
-              && today >= openingDate && today <= closingDate;
+            // NACSW with no closing date: treat entry window as 48 hours after opening
+            const nacsw48hCutoff = (trial.organization === 'NACSW' && openingDate !== null && closingDate === null)
+              ? new Date(openingDate.getTime() + 48 * 60 * 60 * 1000)
+              : null;
+            const effectiveClosingDate = closingDate ?? nacsw48hCutoff;
+
+            const entriesClosed  = (effectiveClosingDate !== null && today >= effectiveClosingDate)
+                                 || (openingDate !== null && today > openingDate && effectiveClosingDate === null);
+            const entriesOpenNow = openingDate !== null && effectiveClosingDate !== null
+              && today >= openingDate && today < effectiveClosingDate;
             const daysUntilOpen  = openingDate !== null && !entriesClosed && today < openingDate
               ? Math.round((openingDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
               : null;

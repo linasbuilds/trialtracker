@@ -438,7 +438,6 @@ export default function ClubTrialsPage() {
   };
 
   const isOwnSubmission = (t: Trial) => t.user_id === userId;
-  const isClaimedByMe = (t: Trial) => t.claimed && t.claimed_by === userId;
 
   const isManagedByMe = (t: Trial) =>
     t.claimed_by === userId || t.user_id === userId ||
@@ -607,12 +606,6 @@ export default function ClubTrialsPage() {
                   </div>
                 )}
 
-                {/* Managing banner */}
-                {isClaimedByMe(trial) && (
-                  <div className="bg-green-50 border-b border-green-200 px-5 py-2">
-                    <span className="text-green-700 text-sm font-semibold">✓ Managing</span>
-                  </div>
-                )}
 
                 {/* Trial summary */}
                 {trialEditId !== trial.id && (
