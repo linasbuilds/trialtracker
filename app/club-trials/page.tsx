@@ -442,11 +442,13 @@ export default function ClubTrialsPage() {
   const saveClaimEdit = async () => {
     if (!claimEditId || !userId) return;
     setClaimSaving(true);
+    const opening = claimEditForm.entry_opening_date || null;
+    const closing = claimEditForm.entry_closing_date || null;
     const { error } = await supabase
       .from("trials")
       .update({
-        entry_opening_date: claimEditForm.entry_opening_date || null,
-        entry_closing_date: claimEditForm.entry_closing_date || null,
+        entry_opening_date: opening,
+        entry_closing_date: closing,
       })
       .eq("id", claimEditId)
       .eq("claimed_by", userId);
@@ -454,9 +456,15 @@ export default function ClubTrialsPage() {
     if (error) {
       showMessage("Error saving entry dates. Please try again.", "error");
     } else {
-      showMessage("Entry dates saved! Handlers will see them right away. ✅", "success");
+      setTrials((prev) =>
+        prev.map((t) =>
+          t.id === claimEditId
+            ? { ...t, entry_opening_date: opening ?? "", entry_closing_date: closing ?? "" }
+            : t
+        )
+      );
       setClaimEditId(null);
-      fetchTrials();
+      showMessage("Entry dates saved! Handlers will see them right away. ✅", "success");
     }
     setClaimSaving(false);
   };
@@ -640,9 +648,8 @@ export default function ClubTrialsPage() {
 
                 {/* Managing banner */}
                 {isClaimedByMe(trial) && (
-                  <div className="bg-green-50 border-b border-green-200 px-5 py-2 flex items-center gap-2">
+                  <div className="bg-green-50 border-b border-green-200 px-5 py-2">
                     <span className="text-green-700 text-sm font-semibold">✓ Managing</span>
-                    <span className="text-xs text-green-600">Scrapers will never overwrite your entry dates.</span>
                   </div>
                 )}
 
@@ -745,7 +752,7 @@ export default function ClubTrialsPage() {
                       </div>
                       <div>
                         <span className="font-medium text-slate-700">Trial Entry Closes: </span>
-                        {formatDate(trial.entry_closing_date)}
+                        {trial.entry_closing_date ? formatDate(trial.entry_closing_date) : <span className="text-slate-400 italic">TBD</span>}
                       </div>
                       <div className="flex items-center gap-3 flex-wrap">
                         {trial.official_link && !trial.official_link.startsWith("club-upload://") && (
