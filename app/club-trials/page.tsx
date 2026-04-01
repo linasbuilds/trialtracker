@@ -144,8 +144,9 @@ export default function ClubTrialsPage() {
 
   const fetchTrials = async () => {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoading(false); return; }
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) { setLoading(false); return; }
 
     setUserId(user.id);
 
@@ -157,17 +158,16 @@ export default function ClubTrialsPage() {
 
     if (profile?.role !== "club") { setLoading(false); return; }
 
-    const name = profile?.club_name || "";
-    setClubName(name);
+    setClubName(profile?.club_name || "");
 
-    const { data, error } = await supabase
-      .from("trials")
-      .select("*")
-      .eq("claimed_by", user.id)
-      .order("trial_start_date", { ascending: true });
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch("/api/my-trials", {
+      headers: { "Authorization": `Bearer ${session?.access_token}` },
+    });
 
-    if (!error && data) {
-      setTrials(data as Trial[]);
+    if (res.ok) {
+      const body = await res.json();
+      setTrials(body.trials ?? []);
     }
     setLoading(false);
   };
