@@ -60,6 +60,8 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
   }
 
+  updates['data_source'] = 'club_submitted';
+
   const { error } = await supabase
     .from('trials')
     .update(updates)
