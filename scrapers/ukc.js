@@ -152,24 +152,24 @@ async function scrapeEntryDates(page, url) {
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
   await sleep(500);
 
-  const rawDates = await page.evaluate(() => {
+  const { openText, closeText, dosText } = await page.evaluate(() => {
     const body = document.body.innerText || '';
 
-    const openMatch  = body.match(/Entries Open:\s*([A-Za-z]+ \d{1,2},? \d{4}|\d{1,2}\/\d{1,2}\/\d{4})/i);
-    const closeMatch = body.match(/Pre-Entry Deadline:\s*(?:Received By\s*)?([A-Za-z]+ \d{1,2},? \d{4}|\d{1,2}\/\d{1,2}\/\d{4})/i);
+    const openMatch  = body.match(/Entries Open:\s*([A-Za-z]+ \d{1,2},?\s*\d{4}|\d{1,2}\/\d{1,2}\/\d{4})/i);
+    const closeMatch = body.match(/Pre-Entry Deadline:\s*(?:Received By\s*)?([A-Za-z]+ \d{1,2},?\s*\d{4}|\d{1,2}\/\d{1,2}\/\d{4})/i);
     const dosMatch   = body.match(/Day of Show Fees[\s\S]*?\$([\d.]+)/i);
 
     return {
-      openText:  openMatch  ? openMatch[1].trim()  : null,
-      closeText: closeMatch ? closeMatch[1].trim() : null,
-      dosText:   dosMatch   ? dosMatch[1].trim()   : null,
+      openText:  openMatch  ? openMatch[1]  : null,
+      closeText: closeMatch ? closeMatch[1] : null,
+      dosText:   dosMatch   ? dosMatch[1]   : null,
     };
   });
 
   return {
-    opening:      parseEntryDate(rawDates.openText),
-    closing:      parseEntryDate(rawDates.closeText),
-    dayOfShowFee: rawDates.dosText || null,
+    opening:      parseEntryDate(openText),
+    closing:      parseEntryDate(closeText),
+    dayOfShowFee: dosText || null,
   };
 }
 
