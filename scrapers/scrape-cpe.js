@@ -184,10 +184,14 @@ async function parsePdfOpeningDate(pdfUrl) {
     const buf = await fetchBuffer(pdfUrl);
     const { text } = await extractText(new Uint8Array(buf), { mergePages: true });
     const m = CPE_OPENING_RE.exec(text);
-    return m ? parseWordyDate(m[1]) : null;
+    const openingDate = m ? parseWordyDate(m[1]) : null;
+    const dosMatch = text.match(/day\s+of\s+show\s+entr(?:y|ies)[^$]*\$\s*(\d+(?:\.\d{2})?)/i)
+      || text.match(/additional\s+\$\s*(\d+(?:\.\d{2})?)\s+per\s+(?:run|class)/i);
+    const dayOfShowFee = dosMatch ? dosMatch[1] : null;
+    return { openingDate, dayOfShowFee };
   } catch (err) {
     console.log(`    ⚠️  PDF parse error for ${pdfUrl}: ${err.message}`);
-    return null;
+    return { openingDate: null, dayOfShowFee: null };
   }
 }
 
@@ -420,6 +424,7 @@ async function main() {
       trial_end_date:     endDate || null,
       entry_opening_date: null,
       entry_closing_date: parseMDY(ev.rawClosing),
+      day_of_show_fee:    null,
       club_website:       ev.website || null,
       official_link:      ev.officialLink,
       cancelled:          false,
@@ -428,12 +433,16 @@ async function main() {
 
     if (ev.premiumPdfUrl && trial.entry_opening_date === null) {
       console.log(`  📄 PDF: ${ev.premiumPdfUrl}`);
-      const opening = await parsePdfOpeningDate(ev.premiumPdfUrl);
-      if (opening) {
-        trial.entry_opening_date = opening;
-        console.log(`  📅 Opening date from PDF: ${opening}`);
+      const { openingDate, dayOfShowFee } = await parsePdfOpeningDate(ev.premiumPdfUrl);
+      if (openingDate) {
+        trial.entry_opening_date = openingDate;
+        console.log(`  📅 Opening date from PDF: ${openingDate}`);
       } else {
         console.log(`      ❌ No opening date found in PDF`);
+      }
+      if (dayOfShowFee) {
+        trial.day_of_show_fee = dayOfShowFee;
+        console.log(`  💵 Day-of-show fee from PDF: $${dayOfShowFee}`);
       }
       await sleep(500);
     }

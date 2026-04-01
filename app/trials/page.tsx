@@ -113,6 +113,7 @@ interface Trial {
   entry_opening_date: string;
   entry_closing_date: string;
   pre_entry_date?: string;
+  day_of_show_fee?: string | null;
   premium_url?: string;
 
   trial_url?: string;
@@ -566,6 +567,10 @@ export default function TrialsPage() {
                   ) : trial.entry_opening_date ? (
                     <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-600 text-sm font-medium mb-3">
                       Entry opens {formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                    </div>
+                  ) : trial.organization === 'CPE' && !trial.entry_opening_date && closingDate !== null && today < closingDate ? (
+                    <div className="bg-sky-50 border border-sky-200 rounded-lg px-3 py-2 text-sky-700 text-sm font-medium mb-3">
+                      Entries open — check premium
                     </div>
                   ) : noEntryDates && isNACSW && daysUntilTrial !== null && daysUntilTrial >= 84 ? (
                     <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-500 text-sm font-medium mb-3">
