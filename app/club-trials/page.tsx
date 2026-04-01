@@ -11,12 +11,6 @@ const CSV_COLUMNS = [
   "premium_url","official_link","club_website",
 ];
 
-const getOneYearAgoIso = () => {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - 365);
-  return d.toISOString().split("T")[0];
-};
 
 const getTodayIso = () => {
   const d = new Date();
@@ -132,7 +126,6 @@ export default function ClubTrialsPage() {
 
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error">("success");
-  const oneYearAgo = getOneYearAgoIso();
   const today = getTodayIso();
 
   useEffect(() => {
@@ -170,8 +163,7 @@ export default function ClubTrialsPage() {
     const { data, error } = await supabase
       .from("trials")
       .select("*")
-      .gte("trial_start_date", oneYearAgo)
-      .or(`user_id.eq.${user.id},claimed_by.eq.${user.id}`)
+      .eq("claimed_by", user.id)
       .order("trial_start_date", { ascending: true });
 
     if (!error && data) {
