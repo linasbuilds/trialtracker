@@ -145,24 +145,29 @@ export default function ClubTrialsPage() {
   const fetchTrials = async () => {
     setLoading(true);
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) { setLoading(false); return; }
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session?.access_token) { setLoading(false); return; }
 
-    setUserId(user.id);
+    // Only fetch profile/role once (not on subsequent refreshes after upload/manage)
+    if (!userId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
+      setUserId(user.id);
 
-    const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("club_name, role")
-      .eq("user_id", user.id)
-      .single();
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("club_name, role")
+        .eq("user_id", user.id)
+        .single();
 
-    if (profile?.role !== "club") { setLoading(false); return; }
+      // Only block if we got a row back and it's explicitly not "club"
+      if (profile && profile.role !== "club") { setLoading(false); return; }
 
-    setClubName(profile?.club_name || "");
+      setClubName(profile?.club_name || "");
+    }
 
-    const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch("/api/my-trials", {
-      headers: { "Authorization": `Bearer ${session?.access_token}` },
+      headers: { "Authorization": `Bearer ${session.access_token}` },
     });
 
     if (res.ok) {
