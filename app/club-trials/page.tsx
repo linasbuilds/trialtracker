@@ -298,11 +298,6 @@ export default function ClubTrialsPage() {
         premium_url: r.premium_url || null,
         official_link: r.official_link || null,
         club_website: r.club_website || null,
-        user_id: userId,
-        data_source: "club_submitted",
-        cancelled: false,
-        claimed: true,
-        claimed_by: userId,
       }));
 
     if (payload.length === 0) {
@@ -311,14 +306,27 @@ export default function ClubTrialsPage() {
       return;
     }
 
-    const { error } = await supabase
-      .from("trials")
-      .upsert(payload, { onConflict: "trial_host,trial_start_date,organization,city" });
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch("/api/upload-csv", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session?.access_token}`,
+      },
+      body: JSON.stringify({ rows: payload }),
+    });
 
-    if (error) {
-      setCsvError(`Import failed: ${error.message}`);
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setCsvError(`Import failed: ${result.error || "Unknown error"}`);
     } else {
-      showMessage(`✅ Imported ${payload.length} trial${payload.length !== 1 ? "s" : ""} successfully!`, "success");
+      const { inserted = 0, updated = 0, errors = [] } = result;
+      const total = inserted + updated;
+      showMessage(
+        `✅ ${total} trial${total !== 1 ? "s" : ""} imported (${inserted} new, ${updated} updated)${errors.length ? ` — ${errors.length} row(s) skipped` : ""}!`,
+        "success"
+      );
+      if (errors.length) setCsvError(errors.join("\n"));
       fetchTrials();
     }
     setCsvImporting(false);
