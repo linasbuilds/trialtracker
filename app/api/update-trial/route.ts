@@ -13,6 +13,13 @@ const ALLOWED_FIELDS = [
   'premium_url',
   'official_link',
   'location_name',
+  'street',
+  'city',
+  'state',
+  'zip',
+  'club_website',
+  'pre_entry_date',
+  'day_of_show_fee',
 ] as const;
 
 export async function PATCH(req: NextRequest) {

@@ -25,14 +25,19 @@ interface Trial {
   trial_name: string;
   trial_host: string;
   location_name: string;
+  street: string;
   city: string;
   state: string;
+  zip: string;
   trial_start_date: string;
   trial_end_date: string;
   entry_opening_date: string;
   entry_closing_date: string;
   official_link: string;
   premium_url?: string;
+  club_website?: string;
+  pre_entry_date?: string;
+  day_of_show_fee?: string;
   cancelled: boolean;
   claimed: boolean;
   claimed_by: string | null;
@@ -47,6 +52,13 @@ interface TrialEditForm {
   premium_url: string;
   official_link: string;
   location_name: string;
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+  club_website: string;
+  pre_entry_date: string;
+  day_of_show_fee: string;
 }
 
 // ── Simple CSV parser (handles quoted fields) ─────────────────────────────────
@@ -106,6 +118,13 @@ export default function ClubTrialsPage() {
     premium_url: "",
     official_link: "",
     location_name: "",
+    street: "",
+    city: "",
+    state: "",
+    zip: "",
+    club_website: "",
+    pre_entry_date: "",
+    day_of_show_fee: "",
   });
   const [trialEditSaving, setTrialEditSaving] = useState(false);
   const [trialEditError, setTrialEditError] = useState("");
@@ -343,6 +362,13 @@ export default function ClubTrialsPage() {
         ? trial.official_link
         : "",
       location_name: trial.location_name || "",
+      street: trial.street || "",
+      city: trial.city || "",
+      state: trial.state || "",
+      zip: trial.zip || "",
+      club_website: trial.club_website || "",
+      pre_entry_date: trial.pre_entry_date || "",
+      day_of_show_fee: trial.day_of_show_fee || "",
     });
   };
 
@@ -381,6 +407,13 @@ export default function ClubTrialsPage() {
                 premium_url: saved.premium_url || undefined,
                 official_link: saved.official_link || t.official_link,
                 location_name: saved.location_name,
+                street: saved.street,
+                city: saved.city,
+                state: saved.state,
+                zip: saved.zip,
+                club_website: saved.club_website || undefined,
+                pre_entry_date: saved.pre_entry_date || undefined,
+                day_of_show_fee: saved.day_of_show_fee || undefined,
               }
             : t
         )
@@ -689,73 +722,94 @@ export default function ClubTrialsPage() {
                 {/* ── Unified edit panel ── */}
                 {trialEditId === trial.id && (
                   <div className="p-5 space-y-4">
+
+                    {/* Entry dates */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Trial Entry Opens</label>
-                        <input
-                          type="date"
-                          name="entry_opening_date"
-                          value={trialEditForm.entry_opening_date}
-                          onChange={handleTrialEditChange}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        />
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Entry Opens</label>
+                        <input type="date" name="entry_opening_date" value={trialEditForm.entry_opening_date} onChange={handleTrialEditChange}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Trial Entry Closes</label>
-                        <input
-                          type="date"
-                          name="entry_closing_date"
-                          value={trialEditForm.entry_closing_date}
-                          onChange={handleTrialEditChange}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        />
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Entry Closes</label>
+                        <input type="date" name="entry_closing_date" value={trialEditForm.entry_closing_date} onChange={handleTrialEditChange}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                       </div>
                     </div>
 
+                    {/* Pre-entry / day-of-show */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Pre-Entry Date</label>
+                        <input type="date" name="pre_entry_date" value={trialEditForm.pre_entry_date} onChange={handleTrialEditChange}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Day-of-Show Fee</label>
+                        <input type="text" name="day_of_show_fee" value={trialEditForm.day_of_show_fee} onChange={handleTrialEditChange}
+                          placeholder="e.g. $20"
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                      </div>
+                    </div>
+
+                    {/* Trial name */}
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Trial Name</label>
-                      <input
-                        type="text"
-                        name="trial_name"
-                        value={trialEditForm.trial_name}
-                        onChange={handleTrialEditChange}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
+                      <input type="text" name="trial_name" value={trialEditForm.trial_name} onChange={handleTrialEditChange}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                    </div>
+
+                    {/* Location */}
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Location Name</label>
+                      <input type="text" name="location_name" value={trialEditForm.location_name} onChange={handleTrialEditChange}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Location Name</label>
-                      <input
-                        type="text"
-                        name="location_name"
-                        value={trialEditForm.location_name}
-                        onChange={handleTrialEditChange}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Street Address</label>
+                      <input type="text" name="street" value={trialEditForm.street} onChange={handleTrialEditChange}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                    </div>
+
+                    <div className="grid grid-cols-5 gap-3">
+                      <div className="col-span-2">
+                        <label className="block text-xs font-medium text-slate-600 mb-1">City</label>
+                        <input type="text" name="city" value={trialEditForm.city} onChange={handleTrialEditChange}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                      </div>
+                      <div className="col-span-1">
+                        <label className="block text-xs font-medium text-slate-600 mb-1">State</label>
+                        <input type="text" name="state" value={trialEditForm.state} onChange={handleTrialEditChange} maxLength={2}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Zip</label>
+                        <input type="text" name="zip" value={trialEditForm.zip} onChange={handleTrialEditChange}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                      </div>
+                    </div>
+
+                    {/* URLs */}
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Club Website</label>
+                      <input type="url" name="club_website" value={trialEditForm.club_website} onChange={handleTrialEditChange}
+                        placeholder="https://..."
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                     </div>
 
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Premium URL</label>
-                      <input
-                        type="url"
-                        name="premium_url"
-                        value={trialEditForm.premium_url}
-                        onChange={handleTrialEditChange}
+                      <input type="url" name="premium_url" value={trialEditForm.premium_url} onChange={handleTrialEditChange}
                         placeholder="https://..."
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                     </div>
 
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Official Link</label>
-                      <input
-                        type="url"
-                        name="official_link"
-                        value={trialEditForm.official_link}
-                        onChange={handleTrialEditChange}
+                      <input type="url" name="official_link" value={trialEditForm.official_link} onChange={handleTrialEditChange}
                         placeholder="https://..."
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                     </div>
 
                     {trialEditError && (
