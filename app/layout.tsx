@@ -59,13 +59,6 @@ function Header() {
                 </a>
               </>
             )}
-            {userRole === "club" && (
-              <>
-                <a href="/club-trials" className="px-4 py-2 text-slate-600 hover:text-blue-600 font-medium transition-all">
-                  📋 My Trials
-                </a>
-              </>
-            )}
             <button
               onClick={handleLogout}
               className="px-4 py-2 text-slate-500 hover:text-red-500 font-medium transition-all border border-slate-200 rounded-lg hover:border-red-200"
@@ -96,13 +89,6 @@ function Header() {
               </a>
               <a href="/preferences" onClick={() => setMenuOpen(false)} className="block px-4 py-3 text-slate-700 hover:bg-slate-50 rounded-lg font-medium">
                 ⚙️ Preferences
-              </a>
-            </>
-          )}
-          {userRole === "club" && (
-            <>
-              <a href="/club-trials" onClick={() => setMenuOpen(false)} className="block px-4 py-3 text-slate-700 hover:bg-slate-50 rounded-lg font-medium">
-                📋 My Trials
               </a>
             </>
           )}

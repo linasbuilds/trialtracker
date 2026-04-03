@@ -104,10 +104,9 @@ function splitCSVLine(line: string): string[] {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function ClubTrialsPage() {
-  const [trials, setTrials] = useState<Trial[]>([]);
-  const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [clubName, setClubName] = useState("");
+  const [initialLoading, setInitialLoading] = useState(true);
 
   // Unified edit panel state
   const [trialEditId, setTrialEditId] = useState<string | null>(null);
@@ -137,7 +136,7 @@ export default function ClubTrialsPage() {
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvError, setCsvError] = useState("");
 
-  // Search state
+  // Search state — also used for initial auto-load of managed trials
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Trial[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -148,52 +147,63 @@ export default function ClubTrialsPage() {
   const today = getTodayIso();
 
   useEffect(() => {
-    fetchTrials();
+    initPage();
   }, []);
 
-  // Debounced search
+  // Debounced search — only fires when user has typed something
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
+    if (!searchQuery.trim()) return;
     const timer = setTimeout(() => searchTrials(searchQuery), 400);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const fetchTrials = async () => {
-    setLoading(true);
+  // On mount: resolve user identity, then load their managed trials into search results
+  const initPage = async () => {
+    setInitialLoading(true);
 
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !session?.access_token) { setLoading(false); return; }
+    if (sessionError || !session?.access_token) { setInitialLoading(false); return; }
 
-    // Only fetch profile/role once (not on subsequent refreshes after upload/manage)
-    if (!userId) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
-      setUserId(user.id);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setInitialLoading(false); return; }
+    setUserId(user.id);
 
-      const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("club_name, role")
-        .eq("user_id", user.id)
-        .single();
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("club_name, role")
+      .eq("user_id", user.id)
+      .single();
 
-      // Only block if we got a row back and it's explicitly not "club"
-      if (profile && profile.role !== "club") { setLoading(false); return; }
+    if (profile && profile.role !== "club") { setInitialLoading(false); return; }
+    setClubName(profile?.club_name || "");
 
-      setClubName(profile?.club_name || "");
-    }
-
+    // Load managed trials into the search results area
     const res = await fetch("/api/my-trials", {
       headers: { "Authorization": `Bearer ${session.access_token}` },
     });
-
     if (res.ok) {
       const body = await res.json();
-      setTrials(body.trials ?? []);
+      setSearchResults(body.trials ?? []);
     }
-    setLoading(false);
+    setInitialLoading(false);
+  };
+
+  // Reload managed trials (after CSV upload, manage, edit, cancel/restore)
+  const reloadManagedTrials = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    const res = await fetch("/api/my-trials", {
+      headers: { "Authorization": `Bearer ${session.access_token}` },
+    });
+    if (res.ok) {
+      const body = await res.json();
+      // If user has typed a search, don't clobber the results — merge by re-running search
+      if (searchQuery.trim()) {
+        searchTrials(searchQuery);
+      } else {
+        setSearchResults(body.trials ?? []);
+      }
+    }
   };
 
   const showMessage = (text: string, type: "success" | "error") => {
@@ -205,7 +215,7 @@ export default function ClubTrialsPage() {
   // ── Search ─────────────────────────────────────────────────────────────────
 
   const searchTrials = async (q: string) => {
-    if (!q.trim()) { setSearchResults([]); return; }
+    if (!q.trim()) return;
     setSearchLoading(true);
     const { data, error } = await supabase
       .from("trials")
@@ -232,7 +242,7 @@ export default function ClubTrialsPage() {
     });
     if (res.ok) {
       showMessage("Trial added to your managed list! ✅", "success");
-      fetchTrials();
+      reloadManagedTrials();
       if (searchQuery.trim()) searchTrials(searchQuery);
     } else {
       const body = await res.json().catch(() => ({}));
@@ -343,7 +353,7 @@ export default function ClubTrialsPage() {
         "success"
       );
       if (errors.length) setCsvError(errors.join("\n"));
-      fetchTrials();
+      reloadManagedTrials();
     }
     setCsvImporting(false);
   };
@@ -396,7 +406,7 @@ export default function ClubTrialsPage() {
     });
     if (res.ok) {
       const saved = trialEditForm;
-      setTrials((prev) =>
+      setSearchResults((prev) =>
         prev.map((t) =>
           t.id === trialEditId
             ? {
@@ -440,7 +450,7 @@ export default function ClubTrialsPage() {
     } else {
       showMessage("Trial marked as cancelled.", "success");
       setCancelConfirmId(null);
-      fetchTrials();
+      reloadManagedTrials();
     }
   };
 
@@ -454,7 +464,7 @@ export default function ClubTrialsPage() {
       showMessage("Error restoring trial. Please try again.", "error");
     } else {
       showMessage("Trial restored! It's live again. ✅", "success");
-      fetchTrials();
+      reloadManagedTrials();
     }
   };
 
@@ -468,12 +478,9 @@ export default function ClubTrialsPage() {
   };
 
   const isOwnSubmission = (t: Trial) => t.user_id === userId;
+  const isManagedByMe = (t: Trial) => t.claimed_by === userId || t.user_id === userId;
 
-  const isManagedByMe = (t: Trial) =>
-    t.claimed_by === userId || t.user_id === userId ||
-    trials.some((m) => m.id === t.id);
-
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
         <p className="text-slate-500">Loading your trials...</p>
@@ -536,8 +543,8 @@ export default function ClubTrialsPage() {
           </div>
         )}
 
-        {/* ── Find Your Trials search ── */}
-        <div className="mb-8">
+        {/* ── Search bar ── */}
+        <div className="mb-6">
           <label className="block text-sm font-semibold text-slate-700 mb-2">Find your trials</label>
           <div className="relative">
             <input
@@ -551,70 +558,19 @@ export default function ClubTrialsPage() {
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs">Searching…</span>
             )}
           </div>
-
           {searchQuery.trim() && !searchLoading && searchResults.length === 0 && (
             <p className="text-slate-500 text-sm mt-3 ml-1">No trials found matching &ldquo;{searchQuery}&rdquo;.</p>
           )}
-
-          {searchResults.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {searchResults.map((result) => {
-                const managed = isManagedByMe(result);
-                const isManaging = managingId === result.id;
-                const claimedByOther = result.claimed && result.claimed_by !== null && result.claimed_by !== userId && result.user_id !== userId;
-
-                return (
-                  <div
-                    key={result.id}
-                    className="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-center justify-between gap-4"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-slate-800 text-sm truncate">{result.trial_name || result.trial_host}</p>
-                      <p className="text-xs text-slate-500">
-                        {result.trial_host} · {formatDate(result.trial_start_date)}
-                        {result.city && result.state ? ` · ${result.city}, ${result.state}` : ""}
-                      </p>
-                    </div>
-                    <div className="flex-shrink-0">
-                      {managed ? (
-                        <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 text-xs font-semibold px-3 py-1.5 rounded-lg">
-                          ✓ Managing
-                        </span>
-                      ) : claimedByOther ? (
-                        <span className="text-xs text-slate-400 italic">Managed by another secretary</span>
-                      ) : (
-                        <button
-                          onClick={() => manageTrial(result.id)}
-                          disabled={isManaging}
-                          className="text-sm bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-1.5 rounded-lg transition-all disabled:opacity-50"
-                        >
-                          {isManaging ? "Adding…" : "Manage This Trial"}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
 
-        {/* ── Managed trials section ── */}
-        {trials.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-            <div className="text-5xl mb-4">🐾</div>
-            <h2 className="text-xl font-semibold text-slate-700 mb-2">No managed trials yet</h2>
-            <p className="text-slate-500">
-              Search for your club name above to find your trials.
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="bg-green-50 border border-green-200 rounded-xl px-5 py-3 mb-4">
-              <span className="text-green-700 text-sm font-semibold">✓ Managing</span>
-            </div>
-            <div className="space-y-4">
-            {trials.map((trial) => (
+        {/* ── Trial cards ── */}
+        <div className="space-y-4">
+          {searchResults.map((trial) => {
+            const managed = isManagedByMe(trial);
+            const isManaging = managingId === trial.id;
+            const claimedByOther = trial.claimed && trial.claimed_by !== null && trial.claimed_by !== userId && trial.user_id !== userId;
+
+            return (
               <div
                 key={trial.id}
                 className={`bg-white rounded-2xl border ${
@@ -636,7 +592,6 @@ export default function ClubTrialsPage() {
                   </div>
                 )}
 
-
                 {/* Trial summary */}
                 {trialEditId !== trial.id && (
                   <div className="p-5">
@@ -649,7 +604,11 @@ export default function ClubTrialsPage() {
                           <span className="text-xs font-bold uppercase tracking-wide text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
                             {trial.sport}
                           </span>
-
+                          {managed && (
+                            <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                              ✓ Managing
+                            </span>
+                          )}
                         </div>
                         <h3 className="text-lg font-bold text-slate-800">{trial.trial_name}</h3>
                         <p className="text-sm text-slate-500">{trial.trial_host}</p>
@@ -660,8 +619,8 @@ export default function ClubTrialsPage() {
                       </div>
 
                       {/* Action buttons */}
-                      <div className="flex gap-2 flex-shrink-0">
-                        {!trial.cancelled && (
+                      <div className="flex gap-2 flex-shrink-0 flex-wrap justify-end">
+                        {managed && !trial.cancelled && (
                           <button
                             onClick={() => startTrialEdit(trial)}
                             className="text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-1.5 rounded-lg transition-all"
@@ -676,6 +635,18 @@ export default function ClubTrialsPage() {
                           >
                             🚫 Cancel
                           </button>
+                        )}
+                        {!managed && !claimedByOther && (
+                          <button
+                            onClick={() => manageTrial(trial.id)}
+                            disabled={isManaging}
+                            className="text-sm bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-1.5 rounded-lg transition-all disabled:opacity-50"
+                          >
+                            {isManaging ? "Adding…" : "Manage This Trial"}
+                          </button>
+                        )}
+                        {claimedByOther && (
+                          <span className="text-xs text-slate-400 italic self-center">Managed by another secretary</span>
                         )}
                       </div>
                     </div>
@@ -857,10 +828,10 @@ export default function ClubTrialsPage() {
                   </div>
                 )}
               </div>
-            ))}
-          </div>
-          </>
-        )}
+            );
+          })}
+        </div>
+
       </div>
     </div>
   );
