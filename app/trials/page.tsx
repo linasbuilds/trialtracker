@@ -193,6 +193,7 @@ export default function TrialsPage() {
   const [openDropdown, setOpenDropdown] = useState<{ trialId: string; type: "trial" | "reminder" } | null>(null);
   const [closedExpanded, setClosedExpanded] = useState(false);
   const [disclaimerExpanded, setDisclaimerExpanded] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [isFoundingHandler, setIsFoundingHandler] = useState(false);
   const oneYearAgo = getOneYearAgoIso();
@@ -223,6 +224,12 @@ export default function TrialsPage() {
         setIsFoundingHandler(profile.role === "handler" && !!profile.created_at && new Date(profile.created_at) < new Date("2026-07-01"));
       }
     })();
+  }, []);
+
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 300);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   const fetchTrials = async () => {
@@ -329,8 +336,8 @@ export default function TrialsPage() {
   };
 
   const byStart = (a: Trial, b: Trial) => (a.trial_start_date || '').localeCompare(b.trial_start_date || '');
-  const openingSoonTrials = filteredTrials.filter(t => classifyTrial(t) === 'openingSoon').sort(byStart);
-  const openNowTrials     = filteredTrials.filter(t => classifyTrial(t) === 'openNow').sort(byStart);
+  const openingSoonTrials = filteredTrials.filter(t => classifyTrial(t) === 'openingSoon' && !t.cancelled).sort(byStart);
+  const openNowTrials     = filteredTrials.filter(t => classifyTrial(t) === 'openNow' && !t.cancelled).sort(byStart);
   const upcomingTrials    = filteredTrials.filter(t => classifyTrial(t) === 'upcoming').sort(byStart);
   const closedTrials      = filteredTrials.filter(t => classifyTrial(t) === 'closed').sort(byStart);
 
@@ -450,7 +457,11 @@ export default function TrialsPage() {
           )}
         </div>
 
-        {entriesClosed ? (
+        {trial.cancelled ? (
+          <div className="bg-red-100 border border-red-300 rounded-lg px-4 py-2 text-red-700 text-sm font-medium mb-3 w-full text-center">
+            ⛔ Cancelled
+          </div>
+        ) : entriesClosed ? (
           <div className="bg-red-100 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-sm font-medium mb-3">
             Entries Closed
           </div>
@@ -677,31 +688,31 @@ export default function TrialsPage() {
         {/* Jump bar */}
         {!loading && filteredTrials.length > 0 && (
           <div className="mb-4">
-            <p className="text-xs text-slate-500 mb-2 font-medium">🐾 Sniff out what you&apos;re looking for:</p>
+            <p className="text-xs text-slate-500 mb-2 font-medium">🐾 Sniff out your trials here by clicking one of the below:</p>
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => document.getElementById('section-opening-soon')?.scrollIntoView({ behavior: 'smooth' })}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 transition-colors min-h-[44px]"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 hover:scale-105 transition-all shadow-sm cursor-pointer min-h-[44px]"
               >
-                🔔 <span className="font-bold">{openingSoonTrials.length}</span> Opening Soon
+                🔔 <span className="font-bold">{openingSoonTrials.length}</span> <span className="font-semibold">Opening Soon ↓</span>
               </button>
               <button
                 onClick={() => document.getElementById('section-open-now')?.scrollIntoView({ behavior: 'smooth' })}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-300 hover:bg-green-200 transition-colors min-h-[44px]"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-300 hover:bg-green-200 hover:scale-105 transition-all shadow-sm cursor-pointer min-h-[44px]"
               >
-                🟢 <span className="font-bold">{openNowTrials.length}</span> Open Now
+                🟢 <span className="font-bold">{openNowTrials.length}</span> <span className="font-semibold">Open Now ↓</span>
               </button>
               <button
                 onClick={() => document.getElementById('section-upcoming')?.scrollIntoView({ behavior: 'smooth' })}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200 transition-colors min-h-[44px]"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200 hover:scale-105 transition-all shadow-sm cursor-pointer min-h-[44px]"
               >
-                📅 <span className="font-bold">{upcomingTrials.length}</span> Upcoming
+                📅 <span className="font-bold">{upcomingTrials.length}</span> <span className="font-semibold">Upcoming ↓</span>
               </button>
               <button
                 onClick={() => document.getElementById('section-closed')?.scrollIntoView({ behavior: 'smooth' })}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors min-h-[44px]"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 hover:scale-105 transition-all shadow-sm cursor-pointer min-h-[44px]"
               >
-                🔴 <span className="font-bold">{closedTrials.length}</span> Closed
+                🔴 <span className="font-bold">{closedTrials.length}</span> <span className="font-semibold">Closed ↓</span>
               </button>
             </div>
           </div>
@@ -758,5 +769,16 @@ export default function TrialsPage() {
         </div>
       </div>
     </div>
+
+    {/* Back to top */}
+    {showBackToTop && (
+      <button
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xl shadow-lg flex items-center justify-center transition-opacity"
+        aria-label="Back to top"
+      >
+        ↑
+      </button>
+    )}
   );
 }
