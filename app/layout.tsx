@@ -8,12 +8,14 @@ function Header() {
   const router = useRouter();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const checkUserRole = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        setIsLoggedIn(true);
         const { data: profile } = await supabase
           .from("user_profiles")
           .select("role")
@@ -47,7 +49,7 @@ function Header() {
         </a>
 
         {/* Desktop Nav */}
-        {!loading && userRole && (
+        {!loading && isLoggedIn && (
           <nav className="hidden md:flex items-center gap-2">
             {userRole === "handler" && (
               <>
@@ -69,7 +71,7 @@ function Header() {
         )}
 
         {/* Mobile hamburger */}
-        {!loading && userRole && (
+        {!loading && isLoggedIn && (
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             className="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 text-xl"
@@ -80,7 +82,7 @@ function Header() {
       </div>
 
       {/* Mobile dropdown */}
-      {menuOpen && !loading && userRole && (
+      {menuOpen && !loading && isLoggedIn && (
         <div className="md:hidden bg-white border-t border-slate-200 px-4 py-3 space-y-1">
           {userRole === "handler" && (
             <>
