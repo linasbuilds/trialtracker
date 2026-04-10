@@ -3,7 +3,7 @@ name: Scrape NACSW Trials
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 10 * * *"
+    - cron: "0 11 * * 1,4"
 
 jobs:
   scrape:

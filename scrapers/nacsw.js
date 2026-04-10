@@ -36,7 +36,7 @@ const supabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
 const NACSW_URL   = 'https://www.nacsw.net/calendar/trials';
 const OUTPUT_FILE = path.join(__dirname, '..', 'trials.json');
 
-const ONE_TWENTY_DAYS_MS = 120 * 24 * 60 * 60 * 1000;
+const ONE_TWENTY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 const ONE_YEAR_DAYS_MS = 365 * 24 * 60 * 60 * 1000;
 
 const BLOCKED = [
@@ -159,7 +159,7 @@ function findEntryDates(text, refYear) {
 function downloadBuffer(url) {
   return new Promise((resolve, reject) => {
     const proto = url.startsWith('https') ? https : http;
-    proto.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+    proto.get(url, { headers: { 'User-Agent': 'TrialTracker-Bot/1.0 (trial aggregator; contact: trialtrackerapp@gmail.com)' } }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         return downloadBuffer(res.headers.location).then(resolve).catch(reject);
       }
@@ -259,8 +259,13 @@ async function main() {
   });
 
   const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    userAgent: 'TrialTracker-Bot/1.0 (trial aggregator; contact: trialtrackerapp@gmail.com)',
     viewport: { width: 1280, height: 800 },
+    extraHTTPHeaders: {
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.5',
+      'Accept-Encoding': 'gzip, deflate, br',
+    },
   });
 
   await context.addCookies([
@@ -419,7 +424,7 @@ async function main() {
 
   // ── 120-day filter ────────────────────────────────────────────────────────
   const qualifying = rawTrials.filter(t => isWithin120Days(t.startDate));
-  console.log(`📅 ${qualifying.length} trials within 120 days`);
+  console.log(`📅 ${qualifying.length} trials within 90 days`);
 
   if (qualifying.length === 0) {
     console.log('No trials within 120 days — saving empty file.');
