@@ -7,3 +7,4 @@ python-docx
 pypdf
 beautifulsoup4
 playwright
+google-genai

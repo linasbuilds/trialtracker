@@ -794,6 +794,45 @@ async def _pypdf_text(pdf_url: str) -> str:
         return ""
 
 
+# ── Gemini 2.5 Flash fallback ─────────────────────────────────────────────────
+
+def extract_dates_with_gemini(pdf_url: str) -> "str | None":
+    """
+    Send a PDF URL directly to Gemini 2.5 Flash and ask it to extract
+    the entry opening date. Returns a YYYY-MM-DD string or None.
+    No local downloading — Gemini fetches the PDF from the URL itself.
+    """
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        print("      ⚠️  GEMINI_API_KEY not set — skipping Gemini fallback")
+        return None
+    try:
+        import json
+        from google import genai
+        from google.genai import types
+        client = genai.Client(api_key=api_key)
+        prompt = (
+            'This is a dog sport trial premium document. Find the trial entry opening date only. '
+            'Return JSON only, no other text: {"entry_opening_date": "YYYY-MM-DD"}. '
+            'If you cannot find it return {"entry_opening_date": null}'
+        )
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                types.Part.from_uri(uri=pdf_url, mime_type="application/pdf"),
+                prompt,
+            ],
+        )
+        raw = response.text.strip()
+        raw = re.sub(r'^```(?:json)?\s*', '', raw, flags=re.MULTILINE)
+        raw = re.sub(r'```\s*$', '', raw, flags=re.MULTILINE)
+        data = json.loads(raw.strip())
+        return data.get("entry_opening_date") or None
+    except Exception as exc:
+        print(f"      ⚠️  Gemini extraction failed: {exc}")
+        return None
+
+
 async def _docx_text(url: str) -> str:
     """
     Download a .docx file with httpx and extract all paragraph text using python-docx.
@@ -1545,6 +1584,19 @@ async def _scrape_trial(
         else:
             print(f"      ❌ No date labels found in .docx")
             print(f"      🔍 .docx first 1000 chars: {docx_text[:1000]!r}")
+
+    # ── Step D½: Gemini 2.5 Flash fallback ────────────────────────────────────
+    if premium_url:
+        print(f"  🤖 Trying Gemini fallback for {trial_host}...")
+        gemini_date = extract_dates_with_gemini(premium_url)
+        if gemini_date:
+            print(f"  ✅ Gemini found: {gemini_date}")
+            if _entry_dates_plausible(gemini_date, start_date):
+                return gemini_date, None
+            else:
+                print(f"  ⚠️  Gemini date {gemini_date} failed plausibility check — ignoring")
+        else:
+            print(f"  ❌ Gemini also found nothing")
 
     # ── Step D: Give up ────────────────────────────────────────────────────────
     print(f"  ❌ Could not find entry dates for {trial_host} at {club_url}")
