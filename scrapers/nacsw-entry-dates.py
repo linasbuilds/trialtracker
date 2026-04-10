@@ -819,7 +819,7 @@ def extract_dates_with_gemini(pdf_url: str) -> "str | None":
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=[
-                types.Part.from_uri(uri=pdf_url, mime_type="application/pdf"),
+                types.Part.from_uri(file_uri=pdf_url, mime_type="application/pdf"),
                 prompt,
             ],
         )
