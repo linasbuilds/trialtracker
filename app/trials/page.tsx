@@ -191,6 +191,7 @@ export default function TrialsPage() {
 
   const [keyword, setKeyword] = useState("");
   const [openDropdown, setOpenDropdown] = useState<{ trialId: string; type: "trial" | "reminder" } | null>(null);
+  const [closedExpanded, setClosedExpanded] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [isFoundingHandler, setIsFoundingHandler] = useState(false);
   const oneYearAgo = getOneYearAgoIso();
@@ -304,6 +305,245 @@ export default function TrialsPage() {
 
   const btnClass =
     "inline-block bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors";
+
+  // --- Section classification ---
+  const today0 = new Date();
+  today0.setHours(0, 0, 0, 0);
+
+  const classifyTrial = (trial: Trial): 'openingSoon' | 'openNow' | 'upcoming' | 'closed' => {
+    const oDate = trial.entry_opening_date ? parseDate(trial.entry_opening_date) : null;
+    const cDate = trial.entry_closing_date ? parseDate(trial.entry_closing_date) : null;
+    const cutoff48h = (trial.organization === 'NACSW' && oDate !== null && cDate === null)
+      ? new Date(oDate.getTime() + 48 * 60 * 60 * 1000) : null;
+    const effClose = cDate ?? cutoff48h;
+    const isClosed = (effClose !== null && today0 >= effClose)
+      || (oDate !== null && today0 > oDate && effClose === null);
+    if (isClosed) return 'closed';
+    const isOpenNow = oDate !== null && effClose !== null && today0 >= oDate && today0 < effClose;
+    if (isOpenNow) return 'openNow';
+    const daysUntil = oDate !== null && today0 < oDate
+      ? Math.round((oDate.getTime() - today0.getTime()) / (1000 * 60 * 60 * 24)) : null;
+    if (daysUntil !== null && daysUntil <= 30) return 'openingSoon';
+    return 'upcoming';
+  };
+
+  const byStart = (a: Trial, b: Trial) => (a.trial_start_date || '').localeCompare(b.trial_start_date || '');
+  const openingSoonTrials = filteredTrials.filter(t => classifyTrial(t) === 'openingSoon').sort(byStart);
+  const openNowTrials     = filteredTrials.filter(t => classifyTrial(t) === 'openNow').sort(byStart);
+  const upcomingTrials    = filteredTrials.filter(t => classifyTrial(t) === 'upcoming').sort(byStart);
+  const closedTrials      = filteredTrials.filter(t => classifyTrial(t) === 'closed').sort(byStart);
+
+  const renderCard = (trial: Trial) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const openingDate  = trial.entry_opening_date ? parseDate(trial.entry_opening_date) : null;
+    const closingDate  = trial.entry_closing_date ? parseDate(trial.entry_closing_date) : null;
+    const trialStart   = trial.trial_start_date   ? parseDate(trial.trial_start_date)   : null;
+    const nacsw48hCutoff = (trial.organization === 'NACSW' && openingDate !== null && closingDate === null)
+      ? new Date(openingDate.getTime() + 48 * 60 * 60 * 1000) : null;
+    const effectiveClosingDate = closingDate ?? nacsw48hCutoff;
+    const entriesClosed  = (effectiveClosingDate !== null && today >= effectiveClosingDate)
+                         || (openingDate !== null && today > openingDate && effectiveClosingDate === null);
+    const entriesOpenNow = openingDate !== null && effectiveClosingDate !== null
+      && today >= openingDate && today < effectiveClosingDate;
+    const daysUntilOpen  = openingDate !== null && !entriesClosed && today < openingDate
+      ? Math.round((openingDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : null;
+    const openingSoon    = daysUntilOpen !== null && daysUntilOpen <= 14;
+    const daysUntilTrial = trialStart !== null
+      ? Math.round((trialStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : null;
+    const noEntryDates   = !trial.entry_opening_date && !trial.entry_closing_date;
+    const showEntryReminder = !!trial.entry_opening_date && !entriesClosed;
+    const isNACSW = trial.organization === 'NACSW';
+    const trialLink = isNACSW
+      ? (trial.club_website || trial.official_link || null)
+      : (trial.official_link || trial.club_website || null);
+    const levelList = parseLevelsFromTrial(trial);
+    const level = levelList.join("/").toUpperCase();
+    const trialLocation = trial.location_name || getHostName(trial) || "TBD";
+    const fullAddress = buildAddress(trial) || `${trial.city || ""}${trial.city && trial.state ? ", " : ""}${trial.state || ""}` || "TBD";
+    return (
+      <div
+        key={trial.id}
+        className={`bg-white rounded-xl border shadow-sm p-5 ${openingSoon ? "border-amber-300" : "border-slate-200"}`}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+          <h2 className="text-lg font-bold text-slate-800">
+            🐾 {getDisplayName(trial)}
+          </h2>
+
+          <div className="flex gap-2 flex-wrap">
+            <span className="text-xs px-2 py-1 rounded-full font-medium bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+              {trial.organization}
+            </span>
+            <span className="text-xs px-2 py-1 rounded-full font-medium bg-gradient-to-r from-green-500 to-emerald-500 text-white">
+              {trial.sport}
+            </span>
+
+            {level ? (
+              <span className="text-xs px-2 py-1 rounded-full font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                {level}
+              </span>
+            ) : null}
+
+            {trial.claimed && (
+              <span className="text-xs px-2 py-1 rounded-full font-medium bg-green-100 text-green-700 border border-green-200">
+                ✓ Verified by Club
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Host + city/state */}
+        <p className="text-slate-500 text-sm mb-2">
+          📍 {getHostName(trial)}{getHostName(trial) && trial.city ? " • " : ""}{trial.city}{trial.city && trial.state ? ", " : ""}{trial.state}
+        </p>
+
+        {/* Trial Location + Full Address */}
+        <div className="text-slate-600 text-sm mb-2">
+          <div className="mb-1">
+            <span className="font-semibold">Trial Location:</span>{" "}
+            <span className="text-slate-700">{trialLocation}</span>
+          </div>
+          <div>
+            <span className="font-semibold">Full Address:</span>{" "}
+            <span className="text-slate-700">{fullAddress}</span>
+          </div>
+        </div>
+
+        {/* Trial dates */}
+        <p className="text-slate-600 text-sm mb-1">
+          🗓️ Trial:{" "}
+          {trial.trial_start_date ? (
+            trial.trial_end_date && trial.trial_end_date !== trial.trial_start_date ? (
+              <>
+                {formatDate(trial.trial_start_date, { month: "short", day: "numeric" })} –{" "}
+                {formatDate(trial.trial_end_date, { month: "short", day: "numeric", year: "numeric" })}
+              </>
+            ) : (
+              formatDate(trial.trial_start_date, { month: "short", day: "numeric", year: "numeric" })
+            )
+          ) : (
+            <span className="text-slate-400 italic">TBD</span>
+          )}
+        </p>
+
+        {/* Entry dates */}
+        <div className="text-slate-600 text-sm mb-3 space-y-0.5">
+          <p>
+            📋 <span className="font-medium">Trial Entry Opens:</span>{" "}
+            {trial.entry_opening_date
+              ? formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+              : <span className="text-slate-400 italic">TBD</span>}
+          </p>
+          <p>
+            📋 <span className="font-medium">Trial Entry Closes:</span>{" "}
+            {trial.entry_closing_date
+              ? formatDate(trial.entry_closing_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+              : <span className="text-slate-400 italic">TBD</span>}
+          </p>
+          {trial.pre_entry_date && (
+            <p>
+              📋 <span className="font-medium">Pre-Entry Closes:</span>{" "}
+              {formatDate(trial.pre_entry_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+            </p>
+          )}
+        </div>
+
+        {entriesClosed ? (
+          <div className="bg-red-100 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-sm font-medium mb-3">
+            Entries Closed
+          </div>
+        ) : entriesOpenNow ? (
+            <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-green-700 text-sm font-medium mb-3">
+              ✅ Entries are open now!
+            </div>
+          ) : openingSoon ? (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-amber-800 text-sm font-medium mb-3">
+              ⚡{" "}
+              {daysUntilOpen === 0 ? "Opens TODAY!" : daysUntilOpen === 1 ? "Opens TOMORROW!" : `Opens in ${daysUntilOpen} days`}
+            </div>
+          ) : trial.entry_opening_date ? (
+            <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-600 text-sm font-medium mb-3">
+              Entry opens {formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+            </div>
+          ) : trial.organization === 'CPE' && !trial.entry_opening_date && closingDate !== null && today < closingDate ? (
+            <div className="bg-sky-50 border border-sky-200 rounded-lg px-3 py-2 text-sky-700 text-sm font-medium mb-3">
+              Entries open — check premium
+            </div>
+          ) : noEntryDates && isNACSW && daysUntilTrial !== null && daysUntilTrial >= 84 ? (
+            <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-500 text-sm font-medium mb-3">
+              Entry Dates TBD
+            </div>
+          ) : noEntryDates && isNACSW ? (
+            <div className="bg-red-100 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-sm font-medium mb-3">
+              Entries Closed
+            </div>
+          ) : noEntryDates && daysUntilTrial !== null && daysUntilTrial <= 14 ? null
+          : noEntryDates ? (
+            <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-500 text-sm font-medium mb-3">
+              Entry dates TBD
+            </div>
+          ) : null}
+
+        <div className="flex flex-wrap items-center gap-2">
+          {trialLink && (
+            <a href={trialLink} target="_blank" rel="noopener noreferrer" className={btnClass}>
+              View &amp; Register
+            </a>
+          )}
+
+          {/* 📅 Add Trial */}
+          {trial.trial_start_date && (
+            <div className="relative">
+              <button
+                onClick={(e) => { e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); setOpenDropdown(openDropdown?.trialId === trial.id && openDropdown.type === "trial" ? null : { trialId: trial.id, type: "trial" }); }}
+                className="text-sm bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium px-3 py-1.5 rounded-full border border-slate-200 transition-colors"
+              >
+                📅 Add Trial to Calendar
+              </button>
+              {openDropdown?.trialId === trial.id && openDropdown.type === "trial" && (
+                <div className="absolute left-0 top-full mt-1 z-10 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[190px]" onClick={(e) => e.stopPropagation()}>
+                  <a href={buildGCalTrialUrl(trial)} target="_blank" rel="noopener noreferrer" onClick={() => setOpenDropdown(null)}
+                    className="flex px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                    Google Calendar
+                  </a>
+                  <button onClick={() => { downloadTrialIcs(trial); setOpenDropdown(null); }}
+                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                    Download .ics (Apple / Outlook)
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ⚡ Entry Opening Reminder */}
+          {showEntryReminder && (
+            <div className="relative">
+              <button
+                onClick={(e) => { e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); setOpenDropdown(openDropdown?.trialId === trial.id && openDropdown.type === "reminder" ? null : { trialId: trial.id, type: "reminder" }); }}
+                className="text-sm bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium px-3 py-1.5 rounded-full border border-amber-200 transition-colors"
+              >
+                ⚡ Entry Opening
+              </button>
+              {openDropdown?.trialId === trial.id && openDropdown.type === "reminder" && (
+                <div className="absolute left-0 top-full mt-1 z-10 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[190px]" onClick={(e) => e.stopPropagation()}>
+                  <a href={buildGCalReminderUrl(trial)} target="_blank" rel="noopener noreferrer" onClick={() => setOpenDropdown(null)}
+                    className="flex px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                    Google Calendar
+                  </a>
+                  <button onClick={() => { downloadReminderIcs(trial); setOpenDropdown(null); }}
+                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                    Download .ics (Apple / Outlook)
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -428,230 +668,46 @@ export default function TrialsPage() {
           </div>
         )}
 
-        <div className="space-y-4">
-          {filteredTrials.map((trial) => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const openingDate  = trial.entry_opening_date ? parseDate(trial.entry_opening_date) : null;
-            const closingDate  = trial.entry_closing_date ? parseDate(trial.entry_closing_date) : null;
-            const trialStart   = trial.trial_start_date   ? parseDate(trial.trial_start_date)   : null;
-
-            // NACSW with no closing date: treat entry window as 48 hours after opening
-            const nacsw48hCutoff = (trial.organization === 'NACSW' && openingDate !== null && closingDate === null)
-              ? new Date(openingDate.getTime() + 48 * 60 * 60 * 1000)
-              : null;
-            const effectiveClosingDate = closingDate ?? nacsw48hCutoff;
-
-            const entriesClosed  = (effectiveClosingDate !== null && today >= effectiveClosingDate)
-                                 || (openingDate !== null && today > openingDate && effectiveClosingDate === null);
-            const entriesOpenNow = openingDate !== null && effectiveClosingDate !== null
-              && today >= openingDate && today < effectiveClosingDate;
-            const daysUntilOpen  = openingDate !== null && !entriesClosed && today < openingDate
-              ? Math.round((openingDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-              : null;
-            const openingSoon    = daysUntilOpen !== null && daysUntilOpen <= 14;
-            const daysUntilTrial = trialStart !== null
-              ? Math.round((trialStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-              : null;
-            const noEntryDates   = !trial.entry_opening_date && !trial.entry_closing_date;
-            const showEntryReminder = !!trial.entry_opening_date && !entriesClosed;
-
-            // NACSW: club_website first (more useful for registration);
-            // all other orgs: official_link first, club_website as fallback
-            const isNACSW = trial.organization === 'NACSW';
-            const trialLink = isNACSW
-              ? (trial.club_website || trial.official_link || null)
-              : (trial.official_link || trial.club_website || null);
-
-            const levelList = parseLevelsFromTrial(trial);
-            const level = levelList.join("/").toUpperCase();
-
-            const trialLocation = trial.location_name || getHostName(trial) || "TBD";
-            const fullAddress = buildAddress(trial) || `${trial.city || ""}${trial.city && trial.state ? ", " : ""}${trial.state || ""}` || "TBD";
-
-            return (
-              <div
-                key={trial.id}
-                className={`bg-white rounded-xl border shadow-sm p-5 ${openingSoon ? "border-amber-300" : "border-slate-200"}`}
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-                  <h2 className="text-lg font-bold text-slate-800">
-                    🐾 {getDisplayName(trial)}
-                  </h2>
-
-                  <div className="flex gap-2 flex-wrap">
-                    <span className="text-xs px-2 py-1 rounded-full font-medium bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
-                      {trial.organization}
-                    </span>
-                    <span className="text-xs px-2 py-1 rounded-full font-medium bg-gradient-to-r from-green-500 to-emerald-500 text-white">
-                      {trial.sport}
-                    </span>
-
-                    {level ? (
-                      <span className="text-xs px-2 py-1 rounded-full font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                        {level}
-                      </span>
-                    ) : null}
-
-                    {trial.claimed && (
-                      <span className="text-xs px-2 py-1 rounded-full font-medium bg-green-100 text-green-700 border border-green-200">
-                        ✓ Verified by Club
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Host + city/state */}
-                <p className="text-slate-500 text-sm mb-2">
-                  📍 {getHostName(trial)}{getHostName(trial) && trial.city ? " • " : ""}{trial.city}{trial.city && trial.state ? ", " : ""}{trial.state}
-                </p>
-
-                {/* Trial Location + Full Address */}
-                <div className="text-slate-600 text-sm mb-2">
-                  <div className="mb-1">
-                    <span className="font-semibold">Trial Location:</span>{" "}
-                    <span className="text-slate-700">{trialLocation}</span>
-                  </div>
-                  <div>
-                    <span className="font-semibold">Full Address:</span>{" "}
-                    <span className="text-slate-700">{fullAddress}</span>
-                  </div>
-                </div>
-
-                {/* Trial dates */}
-                <p className="text-slate-600 text-sm mb-1">
-                  🗓️ Trial:{" "}
-                  {trial.trial_start_date ? (
-                    trial.trial_end_date && trial.trial_end_date !== trial.trial_start_date ? (
-                      <>
-                        {formatDate(trial.trial_start_date, { month: "short", day: "numeric" })} –{" "}
-                        {formatDate(trial.trial_end_date, { month: "short", day: "numeric", year: "numeric" })}
-                      </>
-                    ) : (
-                      formatDate(trial.trial_start_date, { month: "short", day: "numeric", year: "numeric" })
-                    )
-                  ) : (
-                    <span className="text-slate-400 italic">TBD</span>
-                  )}
-                </p>
-
-                {/* Entry dates */}
-                <div className="text-slate-600 text-sm mb-3 space-y-0.5">
-                  <p>
-                    📋 <span className="font-medium">Trial Entry Opens:</span>{" "}
-                    {trial.entry_opening_date
-                      ? formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
-                      : <span className="text-slate-400 italic">TBD</span>}
-                  </p>
-                  <p>
-                    📋 <span className="font-medium">Trial Entry Closes:</span>{" "}
-                    {trial.entry_closing_date
-                      ? formatDate(trial.entry_closing_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
-                      : <span className="text-slate-400 italic">TBD</span>}
-                  </p>
-                  {trial.pre_entry_date && (
-                    <p>
-                      📋 <span className="font-medium">Pre-Entry Closes:</span>{" "}
-                      {formatDate(trial.pre_entry_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
-                    </p>
-                  )}
-                </div>
-
-                {entriesClosed ? (
-                  <div className="bg-red-100 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-sm font-medium mb-3">
-                    Entries Closed
-                  </div>
-                ) : entriesOpenNow ? (
-                    <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-green-700 text-sm font-medium mb-3">
-                      ✅ Entries are open now!
-                    </div>
-                  ) : openingSoon ? (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-amber-800 text-sm font-medium mb-3">
-                      ⚡{" "}
-                      {daysUntilOpen === 0 ? "Opens TODAY!" : daysUntilOpen === 1 ? "Opens TOMORROW!" : `Opens in ${daysUntilOpen} days`}
-                    </div>
-                  ) : trial.entry_opening_date ? (
-                    <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-600 text-sm font-medium mb-3">
-                      Entry opens {formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
-                    </div>
-                  ) : trial.organization === 'CPE' && !trial.entry_opening_date && closingDate !== null && today < closingDate ? (
-                    <div className="bg-sky-50 border border-sky-200 rounded-lg px-3 py-2 text-sky-700 text-sm font-medium mb-3">
-                      Entries open — check premium
-                    </div>
-                  ) : noEntryDates && isNACSW && daysUntilTrial !== null && daysUntilTrial >= 84 ? (
-                    <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-500 text-sm font-medium mb-3">
-                      Entry Dates TBD
-                    </div>
-                  ) : noEntryDates && isNACSW ? (
-                    <div className="bg-red-100 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-sm font-medium mb-3">
-                      Entries Closed
-                    </div>
-                  ) : noEntryDates && daysUntilTrial !== null && daysUntilTrial <= 14 ? null
-                  : noEntryDates ? (
-                    <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-500 text-sm font-medium mb-3">
-                      Entry dates TBD
-                    </div>
-                  ) : null}
-
-                <div className="flex flex-wrap items-center gap-2">
-                  {trialLink && (
-                    <a href={trialLink} target="_blank" rel="noopener noreferrer" className={btnClass}>
-                      View &amp; Register
-                    </a>
-                  )}
-
-                  {/* 📅 Add Trial */}
-                  {trial.trial_start_date && (
-                    <div className="relative">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); setOpenDropdown(openDropdown?.trialId === trial.id && openDropdown.type === "trial" ? null : { trialId: trial.id, type: "trial" }); }}
-                        className="text-sm bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium px-3 py-1.5 rounded-full border border-slate-200 transition-colors"
-                      >
-                        📅 Add Trial to Calendar
-                      </button>
-                      {openDropdown?.trialId === trial.id && openDropdown.type === "trial" && (
-                        <div className="absolute left-0 top-full mt-1 z-10 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[190px]" onClick={(e) => e.stopPropagation()}>
-                          <a href={buildGCalTrialUrl(trial)} target="_blank" rel="noopener noreferrer" onClick={() => setOpenDropdown(null)}
-                            className="flex px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
-                            Google Calendar
-                          </a>
-                          <button onClick={() => { downloadTrialIcs(trial); setOpenDropdown(null); }}
-                            className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
-                            Download .ics (Apple / Outlook)
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* ⚡ Entry Opening Reminder */}
-                  {showEntryReminder && (
-                    <div className="relative">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); setOpenDropdown(openDropdown?.trialId === trial.id && openDropdown.type === "reminder" ? null : { trialId: trial.id, type: "reminder" }); }}
-                        className="text-sm bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium px-3 py-1.5 rounded-full border border-amber-200 transition-colors"
-                      >
-                        ⚡ Entry Opening
-                      </button>
-                      {openDropdown?.trialId === trial.id && openDropdown.type === "reminder" && (
-                        <div className="absolute left-0 top-full mt-1 z-10 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[190px]" onClick={(e) => e.stopPropagation()}>
-                          <a href={buildGCalReminderUrl(trial)} target="_blank" rel="noopener noreferrer" onClick={() => setOpenDropdown(null)}
-                            className="flex px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
-                            Google Calendar
-                          </a>
-                          <button onClick={() => { downloadReminderIcs(trial); setOpenDropdown(null); }}
-                            className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
-                            Download .ics (Apple / Outlook)
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                </div>
+        <div>
+          {openingSoonTrials.length > 0 && (
+            <div className="mb-6">
+              <div className="pt-4 pb-2 border-t border-slate-200">
+                <h3 className="font-bold text-slate-700">⚡ Opening Soon <span className="text-slate-400 font-normal text-sm">({openingSoonTrials.length})</span></h3>
               </div>
-            );
-          })}
+              <div className="space-y-4">{openingSoonTrials.map(renderCard)}</div>
+            </div>
+          )}
+          {openNowTrials.length > 0 && (
+            <div className="mb-6">
+              <div className="pt-4 pb-2 border-t border-slate-200">
+                <h3 className="font-bold text-slate-700">🟢 Open Now <span className="text-slate-400 font-normal text-sm">({openNowTrials.length})</span></h3>
+              </div>
+              <div className="space-y-4">{openNowTrials.map(renderCard)}</div>
+            </div>
+          )}
+          {upcomingTrials.length > 0 && (
+            <div className="mb-6">
+              <div className="pt-4 pb-2 border-t border-slate-200">
+                <h3 className="font-bold text-slate-700">📅 Upcoming <span className="text-slate-400 font-normal text-sm">({upcomingTrials.length})</span></h3>
+              </div>
+              <div className="space-y-4">{upcomingTrials.map(renderCard)}</div>
+            </div>
+          )}
+          {closedTrials.length > 0 && (
+            <div className="pt-4 border-t border-slate-200">
+              <button
+                onClick={() => setClosedExpanded(x => !x)}
+                className="text-sm text-slate-500 hover:text-slate-700 font-medium"
+              >
+                {closedExpanded
+                  ? `▼ Hide ${closedTrials.length} closed trial${closedTrials.length !== 1 ? 's' : ''}`
+                  : `▶ Show ${closedTrials.length} closed trial${closedTrials.length !== 1 ? 's' : ''}`}
+              </button>
+              {closedExpanded && (
+                <div className="space-y-4 mt-4">{closedTrials.map(renderCard)}</div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
