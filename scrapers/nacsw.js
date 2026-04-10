@@ -500,6 +500,11 @@ async function main() {
         continue;
       }
       try {
+        const nameStr = ((t.trial_name || '') + ' ' + (t.trial_host || '')).toUpperCase();
+        const isCancelled = nameStr.includes('CANCELLED') ||
+                            nameStr.includes('CANCELED') ||
+                            nameStr.includes('POSTPONED');
+
         const payload = {
           organization:       t.organization,
           sport:              t.sport,
@@ -515,7 +520,7 @@ async function main() {
           premium_url:        t.premium_url,
           official_link:      t.official_link,
           club_website:       t.club_website,
-          cancelled:          false,
+          cancelled:          isCancelled,
           data_source:        'nacsw',
         };
         // Only include entry dates if we actually found them — never overwrite with null
