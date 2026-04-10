@@ -192,6 +192,7 @@ export default function TrialsPage() {
   const [keyword, setKeyword] = useState("");
   const [openDropdown, setOpenDropdown] = useState<{ trialId: string; type: "trial" | "reminder" } | null>(null);
   const [closedExpanded, setClosedExpanded] = useState(false);
+  const [disclaimerExpanded, setDisclaimerExpanded] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [isFoundingHandler, setIsFoundingHandler] = useState(false);
   const oneYearAgo = getOneYearAgoIso();
@@ -650,15 +651,61 @@ export default function TrialsPage() {
           </div>
         </div>
 
-        {/* 90-day notice */}
-        <div className="mb-4 bg-sky-50 border border-sky-200 rounded-lg px-4 py-3 text-sky-700 text-sm leading-relaxed">
-          📅 TrialTracker shows trials opening in the next 120 days — peek at your host club in case anything shifted. We only aggregate trial information from publicly accessible websites, respect all organization terms of service, and never access protected or private data. This is a community platform, built for handlers, by a handler.
+        {/* Disclaimer */}
+        <div className="mb-4 bg-sky-50 border border-sky-200 rounded-lg px-4 py-2 text-sky-700 text-sm">
+          <div className="flex items-center justify-between gap-2">
+            <span>ℹ️ Built for handlers, by a handler — we only use publicly accessible data.</span>
+            <button
+              onClick={() => setDisclaimerExpanded(x => !x)}
+              className="text-sky-600 hover:text-sky-800 font-medium whitespace-nowrap text-xs shrink-0"
+            >
+              {disclaimerExpanded ? "Show less ▲" : "Learn more ▼"}
+            </button>
+          </div>
+          {disclaimerExpanded && (
+            <p className="mt-2 pt-2 border-t border-sky-200 leading-relaxed">
+              📅 TrialTracker shows trials opening in the next 120 days — peek at your host club in case anything shifted. We only aggregate trial information from publicly accessible websites, respect all organization terms of service, and never access protected or private data. This is a community platform, built for handlers, by a handler.
+            </p>
+          )}
         </div>
 
         {/* Results count */}
         <p className="text-sm text-slate-500 mb-4">
           {loading ? "Loading trials..." : `🐾 ${filteredTrials.length} trial${filteredTrials.length !== 1 ? "s" : ""} found`}
         </p>
+
+        {/* Jump bar */}
+        {!loading && filteredTrials.length > 0 && (
+          <div className="mb-4">
+            <p className="text-xs text-slate-500 mb-2 font-medium">🐾 Sniff out what you&apos;re looking for:</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => document.getElementById('section-opening-soon')?.scrollIntoView({ behavior: 'smooth' })}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 transition-colors min-h-[44px]"
+              >
+                🔔 <span className="font-bold">{openingSoonTrials.length}</span> Opening Soon
+              </button>
+              <button
+                onClick={() => document.getElementById('section-open-now')?.scrollIntoView({ behavior: 'smooth' })}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-300 hover:bg-green-200 transition-colors min-h-[44px]"
+              >
+                🟢 <span className="font-bold">{openNowTrials.length}</span> Open Now
+              </button>
+              <button
+                onClick={() => document.getElementById('section-upcoming')?.scrollIntoView({ behavior: 'smooth' })}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200 transition-colors min-h-[44px]"
+              >
+                📅 <span className="font-bold">{upcomingTrials.length}</span> Upcoming
+              </button>
+              <button
+                onClick={() => document.getElementById('section-closed')?.scrollIntoView({ behavior: 'smooth' })}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors min-h-[44px]"
+              >
+                🔴 <span className="font-bold">{closedTrials.length}</span> Closed
+              </button>
+            </div>
+          </div>
+        )}
 
         {!loading && filteredTrials.length === 0 && (
           <div className="text-center py-16 text-slate-400">
@@ -671,30 +718,30 @@ export default function TrialsPage() {
         <div>
           {openingSoonTrials.length > 0 && (
             <div className="mb-6">
-              <div className="pt-4 pb-2 border-t border-slate-200">
-                <h3 className="font-bold text-slate-700">⚡ Opening Soon <span className="text-slate-400 font-normal text-sm">({openingSoonTrials.length})</span></h3>
+              <div id="section-opening-soon" className="pt-4 pb-2 border-t border-slate-200">
+                <h3 className="font-bold text-slate-700">🔔 Opening Soon</h3>
               </div>
               <div className="space-y-4">{openingSoonTrials.map(renderCard)}</div>
             </div>
           )}
           {openNowTrials.length > 0 && (
             <div className="mb-6">
-              <div className="pt-4 pb-2 border-t border-slate-200">
-                <h3 className="font-bold text-slate-700">🟢 Open Now <span className="text-slate-400 font-normal text-sm">({openNowTrials.length})</span></h3>
+              <div id="section-open-now" className="pt-4 pb-2 border-t border-slate-200">
+                <h3 className="font-bold text-slate-700">🟢 Open Now</h3>
               </div>
               <div className="space-y-4">{openNowTrials.map(renderCard)}</div>
             </div>
           )}
           {upcomingTrials.length > 0 && (
             <div className="mb-6">
-              <div className="pt-4 pb-2 border-t border-slate-200">
-                <h3 className="font-bold text-slate-700">📅 Upcoming <span className="text-slate-400 font-normal text-sm">({upcomingTrials.length})</span></h3>
+              <div id="section-upcoming" className="pt-4 pb-2 border-t border-slate-200">
+                <h3 className="font-bold text-slate-700">📅 Upcoming</h3>
               </div>
               <div className="space-y-4">{upcomingTrials.map(renderCard)}</div>
             </div>
           )}
           {closedTrials.length > 0 && (
-            <div className="pt-4 border-t border-slate-200">
+            <div id="section-closed" className="pt-4 border-t border-slate-200">
               <button
                 onClick={() => setClosedExpanded(x => !x)}
                 className="text-sm text-slate-500 hover:text-slate-700 font-medium"
