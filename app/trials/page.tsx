@@ -607,7 +607,7 @@ export default function TrialsPage() {
                         onClick={(e) => { e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); setOpenDropdown(openDropdown?.trialId === trial.id && openDropdown.type === "trial" ? null : { trialId: trial.id, type: "trial" }); }}
                         className="text-sm bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium px-3 py-1.5 rounded-full border border-slate-200 transition-colors"
                       >
-                        📅 Add to Calendar
+                        📅 Add Trial to Calendar
                       </button>
                       {openDropdown?.trialId === trial.id && openDropdown.type === "trial" && (
                         <div className="absolute left-0 top-full mt-1 z-10 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[190px]" onClick={(e) => e.stopPropagation()}>
@@ -616,6 +616,30 @@ export default function TrialsPage() {
                             Google Calendar
                           </a>
                           <button onClick={() => { downloadTrialIcs(trial); setOpenDropdown(null); }}
+                            className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                            Download .ics (Apple / Outlook)
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ⚡ Entry Opening Reminder */}
+                  {showEntryReminder && (
+                    <div className="relative">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); setOpenDropdown(openDropdown?.trialId === trial.id && openDropdown.type === "reminder" ? null : { trialId: trial.id, type: "reminder" }); }}
+                        className="text-sm bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium px-3 py-1.5 rounded-full border border-amber-200 transition-colors"
+                      >
+                        ⚡ Entry Opening
+                      </button>
+                      {openDropdown?.trialId === trial.id && openDropdown.type === "reminder" && (
+                        <div className="absolute left-0 top-full mt-1 z-10 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[190px]" onClick={(e) => e.stopPropagation()}>
+                          <a href={buildGCalReminderUrl(trial)} target="_blank" rel="noopener noreferrer" onClick={() => setOpenDropdown(null)}
+                            className="flex px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                            Google Calendar
+                          </a>
+                          <button onClick={() => { downloadReminderIcs(trial); setOpenDropdown(null); }}
                             className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
                             Download .ics (Apple / Outlook)
                           </button>
