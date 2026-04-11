@@ -1071,6 +1071,8 @@ def _find_nav_links(html: str, crawl_links: list[dict], base_url: str) -> list[s
             score += 1
         if score > 0:
             candidates.append((score, full))
+        elif re.search(r'\bpremium\b', text, re.IGNORECASE):
+            candidates.append((1, full))  # anchor text says "premium" — treat as nav page
 
     # Parse anchors from raw HTML
     for m in _A_TAG_RE.finditer(html):
@@ -1586,7 +1588,7 @@ async def _scrape_trial(
             print(f"      🔍 .docx first 1000 chars: {docx_text[:1000]!r}")
 
     # ── Step D½: Gemini 2.5 Flash fallback ────────────────────────────────────
-    if premium_url:
+    if premium_url and premium_url.lower().split('?')[0].endswith('.pdf'):
         print(f"  🤖 Trying Gemini fallback for {trial_host}...")
         gemini_date = extract_dates_with_gemini(premium_url)
         if gemini_date:
