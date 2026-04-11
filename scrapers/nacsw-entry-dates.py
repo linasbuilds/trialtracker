@@ -833,6 +833,45 @@ def extract_dates_with_gemini(pdf_url: str) -> "str | None":
         return None
 
 
+def extract_dates_from_text_with_gemini(page_text: str, trial_host: str) -> "str | None":
+    """
+    Send raw webpage text to Gemini 2.5 Flash and ask it to extract
+    the entry opening date. Used when Playwright captures page text
+    but regex finds nothing. Returns YYYY-MM-DD string or None.
+    """
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        print("      ⚠️  GEMINI_API_KEY not set — skipping Gemini text fallback")
+        return None
+    try:
+        import json
+        from google import genai
+        client = genai.Client(api_key=api_key)
+        prompt = (
+            f'You are extracting dog sport trial entry dates. '
+            f'Find the entry OPENING date for a NACSW nosework trial '
+            f'hosted by {trial_host}. '
+            f'Look for phrases like "opens", "entry opens", "open date", '
+            f'"entries open", or any date clearly associated with entries opening. '
+            f'Do NOT return the trial date itself. '
+            f'Return JSON only, no other text: {{"entry_opening_date": "YYYY-MM-DD"}}. '
+            f'If you cannot find it return {{"entry_opening_date": null}}\n\n'
+            f'Page text:\n{page_text[:3000]}'
+        )
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[prompt],
+        )
+        raw = response.text.strip()
+        raw = re.sub(r'^```(?:json)?\s*', '', raw, flags=re.MULTILINE)
+        raw = re.sub(r'```\s*$', '', raw, flags=re.MULTILINE)
+        data = json.loads(raw.strip())
+        return data.get("entry_opening_date") or None
+    except Exception as exc:
+        print(f"      ⚠️  Gemini text extraction failed: {exc}")
+        return None
+
+
 async def _docx_text(url: str) -> str:
     """
     Download a .docx file with httpx and extract all paragraph text using python-docx.
@@ -1242,10 +1281,11 @@ async def _scrape_trial(
     Run the full Fast Path → A → B → C → D search sequence for one trial.
     Returns (opening_date, closing_date); either may be None.
     """
-    trial_host  = trial.get("trial_host") or trial.get("trial_name") or "?"
-    start_date  = trial.get("trial_start_date") or ""
-    club_url    = trial.get("club_website") or ""
-    premium_url = trial.get("premium_url") or ""
+    trial_host      = trial.get("trial_host") or trial.get("trial_name") or "?"
+    start_date      = trial.get("trial_start_date") or ""
+    club_url        = trial.get("club_website") or ""
+    premium_url     = trial.get("premium_url") or ""
+    playwright_text = ""  # persisted from Step A Playwright fallback for Step D¾
 
     # Normalize club_url — ensure it has a scheme
     if club_url and not club_url.startswith(("http://", "https://")):
@@ -1323,6 +1363,7 @@ async def _scrape_trial(
     if not (opening or closing):
         print("  🎭 Trying Playwright fallback for JS-rendered page...")
         pw_text = await _fetch_with_playwright(club_url)
+        playwright_text = pw_text  # persist for Step D¾
         print(f"  🔍 Playwright text length: {len(pw_text)}")
         print(f"  🔍 Playwright first 500 chars: {pw_text[:500]}")
         if pw_text:
@@ -1599,6 +1640,22 @@ async def _scrape_trial(
                 print(f"  ⚠️  Gemini date {gemini_date} failed plausibility check — ignoring")
         else:
             print(f"  ❌ Gemini also found nothing")
+
+    # ── Step D¾: Gemini on webpage text ───────────────────────────────────────
+    # When Playwright captured text but regex missed natural language dates
+    if playwright_text and len(playwright_text) > 500:
+        print(f"  🤖 Trying Gemini on page text for {trial_host}...")
+        gemini_text_date = extract_dates_from_text_with_gemini(
+            playwright_text, trial_host
+        )
+        if gemini_text_date:
+            print(f"  ✅ Gemini (text) found: {gemini_text_date}")
+            if _entry_dates_plausible(gemini_text_date, start_date):
+                return gemini_text_date, None
+            else:
+                print(f"  ⚠️  Gemini text date {gemini_text_date} failed plausibility check — ignoring")
+        else:
+            print(f"  ❌ Gemini (text) found nothing")
 
     # ── Step D: Give up ────────────────────────────────────────────────────────
     print(f"  ❌ Could not find entry dates for {trial_host} at {club_url}")
