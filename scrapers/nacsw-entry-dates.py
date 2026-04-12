@@ -1308,7 +1308,11 @@ async def _scrape_trial(
         print(f"  ⚡ Fast Path — fetching premium .docx: {premium_url}")
         docx_text_fp = await _docx_text(premium_url)
         if docx_text_fp.strip():
-            opening, closing = extract_dates(docx_text_fp, start_date)
+            opening, closing = extract_dates_inline(docx_text_fp, start_date)
+            if not (opening or closing):
+                opening, closing = _extract_contextual(docx_text_fp, start_date)
+            if not (opening or closing):
+                opening, closing = extract_dates(docx_text_fp, start_date)
             if opening or closing:
                 _log_found(opening, closing, "premium .docx")
                 if not _entry_dates_plausible(opening, start_date):
@@ -1349,27 +1353,29 @@ async def _scrape_trial(
         print(home_text)
         print(f"{'='*60}\n")
 
-    opening, closing = extract_dates(home_text, start_date)
+    # Playwright first — captures JS-rendered content missed by crawl4ai
+    print("  🎭 Fetching Playwright version for JS-rendered content...")
+    pw_text = await _fetch_with_playwright(club_url)
+    playwright_text = pw_text  # persist for Step D¾
+    print(f"  🔍 Playwright text length: {len(pw_text)}")
+    if pw_text:
+        opening, closing = extract_dates_inline(pw_text, start_date)
+        if opening or closing:
+            print("  ✅ Found dates via Playwright (Step A)")
+
+    # Then try crawl4ai home_text: permissive → contextual → strict
+    if not (opening or closing):
+        opening, closing = extract_dates_inline(home_text, start_date)
     if not (opening or closing):
         opening, closing = _extract_contextual(home_text, start_date)
     if not (opening or closing):
-        opening, closing = extract_dates_inline(home_text, start_date)
+        opening, closing = extract_dates(home_text, start_date)
     if not (opening or closing) and home_html:
         print("  🔄 Retrying Step A with raw HTML...")
         _stripped = re.sub(r'<[^>]+>', ' ', home_html)
         opening, closing = extract_dates_inline(_stripped, start_date)
         if opening or closing:
             print("  ✅ Found dates in raw HTML fallback")
-    if not (opening or closing):
-        print("  🎭 Trying Playwright fallback for JS-rendered page...")
-        pw_text = await _fetch_with_playwright(club_url)
-        playwright_text = pw_text  # persist for Step D¾
-        print(f"  🔍 Playwright text length: {len(pw_text)}")
-        print(f"  🔍 Playwright first 500 chars: {pw_text[:500]}")
-        if pw_text:
-            opening, closing = extract_dates_inline(pw_text, start_date)
-            if opening or closing:
-                print("  ✅ Found dates via Playwright fallback")
     if opening or closing:
         _log_found(opening, closing, "homepage")
         if not _entry_dates_plausible(opening, start_date):
@@ -1424,11 +1430,11 @@ async def _scrape_trial(
             print(nav_text)
             print(f"{'='*60}\n")
 
-        opening, closing = extract_dates(nav_text, start_date)
+        opening, closing = extract_dates_inline(nav_text, start_date)
         if not (opening or closing):
             opening, closing = _extract_contextual(nav_text, start_date)
         if not (opening or closing):
-            opening, closing = extract_dates_inline(nav_text, start_date)
+            opening, closing = extract_dates(nav_text, start_date)
         if not (opening or closing) and nav_html:
             print("  🔄 Retrying Step B with raw HTML...")
             _stripped = re.sub(r'<[^>]+>', ' ', nav_html)
@@ -1469,7 +1475,11 @@ async def _scrape_trial(
             pdf_text = await _fetch_pdf_text(crawler, pdf_url, cfg)
             if not pdf_text.strip():
                 continue
-            opening, closing = extract_dates(pdf_text, start_date)
+            opening, closing = extract_dates_inline(pdf_text, start_date)
+            if not (opening or closing):
+                opening, closing = _extract_contextual(pdf_text, start_date)
+            if not (opening or closing):
+                opening, closing = extract_dates(pdf_text, start_date)
             if opening or closing:
                 _log_found(opening, closing, f"PDF {pdf_url}")
                 if not _entry_dates_plausible(opening, start_date):
@@ -1490,9 +1500,11 @@ async def _scrape_trial(
                 pages_visited_in_b += 1
                 clean_text = _get_text(clean_result)
                 print(f"  📄 Cleaned URL text preview (first 500 chars): {clean_text[:500]!r}")
-                opening, closing = extract_dates(clean_text, start_date)
+                opening, closing = extract_dates_inline(clean_text, start_date)
                 if not (opening or closing):
-                    opening, closing = extract_dates_inline(clean_text, start_date)
+                    opening, closing = _extract_contextual(clean_text, start_date)
+                if not (opening or closing):
+                    opening, closing = extract_dates(clean_text, start_date)
                 if opening or closing:
                     _log_found(opening, closing, f"cleaned nav page {cleaned_url}")
                     if not _entry_dates_plausible(opening, start_date):
@@ -1527,9 +1539,11 @@ async def _scrape_trial(
                 print(d_text)
                 print(f"{'='*60}\n")
 
-            opening, closing = extract_dates(d_text, start_date)
+            opening, closing = extract_dates_inline(d_text, start_date)
             if not (opening or closing):
-                opening, closing = extract_dates_inline(d_text, start_date)
+                opening, closing = _extract_contextual(d_text, start_date)
+            if not (opening or closing):
+                opening, closing = extract_dates(d_text, start_date)
             if opening or closing:
                 _log_found(opening, closing, f"trial detail page {d_url}")
                 if not _entry_dates_plausible(opening, start_date):
@@ -1553,7 +1567,11 @@ async def _scrape_trial(
                 pdf_text = await _fetch_pdf_text(crawler, pdf_url, cfg)
                 if not pdf_text.strip():
                     continue
-                opening, closing = extract_dates(pdf_text, start_date)
+                opening, closing = extract_dates_inline(pdf_text, start_date)
+                if not (opening or closing):
+                    opening, closing = _extract_contextual(pdf_text, start_date)
+                if not (opening or closing):
+                    opening, closing = extract_dates(pdf_text, start_date)
                 if opening or closing:
                     _log_found(opening, closing, f"PDF {pdf_url}")
                     if not _entry_dates_plausible(opening, start_date):
@@ -1589,7 +1607,11 @@ async def _scrape_trial(
         pdf_text = await _fetch_pdf_text(crawler, pdf_url, cfg)
         if not pdf_text.strip():
             continue
-        opening, closing = extract_dates(pdf_text, start_date)
+        opening, closing = extract_dates_inline(pdf_text, start_date)
+        if not (opening or closing):
+            opening, closing = _extract_contextual(pdf_text, start_date)
+        if not (opening or closing):
+            opening, closing = extract_dates(pdf_text, start_date)
         if opening or closing:
             _log_found(opening, closing, f"PDF {pdf_url}")
             if not _entry_dates_plausible(opening, start_date):
@@ -1615,10 +1637,12 @@ async def _scrape_trial(
         docx_text = await _docx_text(docx_url)
         if not docx_text.strip():
             continue
-        opening, closing = extract_dates(docx_text, start_date)
-        if not opening:
-            opening, closing = extract_dates_inline(docx_text, start_date)
-        if opening:
+        opening, closing = extract_dates_inline(docx_text, start_date)
+        if not (opening or closing):
+            opening, closing = _extract_contextual(docx_text, start_date)
+        if not (opening or closing):
+            opening, closing = extract_dates(docx_text, start_date)
+        if opening or closing:
             _log_found(opening, closing, f".docx {docx_url}")
             if not _entry_dates_plausible(opening, start_date):
                 print(f"  ⚠️  Opening date {opening} is >6 months before trial start {start_date} — stale .docx, skipping")
