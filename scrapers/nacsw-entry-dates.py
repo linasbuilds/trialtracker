@@ -223,7 +223,7 @@ _SECTION_OPEN_RE = re.compile("|".join(_SECTION_OPEN_PATTERNS), re.IGNORECASE)
 
 # Keywords in a URL or link text suggesting a trials/events navigation page
 _NAV_KEYWORDS_RE = re.compile(
-    r"trials?|nacsw|nosework|scent|premium|events?|upcoming|schedule|enter|registration",
+    r"trials?|nacsw|nosework|nose-work|scent|premium|events?|upcoming|schedule|enter|registration|k9",
     re.IGNORECASE,
 )
 
@@ -817,7 +817,7 @@ def extract_dates_with_gemini(pdf_url: str) -> "str | None":
             'If you cannot find it return {"entry_opening_date": null}'
         )
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.0-flash-lite",
             contents=[
                 types.Part.from_uri(file_uri=pdf_url, mime_type="application/pdf"),
                 prompt,
@@ -859,7 +859,7 @@ def extract_dates_from_text_with_gemini(page_text: str, trial_host: str) -> "str
             f'Page text:\n{page_text[:3000]}'
         )
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.0-flash-lite",
             contents=[prompt],
         )
         raw = response.text.strip()
@@ -1286,6 +1286,8 @@ async def _scrape_trial(
     club_url        = trial.get("club_website") or ""
     premium_url     = trial.get("premium_url") or ""
     playwright_text = ""  # persisted from Step A Playwright fallback for Step D¾
+    opening = None
+    closing = None
 
     # Normalize club_url — ensure it has a scheme
     if club_url and not club_url.startswith(("http://", "https://")):
