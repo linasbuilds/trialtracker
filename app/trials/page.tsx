@@ -536,7 +536,7 @@ export default function TrialsPage() {
                 onClick={(e) => { e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); setOpenDropdown(openDropdown?.trialId === trial.id && openDropdown.type === "reminder" ? null : { trialId: trial.id, type: "reminder" }); }}
                 className="text-sm bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium px-3 py-1.5 rounded-full border border-amber-200 transition-colors"
               >
-                ⚡ Entry Opening
+                ⚡ Add Entry Opening to Calendar
               </button>
               {openDropdown?.trialId === trial.id && openDropdown.type === "reminder" && (
                 <div className="absolute left-0 top-full mt-1 z-10 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[190px]" onClick={(e) => e.stopPropagation()}>
