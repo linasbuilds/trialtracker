@@ -1305,6 +1305,28 @@ async def _scrape_trial(
 
     cfg = CrawlerRunConfig(page_timeout=20000)
 
+    # ── Step 0: NACSW official event page ─────────────────────────────────────
+    official_link = trial.get("official_link") or ""
+    if official_link and "nacsw.net" in official_link:
+        print(f"  🏠 Step 0 — NACSW event page: {official_link}")
+        event_result = await _fetch(crawler, official_link)
+        if event_result is not None:
+            event_text = _get_text(event_result)
+            if event_text:
+                opening, closing = extract_dates_inline(event_text, start_date)
+                if not (opening or closing):
+                    opening, closing = _extract_contextual(event_text, start_date)
+                if not (opening or closing):
+                    opening, closing = extract_dates(event_text, start_date)
+            if opening or closing:
+                _log_found(opening, closing, "NACSW event page")
+                if _entry_dates_plausible(opening, start_date):
+                    return opening, closing
+                else:
+                    print(f"  ⚠️  NACSW event page date {opening} failed plausibility — continuing")
+        opening = None
+        closing = None
+
     # ── Fast Path: premium_url .docx ───────────────────────────────────────────
     if premium_url and premium_url.lower().split("?")[0].endswith(".docx"):
         print(f"  ⚡ Fast Path — fetching premium .docx: {premium_url}")
@@ -1707,7 +1729,7 @@ async def main() -> None:
     STALE_DATE_STR = (_today - timedelta(days=7)).isoformat()
     resp = (
         db.table("trials")
-        .select("id, trial_host, trial_name, trial_start_date, club_website, premium_url, claimed, entry_opening_date, data_source")
+        .select("id, trial_host, trial_name, trial_start_date, club_website, premium_url, claimed, entry_opening_date, data_source, official_link")
         .eq("organization", "NACSW")
         .or_(f"entry_opening_date.is.null,entry_opening_date.lt.{STALE_DATE_STR}")
         .gte("trial_start_date", EARLIEST_STR)
