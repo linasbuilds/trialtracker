@@ -40,6 +40,7 @@ import asyncio
 import io
 import os
 import re
+import time
 from datetime import date, timedelta
 from urllib.parse import urljoin, urlparse, urlunparse
 from urllib.robotparser import RobotFileParser
@@ -806,31 +807,41 @@ def extract_dates_with_gemini(pdf_url: str) -> "str | None":
     if not api_key:
         print("      ⚠️  GEMINI_API_KEY not set — skipping Gemini fallback")
         return None
-    try:
-        import json
-        from google import genai
-        from google.genai import types
-        client = genai.Client(api_key=api_key)
-        prompt = (
-            'This is a dog sport trial premium document. Find the trial entry opening date only. '
-            'Return JSON only, no other text: {"entry_opening_date": "YYYY-MM-DD"}. '
-            'If you cannot find it return {"entry_opening_date": null}'
-        )
-        response = client.models.generate_content(
-            model="gemini-2.0-flash-lite",
-            contents=[
-                types.Part.from_uri(file_uri=pdf_url, mime_type="application/pdf"),
-                prompt,
-            ],
-        )
-        raw = response.text.strip()
-        raw = re.sub(r'^```(?:json)?\s*', '', raw, flags=re.MULTILINE)
-        raw = re.sub(r'```\s*$', '', raw, flags=re.MULTILINE)
-        data = json.loads(raw.strip())
-        return data.get("entry_opening_date") or None
-    except Exception as exc:
-        print(f"      ⚠️  Gemini extraction failed: {exc}")
-        return None
+    import json
+    from google import genai
+    from google.genai import types
+    client = genai.Client(api_key=api_key)
+    prompt = (
+        'This is a dog sport trial premium document. Find the trial entry opening date only. '
+        'Return JSON only, no other text: {"entry_opening_date": "YYYY-MM-DD"}. '
+        'If you cannot find it return {"entry_opening_date": null}'
+    )
+    for attempt in range(3):
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash-lite",
+                contents=[
+                    types.Part.from_uri(file_uri=pdf_url, mime_type="application/pdf"),
+                    prompt,
+                ],
+            )
+            raw = response.text.strip()
+            raw = re.sub(r'^```(?:json)?\s*', '', raw, flags=re.MULTILINE)
+            raw = re.sub(r'```\s*$', '', raw, flags=re.MULTILINE)
+            data = json.loads(raw.strip())
+            return data.get("entry_opening_date") or None
+        except Exception as exc:
+            if "429" in str(exc) or "quota" in str(exc).lower() or "rate" in str(exc).lower():
+                if attempt < 2:
+                    print(f"      ⏳ Gemini 429 quota hit — waiting 60s (attempt {attempt+1}/3)...")
+                    time.sleep(60)
+                    continue
+                else:
+                    print(f"      ❌ Gemini quota exhausted, skipping")
+                    return None
+            print(f"      ⚠️  Gemini extraction failed: {exc}")
+            return None
+    return None
 
 
 def extract_dates_from_text_with_gemini(page_text: str, trial_host: str) -> "str | None":
@@ -843,33 +854,43 @@ def extract_dates_from_text_with_gemini(page_text: str, trial_host: str) -> "str
     if not api_key:
         print("      ⚠️  GEMINI_API_KEY not set — skipping Gemini text fallback")
         return None
-    try:
-        import json
-        from google import genai
-        client = genai.Client(api_key=api_key)
-        prompt = (
-            f'You are extracting dog sport trial entry dates. '
-            f'Find the entry OPENING date for a NACSW nosework trial '
-            f'hosted by {trial_host}. '
-            f'Look for phrases like "opens", "entry opens", "open date", '
-            f'"entries open", or any date clearly associated with entries opening. '
-            f'Do NOT return the trial date itself. '
-            f'Return JSON only, no other text: {{"entry_opening_date": "YYYY-MM-DD"}}. '
-            f'If you cannot find it return {{"entry_opening_date": null}}\n\n'
-            f'Page text:\n{page_text[:3000]}'
-        )
-        response = client.models.generate_content(
-            model="gemini-2.0-flash-lite",
-            contents=[prompt],
-        )
-        raw = response.text.strip()
-        raw = re.sub(r'^```(?:json)?\s*', '', raw, flags=re.MULTILINE)
-        raw = re.sub(r'```\s*$', '', raw, flags=re.MULTILINE)
-        data = json.loads(raw.strip())
-        return data.get("entry_opening_date") or None
-    except Exception as exc:
-        print(f"      ⚠️  Gemini text extraction failed: {exc}")
-        return None
+    import json
+    from google import genai
+    client = genai.Client(api_key=api_key)
+    prompt = (
+        f'You are extracting dog sport trial entry dates. '
+        f'Find the entry OPENING date for a NACSW nosework trial '
+        f'hosted by {trial_host}. '
+        f'Look for phrases like "opens", "entry opens", "open date", '
+        f'"entries open", or any date clearly associated with entries opening. '
+        f'Do NOT return the trial date itself. '
+        f'Return JSON only, no other text: {{"entry_opening_date": "YYYY-MM-DD"}}. '
+        f'If you cannot find it return {{"entry_opening_date": null}}\n\n'
+        f'Page text:\n{page_text[:3000]}'
+    )
+    for attempt in range(3):
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash-lite",
+                contents=[prompt],
+            )
+            raw = response.text.strip()
+            raw = re.sub(r'^```(?:json)?\s*', '', raw, flags=re.MULTILINE)
+            raw = re.sub(r'```\s*$', '', raw, flags=re.MULTILINE)
+            data = json.loads(raw.strip())
+            return data.get("entry_opening_date") or None
+        except Exception as exc:
+            if "429" in str(exc) or "quota" in str(exc).lower() or "rate" in str(exc).lower():
+                if attempt < 2:
+                    print(f"      ⏳ Gemini 429 quota hit — waiting 60s (attempt {attempt+1}/3)...")
+                    time.sleep(60)
+                    continue
+                else:
+                    print(f"      ❌ Gemini quota exhausted, skipping")
+                    return None
+            print(f"      ⚠️  Gemini text extraction failed: {exc}")
+            return None
+    return None
 
 
 async def _docx_text(url: str) -> str:
