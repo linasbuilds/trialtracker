@@ -332,7 +332,7 @@ async function main() {
       // It is already in the DOM — just hidden. Must use textContent / child queries,
       // NOT innerText, which returns '' for display:none elements.
       let locationName = null, street = null;
-      let clubWebsite  = null, fullDateText = null;
+      let clubWebsite  = null, fullDateText = null, premiumUrl = null;
 
       const detailRow = eventId
         ? document.querySelector(`tr.event${eventId}`)
@@ -382,6 +382,14 @@ async function main() {
               locationName = value;
             }
           }
+
+          if (/premium|available|details and information/i.test(labelKey)) {
+            const aEl = cells.length >= 2 ? cells[1].querySelector('a[href]') : null;
+            if (aEl) {
+              const href = (aEl.href || '').trim();
+              if (href.startsWith('http')) premiumUrl = href;
+            }
+          }
         }
 
         // Club website — querySelectorAll works on display:none elements
@@ -407,7 +415,7 @@ async function main() {
 
       results.push({
         startDate, fullTitle, trialName, trialHost, city, state,
-        locationName, street, fullDateText, clubWebsite, eventId,
+        locationName, street, fullDateText, clubWebsite, premiumUrl, eventId,
       });
     });
 
@@ -450,7 +458,7 @@ async function main() {
       entry_opening_date: null,
       entry_closing_date: null,
       club_website:       t.clubWebsite   || null,
-      premium_url:        null,
+      premium_url:        t.premiumUrl || null,
       official_link:      t.eventId ? `${NACSW_URL}#event${t.eventId}` : NACSW_URL,
     };
   });
