@@ -128,34 +128,51 @@ const buildGCalTrialUrl = (trial: Trial) => {
   const start = toCalDate(trial.trial_start_date);
   const end = addOneDay(trial.trial_end_date || trial.trial_start_date);
   const link = trial.official_link || trial.club_website || "";
+  const location = trial.street
+    ? `${trial.street}, ${trial.city}, ${trial.state}${trial.zip ? " " + trial.zip : ""}`
+    : `${trial.city}, ${trial.state}`;
+  const desc = [
+    trial.trial_host,
+    trial.location_name,
+    `${trial.trial_start_date} to ${trial.trial_end_date || trial.trial_start_date}`,
+    link ? `View & Register: ${link}` : null,
+  ].filter(Boolean).join(" · ");
   return `https://calendar.google.com/calendar/render?action=TEMPLATE`
-    + `&text=${encodeURIComponent(`${trial.trial_host} — ${trial.organization} Trial`)}`
+    + `&text=${encodeURIComponent(`${trial.trial_name || trial.trial_host} - ${trial.city}, ${trial.state}`)}`
     + `&dates=${start}/${end}`
-    + `&location=${encodeURIComponent(`${trial.city}, ${trial.state}`)}`
-    + `&details=${encodeURIComponent(`View & Register: ${link}`)}`;
+    + `&location=${encodeURIComponent(location)}`
+    + `&details=${encodeURIComponent(desc)}`;
 };
 
 const buildGCalReminderUrl = (trial: Trial) => {
   const date = toCalDate(trial.entry_opening_date);
-  const link = trial.official_link || trial.club_website || "";
+  const regLink = trial.premium_url || trial.official_link || trial.club_website || "";
+  const regLine = regLink ? `Register: ${regLink}` : null;
+  const desc = [
+    `Entry window opens today.`,
+    `Trial dates: ${trial.trial_start_date} to ${trial.trial_end_date || trial.trial_start_date} at ${trial.location_name || trial.city}.`,
+    regLine,
+  ].filter(Boolean).join(" ");
   return `https://calendar.google.com/calendar/render?action=TEMPLATE`
-    + `&text=${encodeURIComponent(`⚡ Entries Open: ${trial.trial_host} ${trial.organization}`)}`
+    + `&text=${encodeURIComponent(`Entries Open: ${trial.trial_name || trial.trial_host} - ${trial.city}, ${trial.state}`)}`
     + `&dates=${date}/${date}`
-    + `&details=${encodeURIComponent(`Entry window opens today. View & Register: ${link}`)}`;
+    + `&details=${encodeURIComponent(desc)}`;
 };
 
 const downloadTrialIcs = (trial: Trial) => {
   const link = trial.official_link || trial.club_website || "";
   const name = trial.trial_name || trial.trial_host || "Trial";
-  const address = buildAddress(trial);
-  const locationLine = [trial.location_name, address].filter(Boolean).join(" · ");
+  const locationField = trial.street
+    ? `${trial.street}, ${trial.city}, ${trial.state}${trial.zip ? " " + trial.zip : ""}`
+    : `${trial.city}, ${trial.state}`;
+  const descParts = [trial.trial_host, trial.location_name, `${trial.trial_start_date} to ${trial.trial_end_date || trial.trial_start_date}`].filter(Boolean).join(" · ");
   const ics = [
     "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//TrialTracker//EN", "BEGIN:VEVENT",
     `DTSTART:${toCalDate(trial.trial_start_date)}`,
     `DTEND:${addOneDay(trial.trial_end_date || trial.trial_start_date)}`,
-    `SUMMARY:${name} — ${trial.organization} Trial`,
-    `LOCATION:${address || `${trial.city}, ${trial.state}`}`,
-    `DESCRIPTION:${locationLine ? locationLine + "\\n" : ""}View & Register: ${link}`,
+    `SUMMARY:${trial.trial_name || name} - ${trial.city}, ${trial.state}`,
+    `LOCATION:${locationField}`,
+    `DESCRIPTION:${descParts}${link ? "\\nView & Register: " + link : ""}`,
     "END:VEVENT", "END:VCALENDAR",
   ].join("\r\n");
   const a = document.createElement("a");
@@ -166,12 +183,13 @@ const downloadTrialIcs = (trial: Trial) => {
 
 const downloadReminderIcs = (trial: Trial) => {
   const date = toCalDate(trial.entry_opening_date);
-  const link = trial.official_link || trial.club_website || "";
+  const regLink = trial.premium_url || trial.official_link || trial.club_website || "";
+  const regLine = regLink ? `\\nRegister: ${regLink}` : "";
   const ics = [
     "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//TrialTracker//EN", "BEGIN:VEVENT",
     `DTSTART:${date}`, `DTEND:${date}`,
-    `SUMMARY:⚡ Entries Open: ${trial.trial_host} ${trial.organization}`,
-    `DESCRIPTION:Entry window opens today. View & Register: ${link}`,
+    `SUMMARY:Entries Open: ${trial.trial_name || trial.trial_host} - ${trial.city}, ${trial.state}`,
+    `DESCRIPTION:Entry window opens today. Trial dates: ${trial.trial_start_date} to ${trial.trial_end_date || trial.trial_start_date} at ${trial.location_name || trial.city}.${regLine}`,
     "END:VEVENT", "END:VCALENDAR",
   ].join("\r\n");
   const a = document.createElement("a");
