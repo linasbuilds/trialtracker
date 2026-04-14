@@ -1348,29 +1348,84 @@ async def _scrape_trial(
         opening = None
         closing = None
 
-    # ── Fast Path: premium_url .docx ───────────────────────────────────────────
-    if premium_url and premium_url.lower().split("?")[0].endswith(".docx"):
-        print(f"  ⚡ Fast Path — fetching premium .docx: {premium_url}")
-        docx_text_fp = await _docx_text(premium_url)
-        if docx_text_fp.strip():
-            opening, closing = extract_dates_inline(docx_text_fp, start_date)
-            if not (opening or closing):
-                opening, closing = _extract_contextual(docx_text_fp, start_date)
-            if not (opening or closing):
-                opening, closing = extract_dates(docx_text_fp, start_date)
-            if opening or closing:
-                _log_found(opening, closing, "premium .docx")
-                if not _entry_dates_plausible(opening, start_date):
-                    print(f"  ⚠️  Opening date {opening} is >6 months before trial start {start_date} — stale .docx, skipping")
-                else:
-                    return opening, closing
-            if not (opening or closing):
-                print("    ❌ No date labels found in .docx")
-                print(f"    🔍 .docx first 1000 chars: {docx_text_fp[:1000]!r}")
+    # ── Fast Path: premium_url (.docx / .pdf / webpage) ───────────────────────
+    if premium_url:
+        _pu_clean = premium_url.lower().split("?")[0]
+
+        # Case 1: .docx (unchanged)
+        if _pu_clean.endswith(".docx"):
+            print(f"  ⚡ Fast Path — fetching premium .docx: {premium_url}")
+            docx_text_fp = await _docx_text(premium_url)
+            if docx_text_fp.strip():
+                opening, closing = extract_dates_inline(docx_text_fp, start_date)
+                if not (opening or closing):
+                    opening, closing = _extract_contextual(docx_text_fp, start_date)
+                if not (opening or closing):
+                    opening, closing = extract_dates(docx_text_fp, start_date)
+                if opening or closing:
+                    _log_found(opening, closing, "premium .docx")
+                    if not _entry_dates_plausible(opening, start_date):
+                        print(f"  ⚠️  Opening date {opening} is >6 months before trial start {start_date} — stale .docx, skipping")
+                    else:
+                        return opening, closing
+                if not (opening or closing):
+                    print("    ❌ No date labels found in .docx")
+                    print(f"    🔍 .docx first 1000 chars: {docx_text_fp[:1000]!r}")
+            else:
+                print("    ❌ No text extracted from .docx")
+            print("    Falling through to club website")
+            await asyncio.sleep(1)
+
+        # Case 2: .pdf
+        elif _pu_clean.endswith(".pdf"):
+            print(f"  📄 Fast Path — trying premium PDF: {premium_url}")
+            await asyncio.sleep(1)
+            pdf_text_fp = await _fetch_pdf_text(crawler, premium_url, cfg)
+            if pdf_text_fp.strip():
+                opening, closing = extract_dates_inline(pdf_text_fp, start_date)
+                if not (opening or closing):
+                    opening, closing = _extract_contextual(pdf_text_fp, start_date)
+                if not (opening or closing):
+                    opening, closing = extract_dates(pdf_text_fp, start_date)
+                if opening or closing:
+                    _log_found(opening, closing, "premium PDF")
+                    if not _entry_dates_plausible(opening, start_date):
+                        print(f"  ⚠️  Opening date {opening} is >6 months before trial start {start_date} — stale PDF, skipping")
+                    else:
+                        return opening, closing
+                if not (opening or closing):
+                    print("    ❌ No date labels found in premium PDF")
+                    print(f"    🔍 PDF first 1000 chars: {pdf_text_fp[:1000]!r}")
+            else:
+                print("    ❌ No text extracted from premium PDF")
+            print("    Falling through to club website")
+            opening = None
+            closing = None
+
+        # Case 3: webpage (not .pdf or .docx)
         else:
-            print("    ❌ No text extracted from .docx")
-        print("    Falling through to club website")
-        await asyncio.sleep(1)
+            print(f"  🌐 Fast Path — trying premium webpage: {premium_url}")
+            await asyncio.sleep(1)
+            prem_result = await _fetch(crawler, premium_url)
+            if prem_result is not None:
+                prem_text = _get_text(prem_result)
+                if prem_text:
+                    opening, closing = extract_dates_inline(prem_text, start_date)
+                    if not (opening or closing):
+                        opening, closing = _extract_contextual(prem_text, start_date)
+                    if not (opening or closing):
+                        opening, closing = extract_dates(prem_text, start_date)
+                    if opening or closing:
+                        _log_found(opening, closing, "premium webpage")
+                        if not _entry_dates_plausible(opening, start_date):
+                            print(f"  ⚠️  Opening date {opening} is >6 months before trial start {start_date} — stale page, skipping")
+                        else:
+                            return opening, closing
+                    if not (opening or closing):
+                        print("    ❌ No dates found on premium webpage")
+            print("    Falling through to club website")
+            opening = None
+            closing = None
 
     if not club_url:
         print(f"  ❌ No club_website for {trial_host} — nothing more to try")
