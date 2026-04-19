@@ -1485,6 +1485,10 @@ async def _scrape_trial(
 
     # ── Step B: Navigation links ───────────────────────────────────────────────
     nav_links = _find_nav_links(home_html, home_links, club_url)
+    # Always try /trials directly — many NACSW clubs put all trial info there
+    _trials_url = club_url.rstrip("/") + "/trials"
+    if _trials_url not in nav_links and _trials_url != club_url:
+        nav_links.insert(0, _trials_url)
     print(f"  🔗 Step B — Found {len(nav_links)} navigation link(s) to check")
 
     detail_links: list[str] = []
@@ -1889,6 +1893,13 @@ async def main() -> None:
                         await asyncio.sleep(DELAY)
                     continue
 
+                if opening:
+                    # Reject weekend dates — NACSW never opens entries on Sat/Sun
+                    _dow = date.fromisoformat(opening).weekday()
+                    if _dow >= 5:
+                        _day_name = "Saturday" if _dow == 5 else "Sunday"
+                        print(f"  ⚠️  Rejected weekend opening date {opening} ({_day_name}) for {name} — NACSW never opens on weekends")
+                        opening = None
                 if opening:
                     closing = (date.fromisoformat(opening) + timedelta(days=2)).isoformat()
                     print(f"  📅 Closing date: opening + 2 days = {closing}")
