@@ -711,25 +711,25 @@ export default function TrialsPage() {
             <p className="text-xs text-slate-500 mb-2 font-medium">🐾 Sniff out your trials here by clicking one of the below:</p>
             <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => document.getElementById('section-opening-soon')?.scrollIntoView({ behavior: 'smooth' })}
+                onClick={() => document.getElementById('section-opening-soon')?.scrollIntoView({ behavior: 'instant', block: 'start' })}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 hover:scale-105 transition-all shadow-sm cursor-pointer min-h-[44px]"
               >
                 🔔 <span className="font-bold">{openingSoonTrials.length}</span> <span className="font-semibold">Opening Soon ↓</span>
               </button>
               <button
-                onClick={() => document.getElementById('section-open-now')?.scrollIntoView({ behavior: 'smooth' })}
+                onClick={() => document.getElementById('section-open-now')?.scrollIntoView({ behavior: 'instant', block: 'start' })}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-300 hover:bg-green-200 hover:scale-105 transition-all shadow-sm cursor-pointer min-h-[44px]"
               >
                 🟢 <span className="font-bold">{openNowTrials.length}</span> <span className="font-semibold">Open Now ↓</span>
               </button>
               <button
-                onClick={() => document.getElementById('section-upcoming')?.scrollIntoView({ behavior: 'smooth' })}
+                onClick={() => document.getElementById('section-upcoming')?.scrollIntoView({ behavior: 'instant', block: 'start' })}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200 hover:scale-105 transition-all shadow-sm cursor-pointer min-h-[44px]"
               >
                 📅 <span className="font-bold">{upcomingTrials.length}</span> <span className="font-semibold">Upcoming ↓</span>
               </button>
               <button
-                onClick={() => document.getElementById('section-closed')?.scrollIntoView({ behavior: 'smooth' })}
+                onClick={() => document.getElementById('section-closed')?.scrollIntoView({ behavior: 'instant', block: 'start' })}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 hover:scale-105 transition-all shadow-sm cursor-pointer min-h-[44px]"
               >
                 🔴 <span className="font-bold">{closedTrials.length}</span> <span className="font-semibold">Closed ↓</span>
