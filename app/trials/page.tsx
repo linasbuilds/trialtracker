@@ -416,26 +416,26 @@ export default function TrialsPage() {
         </div>
 
         {/* Host + city/state */}
-        <p className="flex items-center gap-1.5 text-slate-500 text-sm mb-2">
-          <MapPin size={14} className="text-slate-400 flex-shrink-0" />
+        <p className="flex items-center gap-1.5 text-slate-700 text-sm mb-2">
+          <MapPin size={14} className="text-slate-600 flex-shrink-0" />
           {getHostName(trial)}{getHostName(trial) && trial.city ? " • " : ""}{trial.city}{trial.city && trial.state ? ", " : ""}{trial.state}
         </p>
 
         {/* Trial Location + Full Address */}
-        <div className="text-slate-600 text-sm mb-2">
+        <div className="text-slate-800 text-sm mb-2">
           <div className="mb-1">
             <span className="font-semibold">Trial Location:</span>{" "}
-            <span className="text-slate-700">{trialLocation}</span>
+            <span className="text-slate-900">{trialLocation}</span>
           </div>
           <div>
             <span className="font-semibold">Full Address:</span>{" "}
-            <span className="text-slate-700">{fullAddress}</span>
+            <span className="text-slate-900">{fullAddress}</span>
           </div>
         </div>
 
         {/* Trial dates */}
-        <p className="flex items-center gap-1.5 text-slate-600 text-sm mb-1">
-          <Calendar size={14} className="text-slate-400 flex-shrink-0" />
+        <p className="flex items-center gap-1.5 text-slate-800 text-sm mb-1">
+          <Calendar size={14} className="text-slate-600 flex-shrink-0" />
           <span>Trial:{" "}
             {trial.trial_start_date ? (
               trial.trial_end_date && trial.trial_end_date !== trial.trial_start_date ? (
@@ -447,32 +447,32 @@ export default function TrialsPage() {
                 formatDate(trial.trial_start_date, { month: "short", day: "numeric", year: "numeric" })
               )
             ) : (
-              <span className="text-slate-400 italic">TBD</span>
+              <span className="text-slate-500 italic">TBD</span>
             )}
           </span>
         </p>
 
         {/* Entry dates */}
-        <div className="text-slate-600 text-sm mb-3 space-y-0.5">
+        <div className="text-slate-800 text-sm mb-3 space-y-0.5">
           <p className="flex items-center gap-1.5">
-            <CalendarCheck size={14} className="text-slate-400 flex-shrink-0" />
+            <CalendarCheck size={14} className="text-slate-600 flex-shrink-0" />
             <span><span className="font-medium">Entry Opens:</span>{" "}
               {trial.entry_opening_date
                 ? formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
-                : <span className="text-slate-400 italic">TBD</span>}
+                : <span className="text-slate-500 italic">TBD</span>}
             </span>
           </p>
           <p className="flex items-center gap-1.5">
-            <CalendarX size={14} className="text-slate-400 flex-shrink-0" />
+            <CalendarX size={14} className="text-slate-600 flex-shrink-0" />
             <span><span className="font-medium">Entry Closes:</span>{" "}
               {trial.entry_closing_date
                 ? formatDate(trial.entry_closing_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
-                : <span className="text-slate-400 italic">TBD</span>}
+                : <span className="text-slate-500 italic">TBD</span>}
             </span>
           </p>
           {trial.pre_entry_date && (
             <p className="flex items-center gap-1.5">
-              <CalendarX size={14} className="text-slate-400 flex-shrink-0" />
+              <CalendarX size={14} className="text-slate-600 flex-shrink-0" />
               <span><span className="font-medium">Pre-Entry Closes:</span>{" "}
                 {formatDate(trial.pre_entry_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
               </span>
@@ -493,42 +493,42 @@ export default function TrialsPage() {
           </div>
         ) : entriesOpenNow ? (
           <div className={statusBannerBase} style={statusBannerStyle}>
-            <Clock size={14} className="text-slate-400 flex-shrink-0" />
+            <Clock size={14} className="text-slate-600 flex-shrink-0" />
             <span className="font-semibold text-[#1A1A2E]">Entries open now</span>
           </div>
         ) : openingSoon ? (
           <div className={statusBannerBase} style={statusBannerStyle}>
-            <Clock size={14} className="text-slate-400 flex-shrink-0" />
+            <Clock size={14} className="text-slate-600 flex-shrink-0" />
             <span className="font-medium text-[#1A1A2E]">
               {daysUntilOpen === 0 ? "Opens today" : daysUntilOpen === 1 ? "Opens tomorrow" : `Opens in ${daysUntilOpen} days`}
             </span>
           </div>
         ) : trial.entry_opening_date ? (
           <div className={statusBannerBase} style={statusBannerStyle}>
-            <Clock size={14} className="text-slate-400 flex-shrink-0" />
+            <Clock size={14} className="text-slate-600 flex-shrink-0" />
             <span className="font-normal text-[#64748B]">
               Opens {formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
             </span>
           </div>
         ) : trial.organization === "CPE" && !trial.entry_opening_date && closingDate !== null && today < closingDate ? (
           <div className={statusBannerBase} style={statusBannerStyle}>
-            <ExternalLink size={14} className="text-slate-400 flex-shrink-0" />
+            <ExternalLink size={14} className="text-slate-600 flex-shrink-0" />
             <span className="font-normal text-[#64748B]">Entries open — check premium</span>
           </div>
         ) : noEntryDates && isNACSW && daysUntilTrial !== null && daysUntilTrial >= 84 ? (
           <div className={statusBannerBase} style={statusBannerStyle}>
-            <Clock size={14} className="text-slate-400 flex-shrink-0" />
+            <Clock size={14} className="text-slate-600 flex-shrink-0" />
             <span className="font-normal text-[#94A3B8]">Entry date TBD</span>
           </div>
         ) : noEntryDates && isNACSW ? (
           <div className={statusBannerBase} style={statusBannerStyle}>
-            <Clock size={14} className="text-slate-400 flex-shrink-0" />
+            <Clock size={14} className="text-slate-600 flex-shrink-0" />
             <span className="font-normal text-[#94A3B8]">Entries closed</span>
           </div>
         ) : noEntryDates && daysUntilTrial !== null && daysUntilTrial <= 14 ? null
         : noEntryDates ? (
           <div className={statusBannerBase} style={statusBannerStyle}>
-            <Clock size={14} className="text-slate-400 flex-shrink-0" />
+            <Clock size={14} className="text-slate-600 flex-shrink-0" />
             <span className="font-normal text-[#94A3B8]">Entry date TBD</span>
           </div>
         ) : null}
@@ -554,11 +554,11 @@ export default function TrialsPage() {
               {openDropdown?.trialId === trial.id && openDropdown.type === "trial" && (
                 <div className="absolute left-0 top-full mt-1 z-10 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[190px]" onClick={(e) => e.stopPropagation()}>
                   <a href={buildGCalTrialUrl(trial)} target="_blank" rel="noopener noreferrer" onClick={() => setOpenDropdown(null)}
-                    className="flex px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                    className="flex px-4 py-2 text-sm text-slate-800 hover:bg-slate-50 transition-colors">
                     Google Calendar
                   </a>
                   <button onClick={() => { downloadTrialIcs(trial); setOpenDropdown(null); }}
-                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                    className="w-full text-left px-4 py-2 text-sm text-slate-800 hover:bg-slate-50 transition-colors">
                     Download .ics (Apple / Outlook)
                   </button>
                 </div>
@@ -578,11 +578,11 @@ export default function TrialsPage() {
               {openDropdown?.trialId === trial.id && openDropdown.type === "reminder" && (
                 <div className="absolute left-0 top-full mt-1 z-10 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[190px]" onClick={(e) => e.stopPropagation()}>
                   <a href={buildGCalReminderUrl(trial)} target="_blank" rel="noopener noreferrer" onClick={() => setOpenDropdown(null)}
-                    className="flex px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                    className="flex px-4 py-2 text-sm text-slate-800 hover:bg-slate-50 transition-colors">
                     Google Calendar
                   </a>
                   <button onClick={() => { downloadReminderIcs(trial); setOpenDropdown(null); }}
-                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                    className="w-full text-left px-4 py-2 text-sm text-slate-800 hover:bg-slate-50 transition-colors">
                     Download .ics (Apple / Outlook)
                   </button>
                 </div>
@@ -673,7 +673,7 @@ export default function TrialsPage() {
 
           <div className="flex gap-3 items-end">
             <div className="flex-1">
-              <label className="block text-xs text-slate-500 mb-1 ml-0.5">
+              <label className="block text-xs text-slate-700 mb-1 ml-0.5">
                 Search by trial name, city, host club, or level
               </label>
               <input
@@ -688,7 +688,7 @@ export default function TrialsPage() {
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="text-sm text-slate-500 hover:text-red-500 whitespace-nowrap px-3 py-2 border border-slate-200 rounded-lg hover:border-red-300 transition-colors"
+                className="text-sm text-slate-700 hover:text-red-500 whitespace-nowrap px-3 py-2 border border-slate-200 rounded-lg hover:border-red-300 transition-colors"
               >
                 Clear
               </button>
@@ -697,7 +697,7 @@ export default function TrialsPage() {
         </div>
 
         {/* Results count */}
-        <p className="text-sm text-slate-500 mb-4">
+        <p className="text-sm text-slate-700 mb-4">
           {loading ? "Loading trials..." : `${filteredTrials.length} trial${filteredTrials.length !== 1 ? "s" : ""} found`}
         </p>
 
@@ -733,8 +733,8 @@ export default function TrialsPage() {
         )}
 
         {!loading && filteredTrials.length === 0 && (
-          <div className="text-center py-16 text-slate-400">
-            <p className="text-lg font-medium text-slate-500">No trials found</p>
+          <div className="text-center py-16 text-slate-600">
+            <p className="text-lg font-medium text-slate-700">No trials found</p>
             <p className="text-sm mt-1">Try adjusting your filters</p>
           </div>
         )}
@@ -768,7 +768,7 @@ export default function TrialsPage() {
             <div className="pt-4 border-t border-slate-200">
               <button
                 onClick={() => setClosedExpanded(x => !x)}
-                className="text-sm text-slate-500 hover:text-slate-700 font-medium"
+                className="text-sm text-slate-700 hover:text-slate-900 font-medium"
               >
                 {closedExpanded
                   ? `Hide ${closedTrials.length} closed trial${closedTrials.length !== 1 ? "s" : ""}`
