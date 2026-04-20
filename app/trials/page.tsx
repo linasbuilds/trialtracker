@@ -6,6 +6,7 @@ import {
   ALL_ORGS,
   getSportsForOrg, getLevelsForOrgSport, normalizeLevel,
 } from "../lib/catalog";
+import { MapPin, Calendar, CalendarCheck, CalendarX, Clock, ExternalLink, Bell } from "lucide-react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -65,7 +66,6 @@ const getOneYearAgoIso = () => {
   return d.toISOString().split("T")[0];
 };
 
-// Returns today's date as YYYY-MM-DD using local date parts (no UTC shift).
 const getTodayIso = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -73,7 +73,6 @@ const getTodayIso = () => {
 
 const toCalDate = (d: string) => d.replace(/-/g, "");
 
-// Parse NACSW level abbreviations from trial_name (e.g. "NW1/NW2 Trials" → ["nw1","nw2"])
 const parseLevelsFromTrial = (trial: Trial): string[] => {
   if (trial.level) return [normalizeLevel(trial.level)];
   if (trial.organization === "NACSW") {
@@ -93,29 +92,22 @@ interface Trial {
   id: string;
   organization: string;
   sport: string;
-
   level?: string;
-
   trial_name: string;
   trial_host: string;
   host_club: string;
-
   city: string;
   state: string;
   zip?: string;
-
   location_name: string;
   street: string;
-
   trial_start_date: string;
   trial_end_date: string;
-
   entry_opening_date: string;
   entry_closing_date: string;
   pre_entry_date?: string;
   day_of_show_fee?: string | null;
   premium_url?: string;
-
   trial_url?: string;
   club_url?: string;
   official_link?: string;
@@ -198,6 +190,9 @@ const downloadReminderIcs = (trial: Trial) => {
   a.click();
 };
 
+const statusBannerBase = "flex items-center gap-2 pl-3 py-2 text-sm mb-3";
+const statusBannerStyle = { borderLeft: "3px solid #E2E8F0", background: "#FFFFFF" };
+
 export default function TrialsPage() {
   const [trials, setTrials] = useState<Trial[]>([]);
   const [loading, setLoading] = useState(true);
@@ -211,7 +206,8 @@ export default function TrialsPage() {
   const [keyword, setKeyword] = useState("");
   const [openDropdown, setOpenDropdown] = useState<{ trialId: string; type: "trial" | "reminder" } | null>(null);
   const [closedExpanded, setClosedExpanded] = useState(false);
-const [showBackToTop, setShowBackToTop] = useState(false);
+  const [activeTab, setActiveTab] = useState<"openingSoon" | "openNow" | "upcoming" | "closed" | "all">("openingSoon");
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [isFoundingHandler, setIsFoundingHandler] = useState(false);
   const oneYearAgo = getOneYearAgoIso();
@@ -330,34 +326,34 @@ const [showBackToTop, setShowBackToTop] = useState(false);
     "border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer";
 
   const btnClass =
-    "inline-block bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors";
+    "inline-flex items-center gap-1.5 bg-[#1A1A2E] hover:opacity-90 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors";
 
   // --- Section classification ---
   const today0 = new Date();
   today0.setHours(0, 0, 0, 0);
 
-  const classifyTrial = (trial: Trial): 'openingSoon' | 'openNow' | 'upcoming' | 'closed' => {
+  const classifyTrial = (trial: Trial): "openingSoon" | "openNow" | "upcoming" | "closed" => {
     const oDate = trial.entry_opening_date ? parseDate(trial.entry_opening_date) : null;
     const cDate = trial.entry_closing_date ? parseDate(trial.entry_closing_date) : null;
-    const cutoff48h = (trial.organization === 'NACSW' && oDate !== null && cDate === null)
+    const cutoff48h = (trial.organization === "NACSW" && oDate !== null && cDate === null)
       ? new Date(oDate.getTime() + 48 * 60 * 60 * 1000) : null;
     const effClose = cDate ?? cutoff48h;
     const isClosed = (effClose !== null && today0 >= effClose)
       || (oDate !== null && today0 > oDate && effClose === null);
-    if (isClosed) return 'closed';
+    if (isClosed) return "closed";
     const isOpenNow = oDate !== null && effClose !== null && today0 >= oDate && today0 < effClose;
-    if (isOpenNow) return 'openNow';
+    if (isOpenNow) return "openNow";
     const daysUntil = oDate !== null && today0 < oDate
       ? Math.round((oDate.getTime() - today0.getTime()) / (1000 * 60 * 60 * 24)) : null;
-    if (daysUntil !== null && daysUntil <= 30) return 'openingSoon';
-    return 'upcoming';
+    if (daysUntil !== null && daysUntil <= 30) return "openingSoon";
+    return "upcoming";
   };
 
-  const byStart = (a: Trial, b: Trial) => (a.trial_start_date || '').localeCompare(b.trial_start_date || '');
-  const openingSoonTrials = filteredTrials.filter(t => classifyTrial(t) === 'openingSoon' && !t.cancelled).sort(byStart);
-  const openNowTrials     = filteredTrials.filter(t => classifyTrial(t) === 'openNow' && !t.cancelled).sort(byStart);
-  const upcomingTrials    = filteredTrials.filter(t => classifyTrial(t) === 'upcoming').sort(byStart);
-  const closedTrials      = filteredTrials.filter(t => classifyTrial(t) === 'closed').sort(byStart);
+  const byStart = (a: Trial, b: Trial) => (a.trial_start_date || "").localeCompare(b.trial_start_date || "");
+  const openingSoonTrials = filteredTrials.filter(t => classifyTrial(t) === "openingSoon" && !t.cancelled).sort(byStart);
+  const openNowTrials     = filteredTrials.filter(t => classifyTrial(t) === "openNow" && !t.cancelled).sort(byStart);
+  const upcomingTrials    = filteredTrials.filter(t => classifyTrial(t) === "upcoming").sort(byStart);
+  const closedTrials      = filteredTrials.filter(t => classifyTrial(t) === "closed").sort(byStart);
 
   const renderCard = (trial: Trial) => {
     const today = new Date();
@@ -365,7 +361,7 @@ const [showBackToTop, setShowBackToTop] = useState(false);
     const openingDate  = trial.entry_opening_date ? parseDate(trial.entry_opening_date) : null;
     const closingDate  = trial.entry_closing_date ? parseDate(trial.entry_closing_date) : null;
     const trialStart   = trial.trial_start_date   ? parseDate(trial.trial_start_date)   : null;
-    const nacsw48hCutoff = (trial.organization === 'NACSW' && openingDate !== null && closingDate === null)
+    const nacsw48hCutoff = (trial.organization === "NACSW" && openingDate !== null && closingDate === null)
       ? new Date(openingDate.getTime() + 48 * 60 * 60 * 1000) : null;
     const effectiveClosingDate = closingDate ?? nacsw48hCutoff;
     const entriesClosed  = (effectiveClosingDate !== null && today >= effectiveClosingDate)
@@ -379,7 +375,7 @@ const [showBackToTop, setShowBackToTop] = useState(false);
       ? Math.round((trialStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : null;
     const noEntryDates   = !trial.entry_opening_date && !trial.entry_closing_date;
     const showEntryReminder = !!trial.entry_opening_date && !entriesClosed;
-    const isNACSW = trial.organization === 'NACSW';
+    const isNACSW = trial.organization === "NACSW";
     const trialLink = isNACSW
       ? (trial.club_website || trial.official_link || null)
       : (trial.official_link || trial.club_website || null);
@@ -387,41 +383,42 @@ const [showBackToTop, setShowBackToTop] = useState(false);
     const level = levelList.join("/").toUpperCase();
     const trialLocation = trial.location_name || getHostName(trial) || "TBD";
     const fullAddress = buildAddress(trial) || `${trial.city || ""}${trial.city && trial.state ? ", " : ""}${trial.state || ""}` || "TBD";
+
     return (
       <div
         key={trial.id}
-        className={`bg-white rounded-xl border shadow-sm p-5 ${openingSoon ? "border-amber-300" : "border-slate-200"}`}
+        className="bg-white rounded-xl border border-slate-200 shadow-sm p-5"
       >
+        {/* Card header */}
         <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-          <h2 className="text-lg font-bold text-slate-800">
-            🐾 {getDisplayName(trial)}
+          <h2 className="text-lg font-bold text-[#1A1A2E]">
+            {getDisplayName(trial)}
           </h2>
 
-          <div className="flex gap-2 flex-wrap">
-            <span className="text-xs px-2 py-1 rounded-full font-medium bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+          <div className="flex gap-1.5 flex-wrap">
+            <span className="text-xs px-2 py-1 rounded font-medium bg-[#F1F5F9] text-[#475569]">
               {trial.organization}
             </span>
-            <span className="text-xs px-2 py-1 rounded-full font-medium bg-gradient-to-r from-green-500 to-emerald-500 text-white">
+            <span className="text-xs px-2 py-1 rounded font-medium bg-[#F1F5F9] text-[#475569]">
               {trial.sport}
             </span>
-
             {level ? (
-              <span className="text-xs px-2 py-1 rounded-full font-medium bg-slate-100 text-slate-700 border border-slate-200">
+              <span className="text-xs px-2 py-1 rounded font-medium bg-[#F1F5F9] text-[#475569]">
                 {level}
               </span>
             ) : null}
-
             {trial.claimed && (
-              <span className="text-xs px-2 py-1 rounded-full font-medium bg-green-100 text-green-700 border border-green-200">
-                ✓ Verified by Club
+              <span className="text-xs px-2 py-1 rounded font-medium bg-[#F1F5F9] text-[#475569]">
+                Verified by Club
               </span>
             )}
           </div>
         </div>
 
         {/* Host + city/state */}
-        <p className="text-slate-500 text-sm mb-2">
-          📍 {getHostName(trial)}{getHostName(trial) && trial.city ? " • " : ""}{trial.city}{trial.city && trial.state ? ", " : ""}{trial.state}
+        <p className="flex items-center gap-1.5 text-slate-500 text-sm mb-2">
+          <MapPin size={14} className="text-slate-400 flex-shrink-0" />
+          {getHostName(trial)}{getHostName(trial) && trial.city ? " • " : ""}{trial.city}{trial.city && trial.state ? ", " : ""}{trial.state}
         </p>
 
         {/* Trial Location + Full Address */}
@@ -437,108 +434,131 @@ const [showBackToTop, setShowBackToTop] = useState(false);
         </div>
 
         {/* Trial dates */}
-        <p className="text-slate-600 text-sm mb-1">
-          🗓️ Trial:{" "}
-          {trial.trial_start_date ? (
-            trial.trial_end_date && trial.trial_end_date !== trial.trial_start_date ? (
-              <>
-                {formatDate(trial.trial_start_date, { month: "short", day: "numeric" })} –{" "}
-                {formatDate(trial.trial_end_date, { month: "short", day: "numeric", year: "numeric" })}
-              </>
+        <p className="flex items-center gap-1.5 text-slate-600 text-sm mb-1">
+          <Calendar size={14} className="text-slate-400 flex-shrink-0" />
+          <span>Trial:{" "}
+            {trial.trial_start_date ? (
+              trial.trial_end_date && trial.trial_end_date !== trial.trial_start_date ? (
+                <>
+                  {formatDate(trial.trial_start_date, { month: "short", day: "numeric" })} –{" "}
+                  {formatDate(trial.trial_end_date, { month: "short", day: "numeric", year: "numeric" })}
+                </>
+              ) : (
+                formatDate(trial.trial_start_date, { month: "short", day: "numeric", year: "numeric" })
+              )
             ) : (
-              formatDate(trial.trial_start_date, { month: "short", day: "numeric", year: "numeric" })
-            )
-          ) : (
-            <span className="text-slate-400 italic">TBD</span>
-          )}
+              <span className="text-slate-400 italic">TBD</span>
+            )}
+          </span>
         </p>
 
         {/* Entry dates */}
         <div className="text-slate-600 text-sm mb-3 space-y-0.5">
-          <p>
-            📋 <span className="font-medium">Trial Entry Opens:</span>{" "}
-            {trial.entry_opening_date
-              ? formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
-              : <span className="text-slate-400 italic">TBD</span>}
+          <p className="flex items-center gap-1.5">
+            <CalendarCheck size={14} className="text-slate-400 flex-shrink-0" />
+            <span><span className="font-medium">Entry Opens:</span>{" "}
+              {trial.entry_opening_date
+                ? formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+                : <span className="text-slate-400 italic">TBD</span>}
+            </span>
           </p>
-          <p>
-            📋 <span className="font-medium">Trial Entry Closes:</span>{" "}
-            {trial.entry_closing_date
-              ? formatDate(trial.entry_closing_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
-              : <span className="text-slate-400 italic">TBD</span>}
+          <p className="flex items-center gap-1.5">
+            <CalendarX size={14} className="text-slate-400 flex-shrink-0" />
+            <span><span className="font-medium">Entry Closes:</span>{" "}
+              {trial.entry_closing_date
+                ? formatDate(trial.entry_closing_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+                : <span className="text-slate-400 italic">TBD</span>}
+            </span>
           </p>
           {trial.pre_entry_date && (
-            <p>
-              📋 <span className="font-medium">Pre-Entry Closes:</span>{" "}
-              {formatDate(trial.pre_entry_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+            <p className="flex items-center gap-1.5">
+              <CalendarX size={14} className="text-slate-400 flex-shrink-0" />
+              <span><span className="font-medium">Pre-Entry Closes:</span>{" "}
+                {formatDate(trial.pre_entry_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+              </span>
             </p>
           )}
         </div>
 
+        {/* Entry status banner */}
         {trial.cancelled ? (
-          <div className="bg-red-100 border border-red-300 rounded-lg px-4 py-2 text-red-700 text-sm font-medium mb-3 w-full text-center">
-            ⛔ Cancelled
+          <div className="flex items-center gap-2 pl-3 py-2 text-sm font-semibold text-red-700 mb-3"
+            style={{ borderLeft: "3px solid #EF4444", background: "#FEF2F2" }}>
+            Cancelled
           </div>
         ) : entriesClosed ? (
-          <div className="bg-red-100 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-sm font-medium mb-3">
-            Entries Closed
+          <div className={statusBannerBase} style={statusBannerStyle}>
+            <Clock size={14} className="text-slate-400 flex-shrink-0" />
+            <span className="font-normal text-[#94A3B8]">Entries closed</span>
           </div>
         ) : entriesOpenNow ? (
-            <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-green-700 text-sm font-medium mb-3">
-              ✅ Entries are open now!
-            </div>
-          ) : openingSoon ? (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-amber-800 text-sm font-medium mb-3">
-              ⚡{" "}
-              {daysUntilOpen === 0 ? "Opens TODAY!" : daysUntilOpen === 1 ? "Opens TOMORROW!" : `Opens in ${daysUntilOpen} days`}
-            </div>
-          ) : trial.entry_opening_date ? (
-            <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-600 text-sm font-medium mb-3">
-              Entry opens {formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
-            </div>
-          ) : trial.organization === 'CPE' && !trial.entry_opening_date && closingDate !== null && today < closingDate ? (
-            <div className="bg-sky-50 border border-sky-200 rounded-lg px-3 py-2 text-sky-700 text-sm font-medium mb-3">
-              Entries open — check premium
-            </div>
-          ) : noEntryDates && isNACSW && daysUntilTrial !== null && daysUntilTrial >= 84 ? (
-            <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-500 text-sm font-medium mb-3">
-              Entry Dates TBD
-            </div>
-          ) : noEntryDates && isNACSW ? (
-            <div className="bg-red-100 border border-red-200 rounded-lg px-3 py-2 text-red-700 text-sm font-medium mb-3">
-              Entries Closed
-            </div>
-          ) : noEntryDates && daysUntilTrial !== null && daysUntilTrial <= 14 ? null
-          : noEntryDates ? (
-            <div className="bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-slate-500 text-sm font-medium mb-3">
-              Entry dates TBD
-            </div>
-          ) : null}
+          <div className={statusBannerBase} style={statusBannerStyle}>
+            <Clock size={14} className="text-slate-400 flex-shrink-0" />
+            <span className="font-semibold text-[#1A1A2E]">Entries open now</span>
+          </div>
+        ) : openingSoon ? (
+          <div className={statusBannerBase} style={statusBannerStyle}>
+            <Clock size={14} className="text-slate-400 flex-shrink-0" />
+            <span className="font-medium text-[#1A1A2E]">
+              {daysUntilOpen === 0 ? "Opens today" : daysUntilOpen === 1 ? "Opens tomorrow" : `Opens in ${daysUntilOpen} days`}
+            </span>
+          </div>
+        ) : trial.entry_opening_date ? (
+          <div className={statusBannerBase} style={statusBannerStyle}>
+            <Clock size={14} className="text-slate-400 flex-shrink-0" />
+            <span className="font-normal text-[#64748B]">
+              Opens {formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+            </span>
+          </div>
+        ) : trial.organization === "CPE" && !trial.entry_opening_date && closingDate !== null && today < closingDate ? (
+          <div className={statusBannerBase} style={statusBannerStyle}>
+            <ExternalLink size={14} className="text-slate-400 flex-shrink-0" />
+            <span className="font-normal text-[#64748B]">Entries open — check premium</span>
+          </div>
+        ) : noEntryDates && isNACSW && daysUntilTrial !== null && daysUntilTrial >= 84 ? (
+          <div className={statusBannerBase} style={statusBannerStyle}>
+            <Clock size={14} className="text-slate-400 flex-shrink-0" />
+            <span className="font-normal text-[#94A3B8]">Entry date TBD</span>
+          </div>
+        ) : noEntryDates && isNACSW ? (
+          <div className={statusBannerBase} style={statusBannerStyle}>
+            <Clock size={14} className="text-slate-400 flex-shrink-0" />
+            <span className="font-normal text-[#94A3B8]">Entries closed</span>
+          </div>
+        ) : noEntryDates && daysUntilTrial !== null && daysUntilTrial <= 14 ? null
+        : noEntryDates ? (
+          <div className={statusBannerBase} style={statusBannerStyle}>
+            <Clock size={14} className="text-slate-400 flex-shrink-0" />
+            <span className="font-normal text-[#94A3B8]">Entry date TBD</span>
+          </div>
+        ) : null}
 
+        {/* Action buttons */}
         <div className="flex flex-wrap items-center gap-2">
           {trialLink && (
             <a href={trialLink} target="_blank" rel="noopener noreferrer" className={btnClass}>
+              <ExternalLink size={14} />
               View &amp; Register
             </a>
           )}
 
-          {/* 📅 Add Trial */}
           {trial.trial_start_date && (
             <div className="relative">
               <button
                 onClick={(e) => { e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); setOpenDropdown(openDropdown?.trialId === trial.id && openDropdown.type === "trial" ? null : { trialId: trial.id, type: "trial" }); }}
-                className="text-sm bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium px-3 py-1.5 rounded-full border border-slate-200 transition-colors"
+                className="inline-flex items-center gap-1.5 text-sm bg-white hover:bg-slate-50 text-[#1A1A2E] font-medium px-3 py-1.5 rounded-lg border border-[#E2E8F0] hover:border-[#1A1A2E] transition-colors"
               >
-                📅 Add Trial to Calendar
+                <Calendar size={14} />
+                Add Trial to Calendar
               </button>
               {openDropdown?.trialId === trial.id && openDropdown.type === "trial" && (
                 <div className="absolute left-0 top-full mt-1 z-10 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[190px]" onClick={(e) => e.stopPropagation()}>
                   <a href={buildGCalTrialUrl(trial)} target="_blank" rel="noopener noreferrer" onClick={() => setOpenDropdown(null)}
-                    className="flex px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                    className="flex px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                     Google Calendar
                   </a>
                   <button onClick={() => { downloadTrialIcs(trial); setOpenDropdown(null); }}
-                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                     Download .ics (Apple / Outlook)
                   </button>
                 </div>
@@ -546,30 +566,29 @@ const [showBackToTop, setShowBackToTop] = useState(false);
             </div>
           )}
 
-          {/* ⚡ Entry Opening Reminder */}
           {showEntryReminder && (
             <div className="relative">
               <button
                 onClick={(e) => { e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); setOpenDropdown(openDropdown?.trialId === trial.id && openDropdown.type === "reminder" ? null : { trialId: trial.id, type: "reminder" }); }}
-                className="text-sm bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium px-3 py-1.5 rounded-full border border-amber-200 transition-colors"
+                className="inline-flex items-center gap-1.5 text-sm bg-white hover:bg-slate-50 text-[#1A1A2E] font-medium px-3 py-1.5 rounded-lg border border-[#E2E8F0] hover:border-[#1A1A2E] transition-colors"
               >
-                ⚡ Add Entry Opening to Calendar
+                <Bell size={14} />
+                Add Entry Opening to Calendar
               </button>
               {openDropdown?.trialId === trial.id && openDropdown.type === "reminder" && (
                 <div className="absolute left-0 top-full mt-1 z-10 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[190px]" onClick={(e) => e.stopPropagation()}>
                   <a href={buildGCalReminderUrl(trial)} target="_blank" rel="noopener noreferrer" onClick={() => setOpenDropdown(null)}
-                    className="flex px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                    className="flex px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                     Google Calendar
                   </a>
                   <button onClick={() => { downloadReminderIcs(trial); setOpenDropdown(null); }}
-                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                     Download .ics (Apple / Outlook)
                   </button>
                 </div>
               )}
             </div>
           )}
-
         </div>
       </div>
     );
@@ -577,20 +596,19 @@ const [showBackToTop, setShowBackToTop] = useState(false);
 
   return (
     <>
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#F8F9FA]">
       <div className="max-w-4xl mx-auto px-4 py-6">
 
         {/* Header bar */}
         <div className="flex items-center gap-2 mb-4">
           {firstName ? (
-            <span className="text-lg font-bold text-slate-800">Hi, {firstName}! 🐾</span>
+            <span className="text-lg font-bold text-[#1A1A2E]">Hi, {firstName}</span>
           ) : (
-            <span className="text-lg font-bold text-slate-800">🐾 TrialTracker</span>
+            <span className="text-lg font-bold text-[#1A1A2E]">TrialTracker</span>
           )}
           {isFoundingHandler && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
-              style={{ background: '#fffbeb', color: '#92400e', border: '1px solid #fcd34d' }}>
-              ⭐ Founding Handler
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-[#1A1A2E] text-white">
+              Founding Handler
             </span>
           )}
         </div>
@@ -604,7 +622,6 @@ const [showBackToTop, setShowBackToTop] = useState(false);
               ))}
             </select>
 
-            {/* Org — resets Sport + Level downstream */}
             <select
               value={selectedOrg}
               onChange={(e) => {
@@ -618,7 +635,6 @@ const [showBackToTop, setShowBackToTop] = useState(false);
               {ALL_ORGS.map((o) => <option key={o} value={o}>{o}</option>)}
             </select>
 
-            {/* Sport — options cascade from selected Org; resets Level downstream */}
             <select
               value={selectedSport}
               onChange={(e) => {
@@ -633,7 +649,6 @@ const [showBackToTop, setShowBackToTop] = useState(false);
               ))}
             </select>
 
-            {/* Level — appears as soon as an Org is selected; narrows when Sport is also picked */}
             {(() => {
               const levels = getLevelsForOrgSport(selectedOrg, selectedSport);
               if (!levels.length) return null;
@@ -641,9 +656,9 @@ const [showBackToTop, setShowBackToTop] = useState(false);
                 <select
                   value={selectedLevel}
                   onChange={(e) => setSelectedLevel(e.target.value)}
-                  className={`${selectClass} border-blue-300 bg-blue-50`}
+                  className={selectClass}
                 >
-                  <option value="All Levels">🏅 All Levels</option>
+                  <option value="All Levels">All Levels</option>
                   {levels.map((lvl) => <option key={lvl} value={lvl}>{lvl}</option>)}
                 </select>
               );
@@ -663,7 +678,7 @@ const [showBackToTop, setShowBackToTop] = useState(false);
               </label>
               <input
                 type="text"
-                placeholder="🔍 Search by trial name, city, host club, or level..."
+                placeholder="Search by trial name, city, host club, or level..."
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -675,7 +690,7 @@ const [showBackToTop, setShowBackToTop] = useState(false);
                 onClick={clearFilters}
                 className="text-sm text-slate-500 hover:text-red-500 whitespace-nowrap px-3 py-2 border border-slate-200 rounded-lg hover:border-red-300 transition-colors"
               >
-                ✕ Clear
+                Clear
               </button>
             )}
           </div>
@@ -683,84 +698,80 @@ const [showBackToTop, setShowBackToTop] = useState(false);
 
         {/* Results count */}
         <p className="text-sm text-slate-500 mb-4">
-          {loading ? "Loading trials..." : `🐾 ${filteredTrials.length} trial${filteredTrials.length !== 1 ? "s" : ""} found`}
+          {loading ? "Loading trials..." : `${filteredTrials.length} trial${filteredTrials.length !== 1 ? "s" : ""} found`}
         </p>
 
-        {/* Jump bar */}
+        {/* Filter tabs */}
         {!loading && filteredTrials.length > 0 && (
-          <div className="mb-4">
-            <p className="text-xs text-slate-500 mb-2 font-medium">🐾 Sniff out your trials here by clicking one of the below:</p>
-            <div className="flex flex-wrap gap-2">
+          <div className="mb-4 flex flex-wrap gap-2">
+            {(
+              [
+                { key: "openingSoon", label: "Opening Soon", count: openingSoonTrials.length },
+                { key: "openNow",     label: "Open Now",     count: openNowTrials.length },
+                { key: "upcoming",    label: "Upcoming",     count: upcomingTrials.length },
+                { key: "closed",      label: "Closed",       count: closedTrials.length },
+                { key: "all",         label: "All",          count: filteredTrials.length },
+              ] as const
+            ).map(tab => (
               <button
-                onClick={() => document.getElementById('section-opening-soon')?.scrollIntoView({ behavior: 'instant', block: 'start' })}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 hover:scale-105 transition-all shadow-sm cursor-pointer min-h-[44px]"
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium border transition-all ${
+                  activeTab === tab.key
+                    ? "bg-[#1A1A2E] text-white border-[#1A1A2E]"
+                    : "bg-white text-[#1A1A2E] border-[#E2E8F0] hover:border-[#1A1A2E]"
+                }`}
               >
-                🔔 <span className="font-bold">{openingSoonTrials.length}</span> <span className="font-semibold">Opening Soon ↓</span>
+                {tab.label}
+                <span className={`text-xs font-normal ${activeTab === tab.key ? "text-slate-300" : "text-slate-400"}`}>
+                  {tab.count}
+                </span>
               </button>
-              <button
-                onClick={() => document.getElementById('section-open-now')?.scrollIntoView({ behavior: 'instant', block: 'start' })}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-300 hover:bg-green-200 hover:scale-105 transition-all shadow-sm cursor-pointer min-h-[44px]"
-              >
-                🟢 <span className="font-bold">{openNowTrials.length}</span> <span className="font-semibold">Open Now ↓</span>
-              </button>
-              <button
-                onClick={() => document.getElementById('section-upcoming')?.scrollIntoView({ behavior: 'instant', block: 'start' })}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200 hover:scale-105 transition-all shadow-sm cursor-pointer min-h-[44px]"
-              >
-                📅 <span className="font-bold">{upcomingTrials.length}</span> <span className="font-semibold">Upcoming ↓</span>
-              </button>
-              <button
-                onClick={() => document.getElementById('section-closed')?.scrollIntoView({ behavior: 'instant', block: 'start' })}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 hover:scale-105 transition-all shadow-sm cursor-pointer min-h-[44px]"
-              >
-                🔴 <span className="font-bold">{closedTrials.length}</span> <span className="font-semibold">Closed ↓</span>
-              </button>
-            </div>
+            ))}
           </div>
         )}
 
         {!loading && filteredTrials.length === 0 && (
           <div className="text-center py-16 text-slate-400">
-            <div className="text-5xl mb-3">😕</div>
-            <p className="text-lg font-medium">No trials found</p>
+            <p className="text-lg font-medium text-slate-500">No trials found</p>
             <p className="text-sm mt-1">Try adjusting your filters</p>
           </div>
         )}
 
         <div>
-          {openingSoonTrials.length > 0 && (
+          {(activeTab === "all" || activeTab === "openingSoon") && openingSoonTrials.length > 0 && (
             <div className="mb-6">
-              <div id="section-opening-soon" className="pt-4 pb-2 border-t border-slate-200">
-                <h3 className="font-bold text-slate-700">🔔 Opening Soon</h3>
+              <div className="pt-4 pb-2 border-t border-slate-200">
+                <h3 className="font-bold text-[#1A1A2E]">Opening Soon</h3>
               </div>
               <div className="space-y-4">{openingSoonTrials.map(renderCard)}</div>
             </div>
           )}
-          {openNowTrials.length > 0 && (
+          {(activeTab === "all" || activeTab === "openNow") && openNowTrials.length > 0 && (
             <div className="mb-6">
-              <div id="section-open-now" className="pt-4 pb-2 border-t border-slate-200">
-                <h3 className="font-bold text-slate-700">🟢 Open Now</h3>
+              <div className="pt-4 pb-2 border-t border-slate-200">
+                <h3 className="font-bold text-[#1A1A2E]">Open Now</h3>
               </div>
               <div className="space-y-4">{openNowTrials.map(renderCard)}</div>
             </div>
           )}
-          {upcomingTrials.length > 0 && (
+          {(activeTab === "all" || activeTab === "upcoming") && upcomingTrials.length > 0 && (
             <div className="mb-6">
-              <div id="section-upcoming" className="pt-4 pb-2 border-t border-slate-200">
-                <h3 className="font-bold text-slate-700">📅 Upcoming</h3>
+              <div className="pt-4 pb-2 border-t border-slate-200">
+                <h3 className="font-bold text-[#1A1A2E]">Upcoming</h3>
               </div>
               <div className="space-y-4">{upcomingTrials.map(renderCard)}</div>
             </div>
           )}
-          {closedTrials.length > 0 && (
-            <div id="section-closed" className="pt-4 border-t border-slate-200">
+          {(activeTab === "all" || activeTab === "closed") && closedTrials.length > 0 && (
+            <div className="pt-4 border-t border-slate-200">
               <button
                 onClick={() => setClosedExpanded(x => !x)}
                 className="text-sm text-slate-500 hover:text-slate-700 font-medium"
               >
                 {closedExpanded
-                  ? `▼ Hide ${closedTrials.length} closed trial${closedTrials.length !== 1 ? 's' : ''}`
-                  : `▶ Show ${closedTrials.length} closed trial${closedTrials.length !== 1 ? 's' : ''}`}
+                  ? `Hide ${closedTrials.length} closed trial${closedTrials.length !== 1 ? "s" : ""}`
+                  : `Show ${closedTrials.length} closed trial${closedTrials.length !== 1 ? "s" : ""}`}
               </button>
               {closedExpanded && (
                 <div className="space-y-4 mt-4">{closedTrials.map(renderCard)}</div>
@@ -771,11 +782,10 @@ const [showBackToTop, setShowBackToTop] = useState(false);
       </div>
     </div>
 
-    {/* Back to top */}
     {showBackToTop && (
       <button
-        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xl shadow-lg flex items-center justify-center transition-opacity"
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-[#1A1A2E] hover:opacity-90 text-white text-xl shadow-lg flex items-center justify-center transition-opacity"
         aria-label="Back to top"
       >
         ↑
