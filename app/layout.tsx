@@ -59,6 +59,9 @@ function Header() {
                 <a href="/preferences" className="px-4 py-2 text-slate-600 hover:text-blue-600 font-medium transition-all">
                   🐾 Preferences
                 </a>
+                <a href="/dogs" className="px-4 py-2 text-slate-600 hover:text-blue-600 font-medium transition-all">
+                  🐕 My Dogs
+                </a>
               </>
             )}
             <button
@@ -91,6 +94,9 @@ function Header() {
               </a>
               <a href="/preferences" onClick={() => setMenuOpen(false)} className="block px-4 py-3 text-slate-700 hover:bg-slate-50 rounded-lg font-medium">
                 ⚙️ Preferences
+              </a>
+              <a href="/dogs" onClick={() => setMenuOpen(false)} className="block px-4 py-3 text-slate-700 hover:bg-slate-50 rounded-lg font-medium">
+                🐕 My Dogs
               </a>
             </>
           )}

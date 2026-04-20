@@ -14,6 +14,7 @@
     "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/supabase-js": "^2.95.3",
     "axios": "^1.7.0",
+    "lucide-react": "^1.8.0",
     "mammoth": "^1.11.0",
     "next": "16.1.6",
     "pdf-parse": "^2.4.5",
