@@ -211,8 +211,7 @@ export default function TrialsPage() {
   const [keyword, setKeyword] = useState("");
   const [openDropdown, setOpenDropdown] = useState<{ trialId: string; type: "trial" | "reminder" } | null>(null);
   const [closedExpanded, setClosedExpanded] = useState(false);
-  const [disclaimerExpanded, setDisclaimerExpanded] = useState(false);
-  const [showBackToTop, setShowBackToTop] = useState(false);
+const [showBackToTop, setShowBackToTop] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [isFoundingHandler, setIsFoundingHandler] = useState(false);
   const oneYearAgo = getOneYearAgoIso();
@@ -680,24 +679,6 @@ export default function TrialsPage() {
               </button>
             )}
           </div>
-        </div>
-
-        {/* Disclaimer */}
-        <div className="mb-4 bg-sky-50 border border-sky-200 rounded-lg px-4 py-2 text-sky-700 text-sm">
-          <div className="flex items-center justify-between gap-2">
-            <span>ℹ️ Built for handlers, by a handler — we only use publicly accessible data.</span>
-            <button
-              onClick={() => setDisclaimerExpanded(x => !x)}
-              className="text-sky-600 hover:text-sky-800 font-medium whitespace-nowrap text-xs shrink-0"
-            >
-              {disclaimerExpanded ? "Show less ▲" : "Learn more ▼"}
-            </button>
-          </div>
-          {disclaimerExpanded && (
-            <p className="mt-2 pt-2 border-t border-sky-200 leading-relaxed">
-              📅 TrialTracker shows trials opening in the next 120 days — peek at your host club in case anything shifted. We only aggregate trial information from publicly accessible websites, respect all organization terms of service, and never access protected or private data. This is a community platform, built for handlers, by a handler.
-            </p>
-          )}
         </div>
 
         {/* Results count */}

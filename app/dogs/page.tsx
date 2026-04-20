@@ -11,7 +11,7 @@ const SUNSET_ORANGE = '#FF7A45'
 
 const SPORT_ORG_MAP: Record<string, { org: string; levels: string[] }[]> = {
   'Nosework': [
-    { org: 'NACSW', levels: ['NW1', 'NW2', 'NW3', 'L1C', 'Summit', 'ELT', 'NW-Elite'] },
+    { org: 'NACSW', levels: ['NW1', 'NW2', 'NW3', 'ELT', 'ELT-S', 'ELT-P', 'Summit', 'L1C'] },
   ],
   'Agility': [
     { org: 'UKI',  levels: ['Beginners', 'Starters', 'Advanced', 'Masters', 'Champion'] },
@@ -50,7 +50,8 @@ interface SportOrg {
 interface Dog {
   id: string
   name: string
-  photo_url: string | null
+  breed: string | null
+  birth_date: string | null
   active: boolean
   created_at: string
   dog_sport_orgs: SportOrg[]
@@ -58,7 +59,8 @@ interface Dog {
 
 interface FormState {
   name: string
-  photo_url: string
+  breed: string
+  birth_date: string
   active: boolean
   selectedSports: string[]
   selectedOrgs: Record<string, boolean>
@@ -67,7 +69,8 @@ interface FormState {
 
 const EMPTY_FORM: FormState = {
   name: '',
-  photo_url: '',
+  breed: '',
+  birth_date: '',
   active: true,
   selectedSports: [],
   selectedOrgs: {},
@@ -76,6 +79,24 @@ const EMPTY_FORM: FormState = {
 
 function getInitials(name: string) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+}
+
+function avatarColor(dog: Dog): string {
+  const sports = dog.dog_sport_orgs.map(so => so.sport)
+  if (sports.includes('Nosework')) return VIBRANT_TEAL
+  if (sports.includes('Agility')) return ELECTRIC_BLUE
+  if (sports.includes('Rally') || sports.includes('Obedience')) return SUNSET_ORANGE
+  return ELECTRIC_BLUE
+}
+
+function formatAge(birthDate: string | null): string | null {
+  if (!birthDate) return null
+  const birth = new Date(birthDate)
+  const now = new Date()
+  const months = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth())
+  if (months < 12) return `${months} month${months !== 1 ? 's' : ''} old`
+  const years = Math.floor(months / 12)
+  return `${years} year${years !== 1 ? 's' : ''} old`
 }
 
 function buildSportOrgs(form: FormState): { sport: string; organization: string; levels: string[] }[] {
@@ -100,7 +121,7 @@ function initFormFromDog(dog: Dog): FormState {
     selectedOrgs[`${so.sport}|${so.organization}`] = true
     selectedLevels[`${so.sport}|${so.organization}`] = so.levels || []
   }
-  return { name: dog.name, photo_url: dog.photo_url || '', active: dog.active, selectedSports, selectedOrgs, selectedLevels }
+  return { name: dog.name, breed: dog.breed || '', birth_date: dog.birth_date || '', active: dog.active, selectedSports, selectedOrgs, selectedLevels }
 }
 
 export default function DogsPage() {
@@ -178,7 +199,7 @@ export default function DogsPage() {
     setSaving(true); setFormError('')
     const token = await getToken()
     const sport_orgs = buildSportOrgs(form)
-    const body = { name: form.name.trim(), photo_url: form.photo_url.trim() || null, active: form.active, sport_orgs }
+    const body = { name: form.name.trim(), breed: form.breed.trim() || null, birth_date: form.birth_date || null, active: form.active, sport_orgs }
     try {
       const res = await fetch(panelMode === 'add' ? '/api/dogs' : `/api/dogs/${editingId}`, {
         method: panelMode === 'add' ? 'POST' : 'PATCH',
@@ -232,28 +253,36 @@ export default function DogsPage() {
               <button onClick={closePanel} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
             </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-600 mb-1">Dog Name *</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="e.g. Bowdie"
-                className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              />
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-600 mb-1">
-                Photo URL <span className="text-slate-400 font-normal">(optional)</span>
-              </label>
-              <input
-                type="url"
-                value={form.photo_url}
-                onChange={e => setForm(prev => ({ ...prev, photo_url: e.target.value }))}
-                placeholder="https://..."
-                className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              />
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-slate-600 mb-1">Dog Name *</label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="e.g. Bowdie"
+                  className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">Breed <span className="text-slate-400 font-normal">(optional)</span></label>
+                <input
+                  type="text"
+                  value={form.breed}
+                  onChange={e => setForm(prev => ({ ...prev, breed: e.target.value }))}
+                  placeholder="e.g. Border Collie"
+                  className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">Birth Date <span className="text-slate-400 font-normal">(optional)</span></label>
+                <input
+                  type="date"
+                  value={form.birth_date}
+                  onChange={e => setForm(prev => ({ ...prev, birth_date: e.target.value }))}
+                  className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+              </div>
             </div>
 
             <div className="mb-5 flex items-center gap-3">
@@ -363,19 +392,15 @@ export default function DogsPage() {
               className={`bg-white rounded-xl border shadow-sm p-5 transition-colors ${editingId === dog.id ? 'border-blue-300' : 'border-slate-200'}`}
             >
               <div className="flex items-start gap-4">
-                {dog.photo_url ? (
-                  <img src={dog.photo_url} alt={dog.name} className="w-14 h-14 rounded-full object-cover flex-shrink-0" />
-                ) : (
-                  <div
-                    className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
-                    style={{ background: ELECTRIC_BLUE }}
-                  >
-                    {getInitials(dog.name)}
-                  </div>
-                )}
+                <div
+                  className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
+                  style={{ background: avatarColor(dog) }}
+                >
+                  {getInitials(dog.name)}
+                </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                     <h3 className="text-lg font-bold text-slate-800">{dog.name}</h3>
                     <span
                       className="text-xs font-semibold px-2 py-0.5 rounded-full"
@@ -386,8 +411,13 @@ export default function DogsPage() {
                       {dog.active ? 'Active' : 'Retired'}
                     </span>
                   </div>
+                  {(dog.breed || dog.birth_date) && (
+                    <p className="text-xs text-slate-400 mb-1">
+                      {[dog.breed, formatAge(dog.birth_date)].filter(Boolean).join(' · ')}
+                    </p>
+                  )}
                   {dog.dog_sport_orgs.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
                       {dog.dog_sport_orgs.map((so, i) => (
                         <div key={i} className="flex flex-wrap gap-1">
                           <span className="text-xs px-2 py-0.5 rounded-full font-medium"
