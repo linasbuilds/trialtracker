@@ -323,7 +323,7 @@ export default function TrialsPage() {
   };
 
   const selectClass =
-    "border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer";
+    "border border-[#E2E8F0] rounded-lg px-3 py-2 text-sm bg-white text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#1A1A2E] cursor-pointer";
 
   const btnClass =
     "inline-flex items-center gap-1.5 bg-[#1A1A2E] hover:opacity-90 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors";
@@ -673,7 +673,7 @@ export default function TrialsPage() {
 
           <div className="flex gap-3 items-end">
             <div className="flex-1">
-              <label className="block text-xs text-slate-700 mb-1 ml-0.5">
+              <label className="block text-xs text-slate-700 font-medium mb-1 ml-0.5">
                 Search by trial name, city, host club, or level
               </label>
               <input
@@ -681,7 +681,7 @@ export default function TrialsPage() {
                 placeholder="Search by trial name, city, host club, or level..."
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-[#E2E8F0] rounded-lg px-3 py-2 text-sm bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]"
               />
             </div>
 

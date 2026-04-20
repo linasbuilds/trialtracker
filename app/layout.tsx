@@ -15,8 +15,8 @@ function NavLink({ href, icon, label, onClick }: { href: string; icon: React.Rea
       onClick={onClick}
       className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
         active
-          ? "bg-blue-50 text-blue-600"
-          : "text-slate-600 hover:text-blue-600 hover:bg-slate-50"
+          ? "bg-[#1A1A2E] text-white"
+          : "text-slate-900 hover:text-slate-900 hover:bg-slate-50"
       }`}
     >
       {icon}
