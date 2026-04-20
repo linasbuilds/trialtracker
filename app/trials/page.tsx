@@ -723,6 +723,7 @@ export default function TrialsPage() {
                 }`}
               >
                 {tab.label}
+                <span className={activeTab === tab.key ? "mx-1.5 text-slate-400" : "mx-1.5 text-slate-300"}>·</span>
                 <span className={`text-xs font-normal ${activeTab === tab.key ? "text-slate-300" : "text-slate-400"}`}>
                   {tab.count}
                 </span>
