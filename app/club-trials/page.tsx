@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { XCircle, Pencil, X, Check, Upload, Save, CheckCircle, Download } from "lucide-react";
 
 
 const CSV_COLUMNS = [
@@ -241,7 +242,7 @@ export default function ClubTrialsPage() {
       body: JSON.stringify({ trialId }),
     });
     if (res.ok) {
-      showMessage("Trial added to your managed list! ✅", "success");
+      showMessage("Trial added to your managed list!", "success");
       reloadManagedTrials();
       if (searchQuery.trim()) searchTrials(searchQuery);
     } else {
@@ -349,7 +350,7 @@ export default function ClubTrialsPage() {
       const { inserted = 0, updated = 0, errors = [] } = result;
       const total = inserted + updated;
       showMessage(
-        `✅ ${total} trial${total !== 1 ? "s" : ""} imported (${inserted} new, ${updated} updated)${errors.length ? ` — ${errors.length} row(s) skipped` : ""}!`,
+        `${total} trial${total !== 1 ? "s" : ""} imported (${inserted} new, ${updated} updated)${errors.length ? ` — ${errors.length} row(s) skipped` : ""}!`,
         "success"
       );
       if (errors.length) setCsvError(errors.join("\n"));
@@ -429,7 +430,7 @@ export default function ClubTrialsPage() {
         )
       );
       setTrialEditId(null);
-      showMessage("Changes saved! ✅", "success");
+      showMessage("Changes saved!", "success");
     } else {
       const body = await res.json().catch(() => ({}));
       setTrialEditError(body.error || "Save failed. Please try again.");
@@ -463,7 +464,7 @@ export default function ClubTrialsPage() {
     if (error) {
       showMessage("Error restoring trial. Please try again.", "error");
     } else {
-      showMessage("Trial restored! It's live again. ✅", "success");
+      showMessage("Trial restored! It's live again.", "success");
       reloadManagedTrials();
     }
   };
@@ -503,16 +504,16 @@ export default function ClubTrialsPage() {
           <div className="flex flex-wrap gap-2 items-center">
             <button
               onClick={downloadTemplate}
-              className="text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-2 rounded-xl transition-all border border-slate-200"
+              className="inline-flex items-center gap-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-2 rounded-xl transition-all border border-slate-200"
             >
-              ⬇ CSV Template
+              <Download size={14} /> CSV Template
             </button>
             <button
               onClick={() => csvFileRef.current?.click()}
               disabled={csvImporting}
-              className="text-sm bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-2 rounded-xl transition-all disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 text-sm bg-[#1A1A2E] hover:opacity-90 text-white font-semibold px-3 py-2 rounded-xl transition-all disabled:opacity-50"
             >
-              {csvImporting ? "Importing…" : "⬆ Upload CSV"}
+              <Upload size={14} /> {csvImporting ? "Importing…" : "Upload CSV"}
             </button>
             <input
               ref={csvFileRef}
@@ -534,11 +535,12 @@ export default function ClubTrialsPage() {
 
         {/* Toast message */}
         {message && (
-          <div className={`mb-6 rounded-xl p-5 text-center font-bold ${
+          <div className={`mb-6 rounded-xl p-4 flex items-center gap-2 font-semibold text-sm ${
             messageType === "success"
-              ? "bg-green-100 text-green-800 border border-green-300 text-lg"
-              : "bg-red-100 text-red-800 border border-red-200"
+              ? "bg-[#F8F9FA] border border-[#E2E8F0] text-slate-900"
+              : "bg-red-50 border border-red-200 text-red-800"
           }`}>
+            {messageType === "success" && <CheckCircle size={16} className="flex-shrink-0 text-slate-700" />}
             {message}
           </div>
         )}
@@ -552,7 +554,7 @@ export default function ClubTrialsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Type your club name..."
-              className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white shadow-sm"
+              className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A1A2E] bg-white shadow-sm"
             />
             {searchLoading && (
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs">Searching…</span>
@@ -580,11 +582,11 @@ export default function ClubTrialsPage() {
                 {/* Cancelled banner */}
                 {trial.cancelled && (
                   <div className="bg-red-50 border-b border-red-200 px-5 py-2 flex items-center justify-between">
-                    <span className="text-red-700 text-sm font-semibold">🚫 Cancelled — hidden from handlers</span>
+                    <span className="text-red-700 text-sm font-semibold flex items-center gap-1.5"><XCircle size={14} className="flex-shrink-0" /> Cancelled — hidden from handlers</span>
                     {isOwnSubmission(trial) && (
                       <button
                         onClick={() => restoreTrial(trial.id)}
-                        className="text-xs text-blue-600 hover:underline font-medium"
+                        className="text-xs text-slate-700 hover:underline font-medium"
                       >
                         Restore trial
                       </button>
@@ -598,15 +600,15 @@ export default function ClubTrialsPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <span className="text-xs font-bold uppercase tracking-wide text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                          <span className="text-xs px-2 py-0.5 rounded font-medium bg-[#F1F5F9] text-slate-600">
                             {trial.organization}
                           </span>
-                          <span className="text-xs font-bold uppercase tracking-wide text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                          <span className="text-xs px-2 py-0.5 rounded font-medium bg-[#F1F5F9] text-slate-600">
                             {trial.sport}
                           </span>
                           {managed && (
-                            <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
-                              ✓ Managing
+                            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium bg-[#1A1A2E] text-white">
+                              <Check size={12} /> Managing
                             </span>
                           )}
                         </div>
@@ -623,24 +625,24 @@ export default function ClubTrialsPage() {
                         {managed && !trial.cancelled && (
                           <button
                             onClick={() => startTrialEdit(trial)}
-                            className="text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-1.5 rounded-lg transition-all"
+                            className="inline-flex items-center gap-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-1.5 rounded-lg transition-all"
                           >
-                            ✏️ Edit Trial
+                            <Pencil size={14} /> Edit Trial
                           </button>
                         )}
                         {isOwnSubmission(trial) && !trial.cancelled && (
                           <button
                             onClick={() => setCancelConfirmId(trial.id)}
-                            className="text-sm bg-red-50 hover:bg-red-100 text-red-600 font-medium px-3 py-1.5 rounded-lg transition-all"
+                            className="inline-flex items-center gap-1.5 text-sm bg-red-50 hover:bg-red-100 text-red-600 font-medium px-3 py-1.5 rounded-lg transition-all"
                           >
-                            🚫 Cancel
+                            <X size={14} /> Cancel
                           </button>
                         )}
                         {!managed && !claimedByOther && (
                           <button
                             onClick={() => manageTrial(trial.id)}
                             disabled={isManaging}
-                            className="text-sm bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-1.5 rounded-lg transition-all disabled:opacity-50"
+                            className="text-sm bg-[#1A1A2E] hover:opacity-90 text-white font-semibold px-4 py-1.5 rounded-lg transition-all disabled:opacity-50"
                           >
                             {isManaging ? "Adding…" : "Manage This Trial"}
                           </button>
@@ -669,7 +671,7 @@ export default function ClubTrialsPage() {
                       <div className="flex items-center gap-3 flex-wrap">
                         {trial.official_link && !trial.official_link.startsWith("club-upload://") && (
                           <a href={trial.official_link} target="_blank" rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline font-medium">
+                            className="text-slate-700 hover:underline font-medium">
                             View official link ↗
                           </a>
                         )}
@@ -699,12 +701,12 @@ export default function ClubTrialsPage() {
                       <div>
                         <label className="block text-xs font-medium text-slate-600 mb-1">Entry Opens</label>
                         <input type="date" name="entry_opening_date" value={trialEditForm.entry_opening_date} onChange={handleTrialEditChange}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-slate-600 mb-1">Entry Closes</label>
                         <input type="date" name="entry_closing_date" value={trialEditForm.entry_closing_date} onChange={handleTrialEditChange}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
                       </div>
                     </div>
 
@@ -713,13 +715,13 @@ export default function ClubTrialsPage() {
                       <div>
                         <label className="block text-xs font-medium text-slate-600 mb-1">Pre-Entry Date</label>
                         <input type="date" name="pre_entry_date" value={trialEditForm.pre_entry_date} onChange={handleTrialEditChange}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-slate-600 mb-1">Day-of-Show Fee</label>
                         <input type="text" name="day_of_show_fee" value={trialEditForm.day_of_show_fee} onChange={handleTrialEditChange}
                           placeholder="e.g. $20"
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
                       </div>
                     </div>
 
@@ -727,37 +729,37 @@ export default function ClubTrialsPage() {
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Trial Name</label>
                       <input type="text" name="trial_name" value={trialEditForm.trial_name} onChange={handleTrialEditChange}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
                     </div>
 
                     {/* Location */}
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Location Name</label>
                       <input type="text" name="location_name" value={trialEditForm.location_name} onChange={handleTrialEditChange}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
                     </div>
 
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Street Address</label>
                       <input type="text" name="street" value={trialEditForm.street} onChange={handleTrialEditChange}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
                     </div>
 
                     <div className="grid grid-cols-5 gap-3">
                       <div className="col-span-2">
                         <label className="block text-xs font-medium text-slate-600 mb-1">City</label>
                         <input type="text" name="city" value={trialEditForm.city} onChange={handleTrialEditChange}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
                       </div>
                       <div className="col-span-1">
                         <label className="block text-xs font-medium text-slate-600 mb-1">State</label>
                         <input type="text" name="state" value={trialEditForm.state} onChange={handleTrialEditChange} maxLength={2}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
                       </div>
                       <div className="col-span-2">
                         <label className="block text-xs font-medium text-slate-600 mb-1">Zip</label>
                         <input type="text" name="zip" value={trialEditForm.zip} onChange={handleTrialEditChange}
-                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
                       </div>
                     </div>
 
@@ -766,21 +768,21 @@ export default function ClubTrialsPage() {
                       <label className="block text-xs font-medium text-slate-600 mb-1">Club Website</label>
                       <input type="url" name="club_website" value={trialEditForm.club_website} onChange={handleTrialEditChange}
                         placeholder="https://..."
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
                     </div>
 
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Premium URL</label>
                       <input type="url" name="premium_url" value={trialEditForm.premium_url} onChange={handleTrialEditChange}
                         placeholder="https://..."
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
                     </div>
 
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">Official Link</label>
                       <input type="url" name="official_link" value={trialEditForm.official_link} onChange={handleTrialEditChange}
                         placeholder="https://..."
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
                     </div>
 
                     {trialEditError && (
@@ -791,9 +793,9 @@ export default function ClubTrialsPage() {
                       <button
                         onClick={saveTrialEdit}
                         disabled={trialEditSaving}
-                        className="bg-emerald-600 text-white text-sm px-5 py-2.5 rounded-xl font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 bg-[#1A1A2E] hover:opacity-90 text-white text-sm px-5 py-2.5 rounded-xl font-semibold disabled:opacity-50"
                       >
-                        {trialEditSaving ? "Saving..." : "Save Changes"}
+                        <Save size={14} /> {trialEditSaving ? "Saving..." : "Save Changes"}
                       </button>
                       <button
                         onClick={cancelTrialEdit}
