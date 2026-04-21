@@ -59,14 +59,8 @@ function Header() {
       <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
 
         {/* Logo */}
-        <a href={userRole === "club" ? "/club-trials" : "/trials"} className="flex items-center gap-3 hover:opacity-90 transition-opacity">
-          <img src="/logo.png" alt="TrialTracker" width={48} height={48} className="h-12 w-12 object-contain" />
-          <div>
-            <div className="text-2xl font-extrabold tracking-tight text-[#1A1A2E]">
-              TrialTracker
-            </div>
-            <div className="text-xs text-slate-500 italic hidden sm:block">All your trials. One place.</div>
-          </div>
+        <a href={userRole === "club" ? "/club-trials" : "/trials"} className="flex items-center hover:opacity-90 transition-opacity">
+          <img src="/logo.png" alt="TrialTracker" className="h-14 w-auto object-contain" />
         </a>
 
         {/* Desktop Nav */}
