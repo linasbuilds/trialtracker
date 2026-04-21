@@ -51,6 +51,7 @@ interface Dog {
   birth_date: string | null
   active: boolean
   created_at: string
+  sports: string[] | null
   dog_sport_orgs: SportOrg[]
 }
 
@@ -113,6 +114,9 @@ function initFormFromDog(dog: Dog): FormState {
     if (!selectedSports.includes(so.sport)) selectedSports.push(so.sport)
     selectedOrgs[`${so.sport}|${so.organization}`] = true
     selectedLevels[`${so.sport}|${so.organization}`] = so.levels || []
+  }
+  if (selectedSports.length === 0 && dog.sports && dog.sports.length > 0) {
+    selectedSports.push(...dog.sports)
   }
   return { name: dog.name, breed: dog.breed || '', birth_date: dog.birth_date || '', active: dog.active, selectedSports, selectedOrgs, selectedLevels }
 }
@@ -192,7 +196,7 @@ export default function DogsPage() {
     setSaving(true); setFormError('')
     const token = await getToken()
     const sport_orgs = buildSportOrgs(form)
-    const body = { name: form.name.trim(), breed: form.breed.trim() || null, birth_date: form.birth_date || null, active: form.active, sport_orgs }
+    const body = { name: form.name.trim(), breed: form.breed.trim() || null, birth_date: form.birth_date || null, active: form.active, sport_orgs, sports: form.selectedSports }
     try {
       const res = await fetch(panelMode === 'add' ? '/api/dogs' : `/api/dogs/${editingId}`, {
         method: panelMode === 'add' ? 'POST' : 'PATCH',
@@ -308,56 +312,6 @@ export default function DogsPage() {
               </div>
             </div>
 
-            {form.selectedSports.map(sport => (
-              <div key={sport} className="mb-4 pl-4 border-l-2 border-[#E2E8F0]">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">{sport} — Organizations</p>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {(SPORT_ORG_MAP[sport] || []).map(({ org }) => {
-                    const key = `${sport}|${org}`
-                    return (
-                      <button
-                        key={org}
-                        onClick={() => toggleOrg(sport, org)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
-                          form.selectedOrgs[key]
-                            ? 'bg-[#1A1A2E] text-white border-[#1A1A2E]'
-                            : 'bg-white text-slate-900 border-[#E2E8F0] hover:border-[#1A1A2E]'
-                        }`}
-                      >
-                        {org}
-                      </button>
-                    )
-                  })}
-                </div>
-                {(SPORT_ORG_MAP[sport] || []).map(({ org, levels }) => {
-                  const key = `${sport}|${org}`
-                  if (!form.selectedOrgs[key]) return null
-                  return (
-                    <div key={org} className="mb-2 pl-3">
-                      <p className="text-xs text-slate-400 mb-1.5">{org} levels:</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {levels.map(level => {
-                          const sel = (form.selectedLevels[key] || []).includes(level)
-                          return (
-                            <button
-                              key={level}
-                              onClick={() => toggleLevel(sport, org, level)}
-                              className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${
-                                sel
-                                  ? 'bg-[#1A1A2E] text-white border-[#1A1A2E]'
-                                  : 'bg-white text-slate-900 border-[#E2E8F0] hover:border-[#1A1A2E]'
-                              }`}
-                            >
-                              {level}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ))}
 
             {formError && <p className="text-sm text-red-600 mb-3">{formError}</p>}
 
@@ -408,19 +362,12 @@ export default function DogsPage() {
                       {[dog.breed, formatAge(dog.birth_date)].filter(Boolean).join(' · ')}
                     </p>
                   )}
-                  {dog.dog_sport_orgs.length > 0 ? (
+                  {dog.sports && dog.sports.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
-                      {dog.dog_sport_orgs.map((so, i) => (
-                        <div key={i} className="flex flex-wrap gap-1">
-                          <span className="text-xs px-2 py-0.5 rounded font-medium bg-[#F1F5F9] text-slate-600">
-                            {so.sport} · {so.organization}
-                          </span>
-                          {so.levels.map(l => (
-                            <span key={l} className="text-xs px-2 py-0.5 rounded bg-[#F1F5F9] text-slate-600">
-                              {l}
-                            </span>
-                          ))}
-                        </div>
+                      {dog.sports.map((sport, i) => (
+                        <span key={i} className="text-xs px-2 py-0.5 rounded font-medium bg-[#F1F5F9] text-slate-600">
+                          {sport}
+                        </span>
                       ))}
                     </div>
                   ) : (
