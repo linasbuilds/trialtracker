@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit:*)",
+      "Bash(npx next:*)",
+      "Bash(npm install *)",
+      "Read(//c/Users/linas/Downloads/**)"
+    ],
+    "additionalDirectories": [
+      "\\mnt\\user-data\\uploads"
+    ]
+  }
+}

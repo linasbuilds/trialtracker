@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { ClipboardList, CheckCircle, Send } from "lucide-react";
 
 const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
@@ -149,7 +150,7 @@ export default function SubmitPage() {
         trial_start_date: "", trial_end_date: "",
         entry_opening_date: "", entry_closing_date: "", official_link: "",
       });
-      setMessage("Trial submitted! It's now live on TrialTracker. 🎉");
+      setMessage("Trial submitted! It's now live on TrialTracker.");
       setMessageType("success");
     }
     setLoading(false);
@@ -172,7 +173,7 @@ export default function SubmitPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Organization *</label>
                 <select name="organization" value={form.organization} onChange={handleChange} required
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]">
                   <option value="">Select org</option>
                   <option>NACSW</option>
                   <option>UKI</option>
@@ -191,7 +192,7 @@ export default function SubmitPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Sport *</label>
                 <select name="sport" value={form.sport} onChange={handleChange} required
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]">
                   <option value="">Select sport</option>
                   <option>Nosework</option>
                   <option>Agility</option>
@@ -219,7 +220,7 @@ export default function SubmitPage() {
               <label className="block text-sm font-medium text-slate-700 mb-1">Trial Host *</label>
               <input name="trial_host" value={form.trial_host} onChange={handleChange} required
                 placeholder="e.g. Doberman Pinscher Club of Greater Milwaukee"
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
               <p className="text-xs text-slate-400 mt-1">The club or organization hosting the trial</p>
             </div>
 
@@ -229,7 +230,7 @@ export default function SubmitPage() {
               </label>
               <input name="trial_name" value={form.trial_name} onChange={handleChange}
                 placeholder="e.g. Spring Nosework Classic — leave blank for AKC/CPE/UKI"
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
               <p className="text-xs text-slate-400 mt-1">If left blank, we&apos;ll auto-generate from host + sport</p>
             </div>
           </div>
@@ -239,21 +240,21 @@ export default function SubmitPage() {
             <h2 className="font-semibold text-slate-700 text-sm uppercase tracking-wide">Location</h2>
 
             <button type="button" onClick={() => setShowPasteHelper(!showPasteHelper)}
-              className="w-full text-base text-blue-700 font-semibold flex items-center justify-center gap-2 bg-blue-50 border-2 border-blue-200 hover:bg-blue-100 hover:border-blue-400 px-4 py-3 rounded-xl transition-all">
-              📋 Paste full address — we&apos;ll fill in the rest!
+              className="w-full text-base text-slate-700 font-semibold flex items-center justify-center gap-2 bg-[#F8F9FA] border border-[#E2E8F0] hover:bg-slate-100 hover:border-slate-300 px-4 py-3 rounded-xl transition-all">
+              <ClipboardList size={14} className="inline" /> Paste full address — we&apos;ll fill in the rest!
             </button>
 
             {showPasteHelper && (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
-                <p className="text-sm text-blue-800 font-medium">Paste a full address and we&apos;ll fill in the fields!</p>
-                <p className="text-xs text-blue-600">Works with: &quot;123 Main St, Springfield, IL 62701&quot; or &quot;Springfield, IL&quot;</p>
+              <div className="bg-[#F8F9FA] border border-[#E2E8F0] rounded-xl p-4 space-y-3">
+                <p className="text-sm text-slate-900 font-medium">Paste a full address and we&apos;ll fill in the fields!</p>
+                <p className="text-xs text-slate-600">Works with: &quot;123 Main St, Springfield, IL 62701&quot; or &quot;Springfield, IL&quot;</p>
                 <textarea value={addressPaste} onChange={(e) => setAddressPaste(e.target.value)}
                   placeholder="Paste address here..." rows={2}
-                  className="w-full border border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1A1A2E] bg-white" />
                 <div className="flex gap-2">
                   <button type="button" onClick={handleApplyAddress}
-                    className="bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">
-                    Auto-fill fields ✨
+                    className="bg-[#1A1A2E] text-white text-sm px-4 py-2 rounded-lg hover:opacity-90 font-medium">
+                    Auto-fill fields
                   </button>
                   <button type="button" onClick={() => { setShowPasteHelper(false); setAddressPaste(""); }}
                     className="text-slate-500 text-sm px-4 py-2 rounded-lg hover:bg-slate-100">
@@ -267,15 +268,15 @@ export default function SubmitPage() {
               <label className="block text-sm font-medium text-slate-700 mb-1">Venue / Location Name</label>
               <input name="location_name" value={form.location_name} onChange={handleChange}
                 placeholder="e.g. Think Pawsitive Dog Training"
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
             </div>
 
             {(form.city || form.state) && (
-              <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center gap-2 text-sm text-green-800">
-                <span>✅</span>
+              <div className="bg-[#F8F9FA] border border-[#E2E8F0] rounded-xl px-4 py-3 flex items-center gap-2 text-sm text-slate-900">
+                <CheckCircle size={14} className="text-slate-600 flex-shrink-0" />
                 <span>Location parsed: <strong>{form.city}{form.city && form.state ? ", " : ""}{form.state}</strong></span>
                 <button type="button" onClick={() => setForm((prev) => ({ ...prev, city: "", state: "" }))}
-                  className="ml-auto text-green-600 hover:text-green-800 underline text-xs">Clear</button>
+                  className="ml-auto text-slate-500 hover:text-slate-700 underline text-xs">Clear</button>
               </div>
             )}
 
@@ -284,7 +285,7 @@ export default function SubmitPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">State *</label>
                 <select name="state" value={form.state} onChange={handleChange} required
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]">
                   <option value="">Select state</option>
                   {US_STATES.map(s => <option key={s}>{s}</option>)}
                 </select>
@@ -302,12 +303,12 @@ export default function SubmitPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Trial Start Date *</label>
                 <input type="date" name="trial_start_date" value={form.trial_start_date} onChange={handleChange} required
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Trial End Date</label>
                 <input type="date" name="trial_end_date" value={form.trial_end_date} onChange={handleChange}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
                 <p className="text-xs text-slate-400 mt-1">Leave blank if same day as start</p>
               </div>
             </div>
@@ -315,12 +316,12 @@ export default function SubmitPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Trial Entry Opens *</label>
                 <input type="date" name="entry_opening_date" value={form.entry_opening_date} onChange={handleChange} required
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Trial Entry Closes *</label>
                 <input type="date" name="entry_closing_date" value={form.entry_closing_date} onChange={handleChange} required
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
               </div>
             </div>
           </div>
@@ -332,20 +333,20 @@ export default function SubmitPage() {
               <label className="block text-sm font-medium text-slate-700 mb-1">Official Link</label>
               <input type="url" name="official_link" value={form.official_link} onChange={handleChange}
                 placeholder="https://..."
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]" />
               <p className="text-xs text-slate-400 mt-1">Link to your club website, premium PDF, or entry system</p>
             </div>
           </div>
 
           <button type="submit" disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 rounded-xl font-bold text-base hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 transition-all shadow-md hover:shadow-lg">
-            {loading ? "Submitting..." : "Submit Trial — Goes Live Instantly 🐾"}
+            className="w-full bg-[#1A1A2E] hover:opacity-90 text-white py-4 rounded-xl font-bold text-base disabled:opacity-50 transition-all inline-flex items-center justify-center gap-2">
+            {loading ? "Submitting..." : <><Send size={14} /> Submit Trial — Goes Live Instantly</>}
           </button>
 
           {message && (
             <div className={`rounded-xl p-4 text-center font-medium ${
               messageType === "success"
-                ? "bg-green-100 text-green-800 border border-green-200"
+                ? "bg-[#F8F9FA] text-slate-900 border border-[#E2E8F0]"
                 : "bg-red-100 text-red-800 border border-red-200"
             }`}>
               {message}
