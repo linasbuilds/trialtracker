@@ -390,53 +390,25 @@ export default function TrialsPage() {
         className="bg-white rounded-xl border border-slate-200 shadow-sm p-5"
       >
         {/* Card header */}
-        <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-          <h2 className="text-lg font-bold text-[#1A1A2E]">
+        <div className="mb-2">
+          <h2 className="text-xl font-bold text-[#1A1A2E]">
             {getDisplayName(trial)}
           </h2>
-
-          <div className="flex gap-1.5 flex-wrap">
-            <span className="text-xs px-2 py-1 rounded font-medium bg-[#F1F5F9] text-[#475569]">
-              {trial.organization}
-            </span>
-            <span className="text-xs px-2 py-1 rounded font-medium bg-[#F1F5F9] text-[#475569]">
-              {trial.sport}
-            </span>
-            {level ? (
-              <span className="text-xs px-2 py-1 rounded font-medium bg-[#F1F5F9] text-[#475569]">
-                {level}
-              </span>
-            ) : null}
-            {trial.claimed && (
-              <span className="text-xs px-2 py-1 rounded font-medium bg-[#F1F5F9] text-[#475569]">
-                Verified by Club
-              </span>
-            )}
-          </div>
         </div>
 
-        {/* Host + city/state */}
-        <p className="flex items-center gap-1.5 text-slate-700 text-sm mb-2">
-          <MapPin size={14} className="text-slate-600 flex-shrink-0" />
-          {getHostName(trial)}{getHostName(trial) && trial.city ? " • " : ""}{trial.city}{trial.city && trial.state ? ", " : ""}{trial.state}
+        {/* Venue + address */}
+        <p className="flex items-center gap-1.5 text-slate-800 text-sm mb-1">
+          <MapPin size={14} className="text-[#1A1A2E] flex-shrink-0" />
+          <span className="font-medium">{trialLocation}</span>
         </p>
-
-        {/* Trial Location + Full Address */}
-        <div className="text-slate-800 text-sm mb-2">
-          <div className="mb-1">
-            <span className="font-semibold">Trial Location:</span>{" "}
-            <span className="text-slate-900">{trialLocation}</span>
-          </div>
-          <div>
-            <span className="font-semibold">Full Address:</span>{" "}
-            <span className="text-slate-900">{fullAddress}</span>
-          </div>
-        </div>
+        {fullAddress && fullAddress !== "TBD" && (
+          <p className="text-slate-500 text-sm mb-2 pl-[22px]">{fullAddress}</p>
+        )}
 
         {/* Trial dates */}
-        <p className="flex items-center gap-1.5 text-slate-800 text-sm mb-1">
-          <Calendar size={14} className="text-slate-600 flex-shrink-0" />
-          <span>Trial:{" "}
+        <p className="flex items-center gap-1.5 text-slate-500 text-sm mb-1">
+          <Calendar size={14} className="text-slate-400 flex-shrink-0" />
+          <span>
             {trial.trial_start_date ? (
               trial.trial_end_date && trial.trial_end_date !== trial.trial_start_date ? (
                 <>
@@ -447,33 +419,38 @@ export default function TrialsPage() {
                 formatDate(trial.trial_start_date, { month: "short", day: "numeric", year: "numeric" })
               )
             ) : (
-              <span className="text-slate-500 italic">TBD</span>
+              <span className="italic">TBD</span>
             )}
           </span>
         </p>
 
+        <hr className="border-t border-[#E2E8F0] my-3" />
+
         {/* Entry dates */}
-        <div className="text-slate-800 text-sm mb-3 space-y-0.5">
-          <p className="flex items-center gap-1.5">
-            <CalendarCheck size={14} className="text-slate-600 flex-shrink-0" />
-            <span><span className="font-medium">Entry Opens:</span>{" "}
-              {trial.entry_opening_date
-                ? formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
-                : <span className="text-slate-500 italic">TBD</span>}
-            </span>
-          </p>
-          <p className="flex items-center gap-1.5">
-            <CalendarX size={14} className="text-slate-600 flex-shrink-0" />
-            <span><span className="font-medium">Entry Closes:</span>{" "}
-              {trial.entry_closing_date
-                ? formatDate(trial.entry_closing_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
-                : <span className="text-slate-500 italic">TBD</span>}
-            </span>
-          </p>
+        <div className="text-sm mb-3 space-y-1">
+          {trial.entry_opening_date && (
+            <p className="flex items-center gap-1.5">
+              <CalendarCheck size={15} className="text-[#1A1A2E] flex-shrink-0" />
+              <span className="text-[15px] font-semibold text-[#1A1A2E]">
+                Entry Opens:{" "}
+                {formatDate(trial.entry_opening_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+              </span>
+            </p>
+          )}
+          {trial.entry_closing_date && (
+            <p className="flex items-center gap-1.5">
+              <CalendarX size={15} className="text-[#1A1A2E] flex-shrink-0" />
+              <span className="text-[15px] font-semibold text-[#1A1A2E]">
+                Entry Closes:{" "}
+                {formatDate(trial.entry_closing_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+              </span>
+            </p>
+          )}
           {trial.pre_entry_date && (
             <p className="flex items-center gap-1.5">
-              <CalendarX size={14} className="text-slate-600 flex-shrink-0" />
-              <span><span className="font-medium">Pre-Entry Closes:</span>{" "}
+              <CalendarX size={15} className="text-[#1A1A2E] flex-shrink-0" />
+              <span className="text-[15px] font-semibold text-[#1A1A2E]">
+                Pre-Entry Closes:{" "}
                 {formatDate(trial.pre_entry_date, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
               </span>
             </p>
