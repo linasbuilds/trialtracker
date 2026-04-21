@@ -500,7 +500,7 @@ export default function TrialsPage() {
         ) : noEntryDates && isNACSW ? (
           <div className={statusBannerBase} style={statusBannerStyle}>
             <Clock size={14} className="text-slate-600 flex-shrink-0" />
-            <span className="font-normal text-[#94A3B8]">Entries closed</span>
+            <span className="font-normal text-[#94A3B8]">Entry date not yet posted</span>
           </div>
         ) : noEntryDates && daysUntilTrial !== null && daysUntilTrial <= 14 ? null
         : noEntryDates ? (
