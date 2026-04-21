@@ -35,7 +35,6 @@ export default function Home() {
       <div className="max-w-2xl w-full text-center py-16">
 
         {/* Logo / wordmark */}
-        <div className="text-5xl mb-4">🐾</div>
         <h1 className="text-4xl font-extrabold text-slate-800 mb-4 tracking-tight">
           TrialTracker
         </h1>
@@ -48,8 +47,8 @@ export default function Home() {
         </p>
 
         {/* 90-day tagline */}
-        <p className="text-base font-semibold text-blue-600 mb-6">
-          🐾 Sniffing out trials within the next 120 days — fresh finds, updated weekly!
+        <p className="text-base font-semibold text-slate-700 mb-6">
+          Sniffing out trials within the next 120 days — fresh finds, updated weekly!
         </p>
 
         {/* Beta / community note */}
@@ -67,7 +66,7 @@ export default function Home() {
 
         {/* Clubs section */}
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-6 py-5 text-left mb-8">
-          <h2 className="text-base font-bold text-slate-700 mb-2">🏟️ Are you a club or trial secretary?</h2>
+          <h2 className="text-base font-bold text-slate-700 mb-2">Are you a club or trial secretary?</h2>
           <p className="text-sm text-slate-600 leading-relaxed mb-4">
             TrialTracker is always free for clubs — forever. Sign up as a club to claim
             your trials, add entry opening and closing dates, and make sure handlers can
@@ -75,7 +74,7 @@ export default function Home() {
           </p>
           <Link
             href="/signup"
-            className="inline-block bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold py-2 px-5 rounded-lg transition-all"
+            className="inline-block bg-[#1A1A2E] hover:opacity-90 text-white text-sm font-semibold py-2 px-5 rounded-lg transition-all"
           >
             Sign Up as a Club — It&apos;s Free
           </Link>
@@ -87,14 +86,14 @@ export default function Home() {
           {authState === "club" ? (
             <Link
               href="/club-trials"
-              className="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-sm text-base transition-all text-center"
+              className="w-full max-w-xs bg-[#1A1A2E] hover:opacity-90 text-white font-bold py-3 px-6 rounded-xl shadow-sm text-base transition-all text-center"
             >
               Go to My Dashboard →
             </Link>
           ) : authState === "handler" ? (
             <Link
               href="/trials"
-              className="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-sm text-base transition-all text-center"
+              className="w-full max-w-xs bg-[#1A1A2E] hover:opacity-90 text-white font-bold py-3 px-6 rounded-xl shadow-sm text-base transition-all text-center"
             >
               Go to My Trials →
             </Link>
@@ -102,7 +101,7 @@ export default function Home() {
             <>
               <Link
                 href="/signup"
-                className="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-sm text-base transition-all text-center"
+                className="w-full max-w-xs bg-[#1A1A2E] hover:opacity-90 text-white font-bold py-3 px-6 rounded-xl shadow-sm text-base transition-all text-center"
               >
                 Find Trials — Sign Up as a Handler
               </Link>
