@@ -33,13 +33,13 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { name, breed, birth_date, active = true, sport_orgs = [] } = body
+  const { name, breed, birth_date, active = true, sport_orgs = [], sports } = body
 
   if (!name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
 
   const { data: dog, error: dogError } = await supabaseAdmin
     .from('dog_profiles')
-    .insert({ user_id: user.id, name: name.trim(), breed: breed || null, birth_date: birth_date || null, active })
+    .insert({ user_id: user.id, name: name.trim(), breed: breed || null, birth_date: birth_date || null, active, sports: sports ?? [] })
     .select()
     .single()
 
