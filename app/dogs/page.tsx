@@ -5,9 +5,6 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
 
-const ELECTRIC_BLUE = '#3A7BFF'
-const VIBRANT_TEAL = '#00C2A8'
-const SUNSET_ORANGE = '#FF7A45'
 
 const SPORT_ORG_MAP: Record<string, { org: string; levels: string[] }[]> = {
   'Nosework': [
@@ -81,12 +78,8 @@ function getInitials(name: string) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
 }
 
-function avatarColor(dog: Dog): string {
-  const sports = dog.dog_sport_orgs.map(so => so.sport)
-  if (sports.includes('Nosework')) return VIBRANT_TEAL
-  if (sports.includes('Agility')) return ELECTRIC_BLUE
-  if (sports.includes('Rally') || sports.includes('Obedience')) return SUNSET_ORANGE
-  return ELECTRIC_BLUE
+function avatarColor(_dog: Dog): string {
+  return '#1A1A2E'
 }
 
 function formatAge(birthDate: string | null): string | null {
@@ -261,7 +254,7 @@ export default function DogsPage() {
                   value={form.name}
                   onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="e.g. Bowdie"
-                  className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]"
                 />
               </div>
               <div>
@@ -271,7 +264,7 @@ export default function DogsPage() {
                   value={form.breed}
                   onChange={e => setForm(prev => ({ ...prev, breed: e.target.value }))}
                   placeholder="e.g. Border Collie"
-                  className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]"
                 />
               </div>
               <div>
@@ -280,7 +273,7 @@ export default function DogsPage() {
                   type="date"
                   value={form.birth_date}
                   onChange={e => setForm(prev => ({ ...prev, birth_date: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]"
                 />
               </div>
             </div>
@@ -289,7 +282,7 @@ export default function DogsPage() {
               <button
                 onClick={() => setForm(prev => ({ ...prev, active: !prev.active }))}
                 className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-                style={{ background: form.active ? VIBRANT_TEAL : '#cbd5e1' }}
+                style={{ background: form.active ? '#1A1A2E' : '#cbd5e1' }}
               >
                 <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${form.active ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
@@ -303,10 +296,11 @@ export default function DogsPage() {
                   <button
                     key={sport}
                     onClick={() => toggleSport(sport)}
-                    className="px-3 py-1.5 rounded-full text-sm font-medium border transition-all"
-                    style={form.selectedSports.includes(sport)
-                      ? { background: ELECTRIC_BLUE, color: 'white', border: `1px solid ${ELECTRIC_BLUE}` }
-                      : { background: 'white', color: '#475569', border: '1px solid #e2e8f0' }}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
+                      form.selectedSports.includes(sport)
+                        ? 'bg-[#1A1A2E] text-white border-[#1A1A2E]'
+                        : 'bg-white text-slate-900 border-[#E2E8F0] hover:border-[#1A1A2E]'
+                    }`}
                   >
                     {sport}
                   </button>
@@ -315,7 +309,7 @@ export default function DogsPage() {
             </div>
 
             {form.selectedSports.map(sport => (
-              <div key={sport} className="mb-4 pl-4 border-l-2" style={{ borderColor: ELECTRIC_BLUE }}>
+              <div key={sport} className="mb-4 pl-4 border-l-2 border-[#E2E8F0]">
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">{sport} — Organizations</p>
                 <div className="flex flex-wrap gap-2 mb-2">
                   {(SPORT_ORG_MAP[sport] || []).map(({ org }) => {
@@ -324,10 +318,11 @@ export default function DogsPage() {
                       <button
                         key={org}
                         onClick={() => toggleOrg(sport, org)}
-                        className="px-3 py-1.5 rounded-full text-sm font-medium border transition-all"
-                        style={form.selectedOrgs[key]
-                          ? { background: SUNSET_ORANGE, color: 'white', border: `1px solid ${SUNSET_ORANGE}` }
-                          : { background: 'white', color: '#475569', border: '1px solid #e2e8f0' }}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
+                          form.selectedOrgs[key]
+                            ? 'bg-[#1A1A2E] text-white border-[#1A1A2E]'
+                            : 'bg-white text-slate-900 border-[#E2E8F0] hover:border-[#1A1A2E]'
+                        }`}
                       >
                         {org}
                       </button>
@@ -347,10 +342,11 @@ export default function DogsPage() {
                             <button
                               key={level}
                               onClick={() => toggleLevel(sport, org, level)}
-                              className="px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
-                              style={sel
-                                ? { background: VIBRANT_TEAL, color: 'white', border: `1px solid ${VIBRANT_TEAL}` }
-                                : { background: 'white', color: '#64748b', border: '1px solid #e2e8f0' }}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${
+                                sel
+                                  ? 'bg-[#1A1A2E] text-white border-[#1A1A2E]'
+                                  : 'bg-white text-slate-900 border-[#E2E8F0] hover:border-[#1A1A2E]'
+                              }`}
                             >
                               {level}
                             </button>
@@ -369,8 +365,7 @@ export default function DogsPage() {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-bold text-white transition-all disabled:opacity-50"
-                style={{ background: ELECTRIC_BLUE }}
+                className="flex-1 bg-[#1A1A2E] hover:opacity-90 py-2.5 rounded-lg text-sm font-bold text-white transition-all disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Save Dog'}
               </button>
@@ -389,7 +384,7 @@ export default function DogsPage() {
           {dogs.map(dog => (
             <div
               key={dog.id}
-              className={`bg-white rounded-xl border shadow-sm p-5 transition-colors ${editingId === dog.id ? 'border-blue-300' : 'border-slate-200'}`}
+              className={`bg-white rounded-xl border shadow-sm p-5 transition-colors ${editingId === dog.id ? 'border-[#1A1A2E]' : 'border-slate-200'}`}
             >
               <div className="flex items-start gap-4">
                 <div
@@ -402,12 +397,9 @@ export default function DogsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                     <h3 className="text-lg font-bold text-slate-800">{dog.name}</h3>
-                    <span
-                      className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                      style={dog.active
-                        ? { background: '#e6faf8', color: VIBRANT_TEAL }
-                        : { background: '#f1f5f9', color: '#94a3b8' }}
-                    >
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                      dog.active ? 'bg-[#1A1A2E] text-white' : 'bg-[#F1F5F9] text-slate-500'
+                    }`}>
                       {dog.active ? 'Active' : 'Retired'}
                     </span>
                   </div>
@@ -420,13 +412,11 @@ export default function DogsPage() {
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
                       {dog.dog_sport_orgs.map((so, i) => (
                         <div key={i} className="flex flex-wrap gap-1">
-                          <span className="text-xs px-2 py-0.5 rounded-full font-medium"
-                            style={{ background: '#eff6ff', color: ELECTRIC_BLUE }}>
+                          <span className="text-xs px-2 py-0.5 rounded font-medium bg-[#F1F5F9] text-slate-600">
                             {so.sport} · {so.organization}
                           </span>
                           {so.levels.map(l => (
-                            <span key={l} className="text-xs px-2 py-0.5 rounded-full"
-                              style={{ background: '#f0fdf9', color: '#0f766e' }}>
+                            <span key={l} className="text-xs px-2 py-0.5 rounded bg-[#F1F5F9] text-slate-600">
                               {l}
                             </span>
                           ))}
@@ -444,7 +434,7 @@ export default function DogsPage() {
                     className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
                     title={dog.active ? 'Mark retired' : 'Mark active'}
                   >
-                    <Check size={16} style={{ color: dog.active ? VIBRANT_TEAL : '#cbd5e1' }} />
+                    <Check size={16} className={dog.active ? 'text-[#1A1A2E]' : 'text-slate-300'} />
                   </button>
                   <button
                     onClick={() => openEdit(dog)}
@@ -469,10 +459,10 @@ export default function DogsPage() {
           {panelMode !== 'add' && (
             <button
               onClick={openAdd}
-              className="w-full bg-white rounded-xl border-2 border-dashed border-slate-200 p-5 flex items-center justify-center gap-3 text-slate-400 hover:border-blue-300 hover:text-blue-500 transition-all"
+              className="w-full bg-white rounded-xl border-2 border-dashed border-slate-200 p-5 flex items-center justify-center gap-3 text-slate-400 hover:border-[#1A1A2E] hover:text-[#1A1A2E] transition-all"
             >
-              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: '#eff6ff' }}>
-                <Plus size={20} style={{ color: ELECTRIC_BLUE }} />
+              <div className="w-10 h-10 rounded-full bg-[#F1F5F9] flex items-center justify-center">
+                <Plus size={20} className="text-slate-600" />
               </div>
               <span className="font-medium text-sm">Add a dog</span>
             </button>
