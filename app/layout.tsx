@@ -60,7 +60,7 @@ function Header() {
 
         {/* Logo */}
         <a href={userRole === "club" ? "/club-trials" : "/trials"} className="flex items-center gap-3 hover:opacity-90 transition-opacity">
-          <img src="/logo.png" alt="TrialTracker" className="h-14 w-auto" />
+          <img src="/logo.png" alt="TrialTracker" width={48} height={48} className="h-12 w-12 object-contain" />
           <div>
             <div className="text-2xl font-extrabold tracking-tight text-[#1A1A2E]">
               TrialTracker
