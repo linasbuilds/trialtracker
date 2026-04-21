@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { Mail } from "lucide-react";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -31,13 +32,13 @@ export default function ForgotPasswordPage() {
   if (sent) {
     return (
       <div className="max-w-md mx-auto px-4 py-12">
-        <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
-          <div className="text-4xl mb-3">📬</div>
-          <h1 className="text-xl font-bold text-green-800 mb-2">Check your email!</h1>
-          <p className="text-green-700 text-sm">
+        <div className="bg-[#F8F9FA] border border-[#E2E8F0] rounded-xl p-6 text-center">
+          <Mail size={20} className="mx-auto mb-3 text-slate-600" />
+          <h1 className="text-xl font-bold text-slate-900 mb-2">Check your email!</h1>
+          <p className="text-slate-700 text-sm">
             We sent a reset link to <strong>{email}</strong>. The link expires in 1 hour.
           </p>
-          <p className="text-green-600 text-xs mt-3 opacity-80">
+          <p className="text-slate-500 text-xs mt-3 opacity-80">
             Don&apos;t see it? Check your spam or promotions folder.
           </p>
         </div>
@@ -59,14 +60,14 @@ export default function ForgotPasswordPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]"
           />
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-3 rounded font-medium hover:bg-blue-700 disabled:bg-slate-400"
+          className="w-full bg-[#1A1A2E] text-white py-3 rounded font-medium hover:opacity-90 disabled:bg-slate-400"
         >
           {loading ? "Sending..." : "Send Reset Email"}
         </button>
@@ -78,7 +79,7 @@ export default function ForgotPasswordPage() {
 
       <p className="text-center text-sm text-slate-600 mt-6">
         Remember your password?{" "}
-        <a href="/login" className="text-blue-600 hover:underline">Log in</a>
+        <a href="/login" className="text-slate-700 hover:text-slate-900 underline underline-offset-2">Log in</a>
       </p>
     </div>
   );

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -24,7 +25,7 @@ export default function LoginPage() {
 
     if (error) {
       if (error.message.includes("Email not confirmed")) {
-        setMessage("⚠️ Please check your email and click the confirmation link before logging in. Check your spam folder if you don't see it!");
+        setMessage("Please check your email and click the confirmation link before logging in. Check your spam folder if you don't see it!");
       } else if (error.message.includes("Invalid login credentials")) {
         setMessage("Incorrect email or password. Please try again.");
       } else {
@@ -63,7 +64,7 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]"
           />
         </div>
 
@@ -76,7 +77,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full border rounded px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border rounded px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]"
             />
             <button
               type="button"
@@ -84,16 +85,7 @@ export default function LoginPage() {
               className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {showPassword ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              )}
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
         </div>
@@ -101,27 +93,27 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-3 rounded font-medium hover:bg-blue-700 disabled:bg-slate-400"
+          className="w-full bg-[#1A1A2E] text-white py-3 rounded font-medium hover:opacity-90 disabled:bg-slate-400"
         >
           {loading ? "Logging in..." : "Log In"}
         </button>
 
         {message && (
-          <div className={`text-sm rounded-lg px-4 py-3 ${message.includes("⚠️") ? "bg-amber-50 border border-amber-200 text-amber-800" : "text-red-600"}`}>
+          <div className={`text-sm rounded-lg px-4 py-3 ${message.includes("Please check your email") ? "bg-[#F8F9FA] border border-[#E2E8F0] text-slate-900" : "text-red-600"}`}>
             {message}
           </div>
         )}
       </form>
 
       <div className="mt-4 text-center">
-        <a href="/forgot-password" className="text-sm text-blue-600 hover:underline">
+        <a href="/forgot-password" className="text-sm text-slate-700 hover:text-slate-900 underline underline-offset-2">
           Forgot your password?
         </a>
       </div>
 
       <p className="text-center text-sm text-slate-600 mt-4">
         Don't have an account?{" "}
-        <a href="/signup" className="text-blue-600 hover:underline">Sign up for beta</a>
+        <a href="/signup" className="text-slate-700 hover:text-slate-900 underline underline-offset-2">Sign up for beta</a>
       </p>
     </div>
   );
