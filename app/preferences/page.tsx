@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { ALL_ORGS, ALL_SPORTS, getSportsForOrgs, getLevelsForPrefs } from '../lib/catalog'
+import { CheckCircle, MapPin, Car, Moon, Bell, Calendar, Search } from 'lucide-react'
 
 const STATES = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
@@ -111,9 +112,8 @@ export default function PreferencesPage() {
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-2xl font-bold text-slate-800">Your Preferences</h1>
             {isFoundingHandler && (
-              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold"
-                style={{ background: '#fffbeb', color: '#92400e', border: '1px solid #fcd34d' }}>
-                ⭐ Founding Handler · Beta 2026
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-[#1A1A2E] text-white">
+                Founding Handler · Beta 2026
               </span>
             )}
           </div>
@@ -124,14 +124,15 @@ export default function PreferencesPage() {
         </div>
 
         {saved && (
-          <div className="bg-green-100 border border-green-300 text-green-800 rounded-xl p-4 text-sm font-bold w-full">
-            ✅ Preferences saved! We&apos;ll use these to send you email alerts.
+          <div className="flex items-center gap-2 bg-[#F8F9FA] border border-[#E2E8F0] text-slate-900 rounded-xl p-4 text-sm font-semibold w-full">
+            <CheckCircle size={14} className="text-slate-600 flex-shrink-0" />
+            Preferences saved! We&apos;ll use these to send you email alerts.
           </div>
         )}
 
         {/* Home Base & Travel */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <h2 className="text-base font-bold text-slate-700 mb-1">🏠 Home Base & Travel Distance</h2>
+          <h2 className="flex items-center gap-1.5 text-base font-semibold text-slate-900 mb-1"><MapPin size={15} /> Home Base & Travel Distance</h2>
           <p className="text-xs text-slate-400 mb-4">Enter your zip code so we can show trials by distance.</p>
           <div className="mb-4">
             <label className="block text-sm font-medium text-slate-600 mb-1">Your Home Zip Code</label>
@@ -141,26 +142,26 @@ export default function PreferencesPage() {
               value={homeZip}
               onChange={e => setHomeZip(e.target.value.replace(/\D/g, ''))}
               placeholder="e.g. 60614"
-              className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1">🚗 Day Trip Max</label>
+              <label className="flex items-center gap-1 text-sm font-medium text-slate-600 mb-1"><Car size={15} /> Day Trip Max</label>
               <select
                 value={dayTripMiles}
                 onChange={e => setDayTripMiles(e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]"
               >
                 {DAY_TRIP_OPTIONS.map(opt => <option key={opt} value={opt}>{opt} miles</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1">🌙 Overnight Max</label>
+              <label className="flex items-center gap-1 text-sm font-medium text-slate-600 mb-1"><Moon size={15} /> Overnight Max</label>
               <select
                 value={overnightMiles}
                 onChange={e => setOvernightMiles(e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E]"
               >
                 {OVERNIGHT_OPTIONS.map(opt => (
                   <option key={opt} value={opt}>{opt === 'Any distance' ? 'Any distance' : `${opt} miles`}</option>
@@ -172,38 +173,38 @@ export default function PreferencesPage() {
 
         {/* Alert Timing */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <h2 className="text-base font-bold text-slate-700 mb-1">🔔 Email Alert Timing</h2>
+          <h2 className="flex items-center gap-1.5 text-base font-semibold text-slate-900 mb-1"><Bell size={15} /> Email Alert Timing</h2>
           <p className="text-xs text-slate-400 mb-4">When do you want to be notified that entries are opening?</p>
           <div className="flex gap-3">
             <button
               onClick={() => setAlertTiming('day_before')}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-semibold border transition-all ${
+              className={`flex items-center justify-center gap-1.5 flex-1 py-2.5 rounded-lg text-sm font-semibold border transition-all ${
                 alertTiming === 'day_before'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                  ? 'bg-[#1A1A2E] text-white border-[#1A1A2E]'
+                  : 'bg-white text-slate-900 border-[#E2E8F0] hover:border-slate-400'
               }`}
             >
-              📅 1 Day Before
+              <Calendar size={14} /> 1 Day Before
             </button>
             <button
               onClick={() => setAlertTiming('day_of')}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-semibold border transition-all ${
+              className={`flex items-center justify-center gap-1.5 flex-1 py-2.5 rounded-lg text-sm font-semibold border transition-all ${
                 alertTiming === 'day_of'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                  ? 'bg-[#1A1A2E] text-white border-[#1A1A2E]'
+                  : 'bg-white text-slate-900 border-[#E2E8F0] hover:border-slate-400'
               }`}
             >
-              🔔 Day Of
+              <Bell size={14} /> Day Of
             </button>
           </div>
         </div>
 
         {/* Favorite Organizations */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <h2 className="text-base font-bold text-slate-700 mb-1">🔍 Favorite Organizations</h2>
+          <h2 className="flex items-center gap-1.5 text-base font-semibold text-slate-900 mb-1"><Search size={15} /> Favorite Organizations</h2>
           <p className="text-xs text-slate-400 mb-3">Tap to select — leave empty to see all.</p>
           <div className="flex gap-3 mb-3 text-xs">
-            <button onClick={() => { setSelectedOrgs([...ALL_ORGS]); setSaved(false) }} className="text-blue-600 hover:underline">Select All</button>
+            <button onClick={() => { setSelectedOrgs([...ALL_ORGS]); setSaved(false) }} className="text-slate-700 hover:text-slate-900 underline underline-offset-2">Select All</button>
             <button onClick={() => { setSelectedOrgs([]); setSaved(false) }} className="text-slate-400 hover:underline">Clear All</button>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -213,8 +214,8 @@ export default function PreferencesPage() {
                 onClick={() => toggle(org, selectedOrgs, setSelectedOrgs)}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
                   selectedOrgs.includes(org)
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                    ? 'bg-[#1A1A2E] text-white border-[#1A1A2E]'
+                    : 'bg-white text-slate-900 border-[#E2E8F0] hover:border-slate-400'
                 }`}
               >
                 {org}
@@ -230,14 +231,14 @@ export default function PreferencesPage() {
           const visibleSports = selectedOrgs.length > 0 ? availableSports : ALL_SPORTS
           return (
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-              <h2 className="text-base font-bold text-slate-700 mb-1">🐾 Favorite Sports</h2>
+              <h2 className="text-base font-semibold text-slate-900 mb-1">Favorite Sports</h2>
               <p className="text-xs text-slate-400 mb-4">
                 {selectedOrgs.length > 0
                   ? `Showing sports for your selected org${selectedOrgs.length > 1 ? 's' : ''} — leave empty to see all.`
                   : 'Select all that apply — leave empty to see all sports.'}
               </p>
               <div className="flex gap-3 mb-3 text-xs">
-                <button onClick={() => { setSelectedSports([...visibleSports]); setSaved(false) }} className="text-blue-600 hover:underline">Select All</button>
+                <button onClick={() => { setSelectedSports([...visibleSports]); setSaved(false) }} className="text-slate-700 hover:text-slate-900 underline underline-offset-2">Select All</button>
                 <button onClick={() => { setSelectedSports([]); setSaved(false) }} className="text-slate-400 hover:underline">Clear All</button>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -247,8 +248,8 @@ export default function PreferencesPage() {
                     onClick={() => toggle(sport, selectedSports, setSelectedSports)}
                     className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
                       selectedSports.includes(sport)
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                        ? 'bg-[#1A1A2E] text-white border-[#1A1A2E]'
+                        : 'bg-white text-slate-900 border-[#E2E8F0] hover:border-slate-400'
                     }`}
                   >
                     {sport}
@@ -265,23 +266,18 @@ export default function PreferencesPage() {
           if (!availableLevels.length) return null
           return (
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-              <h2 className="text-base font-bold text-slate-700 mb-1">🏅 Favorite Levels</h2>
+              <h2 className="text-base font-semibold text-slate-900 mb-1">Favorite Levels</h2>
               <p className="text-xs text-slate-400 mb-4">Select the levels you compete at — leave empty to see all levels.</p>
               <div className="flex flex-wrap gap-2">
                 {availableLevels.map(level => (
                   <button
                     key={level}
                     onClick={() => toggle(level, selectedLevels, setSelectedLevels)}
-                    style={selectedLevels.includes(level) ? {
-                      background: 'linear-gradient(to right, #f59e0b, #ef4444)',
-                      color: 'white',
-                      border: '1px solid transparent'
-                    } : {
-                      background: 'white',
-                      color: '#475569',
-                      border: '1px solid #e2e8f0'
-                    }}
-                    className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:shadow-sm"
+                    className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
+                      selectedLevels.includes(level)
+                        ? 'bg-[#1A1A2E] text-white border-[#1A1A2E]'
+                        : 'bg-white text-slate-900 border-[#E2E8F0] hover:border-slate-400'
+                    }`}
                   >
                     {level}
                   </button>
@@ -293,10 +289,10 @@ export default function PreferencesPage() {
 
         {/* Favorite States */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-          <h2 className="text-base font-bold text-slate-700 mb-1">📍 Favorite States</h2>
+          <h2 className="flex items-center gap-1.5 text-base font-semibold text-slate-900 mb-1"><MapPin size={15} /> Favorite States</h2>
           <p className="text-xs text-slate-400 mb-3">Tap to select — leave empty for all states.</p>
           <div className="flex gap-3 mb-3 text-xs">
-            <button onClick={() => { setSelectedStates([...STATES]); setSaved(false) }} className="text-blue-600 hover:underline">Select All</button>
+            <button onClick={() => { setSelectedStates([...STATES]); setSaved(false) }} className="text-slate-700 hover:text-slate-900 underline underline-offset-2">Select All</button>
             <button onClick={() => { setSelectedStates([]); setSaved(false) }} className="text-slate-400 hover:underline">Clear All</button>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -306,8 +302,8 @@ export default function PreferencesPage() {
                 onClick={() => toggle(state, selectedStates, setSelectedStates)}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
                   selectedStates.includes(state)
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300'
+                    ? 'bg-[#1A1A2E] text-white border-[#1A1A2E]'
+                    : 'bg-white text-slate-900 border-[#E2E8F0] hover:border-slate-400'
                 }`}
               >
                 {state}
@@ -315,7 +311,7 @@ export default function PreferencesPage() {
             ))}
           </div>
           {selectedStates.length > 0 && (
-            <p className="text-xs text-blue-600 mt-3">{selectedStates.length} state{selectedStates.length !== 1 ? 's' : ''} selected: {selectedStates.join(', ')}</p>
+            <p className="text-xs text-slate-700 mt-3">{selectedStates.length} state{selectedStates.length !== 1 ? 's' : ''} selected: {selectedStates.join(', ')}</p>
           )}
         </div>
 
@@ -324,7 +320,7 @@ export default function PreferencesPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-xl font-bold text-base shadow-sm transition-all disabled:opacity-50"
+            className="flex-1 bg-[#1A1A2E] hover:opacity-90 text-white py-3 px-6 rounded-xl font-bold text-base shadow-sm transition-all disabled:opacity-50"
           >
             {saving ? 'Saving...' : 'Save Preferences'}
           </button>
