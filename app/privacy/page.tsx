@@ -7,7 +7,7 @@ export default function PrivacyPage() {
       <div className="prose prose-slate max-w-none space-y-6">
         <section>
           <h2 className="text-xl font-semibold mb-2">1. Who We Are</h2>
-          <p className="text-slate-700">TrialTracker is a web application operated from Illinois that helps dog sport competitors find and track trial listings. You can contact us at support@trialtracker.app.</p>
+          <p className="text-slate-700">TrialTracker is a web application operated from Illinois that helps dog sport competitors find and track trial listings. You can contact us at trialtrackerapp@gmail.com.</p>
         </section>
 
         <section>
@@ -22,7 +22,7 @@ export default function PrivacyPage() {
 
         <section>
           <h2 className="text-xl font-semibent mb-2">4. Email Communications</h2>
-          <p className="text-slate-700">If you sign up for email alerts, you will receive notifications about trials opening for registration. You can unsubscribe at any time by clicking the unsubscribe link in any email or by contacting us at support@trialtracker.app.</p>
+          <p className="text-slate-700">If you sign up for email alerts, you will receive notifications about trials opening for registration. You can unsubscribe at any time by clicking the unsubscribe link in any email or by contacting us at trialtrackerapp@gmail.com.</p>
         </section>
 
         <section>
@@ -37,7 +37,7 @@ export default function PrivacyPage() {
 
         <section>
           <h2 className="text-xl font-semibold mb-2">7. Your Rights</h2>
-          <p className="text-slate-700">You may request deletion of your account and data at any time by emailing support@trialtracker.app. We will process your request within 30 days.</p>
+          <p className="text-slate-700">You may request deletion of your account and data at any time by emailing trialtrackerapp@gmail.com. We will process your request within 30 days.</p>
         </section>
 
         <section>
@@ -47,7 +47,7 @@ export default function PrivacyPage() {
 
         <section>
           <h2 className="text-xl font-semibold mb-2">9. Contact</h2>
-          <p className="text-slate-700">Questions about this policy? Email us at support@trialtracker.app.</p>
+          <p className="text-slate-700">Questions about this policy? Email us at trialtrackerapp@gmail.com.</p>
         </section>
       </div>
     </div>

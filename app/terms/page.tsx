@@ -48,7 +48,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-lg font-bold text-slate-800 mb-2">6. Email Alerts & Communications</h2>
-            <p>By creating an account, you agree to receive transactional emails including account confirmation, email alerts for trial entry openings you have opted into, and important platform announcements. You may unsubscribe from non-essential communications at any time by updating your preferences or contacting us at <a href="mailto:support@trialtracker.app" className="text-blue-600 hover:underline">support@trialtracker.app</a>. Transactional emails related to your account cannot be fully opted out of while your account is active.</p>
+            <p>By creating an account, you agree to receive transactional emails including account confirmation, email alerts for trial entry openings you have opted into, and important platform announcements. You may unsubscribe from non-essential communications at any time by updating your preferences or contacting us at <a href="mailto:trialtrackerapp@gmail.com" className="text-blue-600 hover:underline">trialtrackerapp@gmail.com</a>. Transactional emails related to your account cannot be fully opted out of while your account is active.</p>
           </section>
 
           <section>
@@ -85,7 +85,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-lg font-bold text-slate-800 mb-2">10. Account Termination</h2>
-            <p>You may delete your account at any time by contacting us at <a href="mailto:support@trialtracker.app" className="text-blue-600 hover:underline">support@trialtracker.app</a>. We reserve the right to suspend or terminate accounts that violate these terms.</p>
+            <p>You may delete your account at any time by contacting us at <a href="mailto:trialtrackerapp@gmail.com" className="text-blue-600 hover:underline">trialtrackerapp@gmail.com</a>. We reserve the right to suspend or terminate accounts that violate these terms.</p>
           </section>
 
           <section>
@@ -95,7 +95,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-lg font-bold text-slate-800 mb-2">12. Contact</h2>
-            <p>Questions about these terms? Reach us at <a href="mailto:support@trialtracker.app" className="text-blue-600 hover:underline">support@trialtracker.app</a>.</p>
+            <p>Questions about these terms? Reach us at <a href="mailto:trialtrackerapp@gmail.com" className="text-blue-600 hover:underline">trialtrackerapp@gmail.com</a>.</p>
           </section>
 
         </div>
