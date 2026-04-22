@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
-import { Search, PawPrint, Settings, LogOut, ClipboardList, Menu, X } from "lucide-react";
+import { Search, LayoutDashboard, LogOut, ClipboardList, Menu, X } from "lucide-react";
 
 function NavLink({ href, icon, label, onClick }: { href: string; icon: React.ReactNode; label: string; onClick?: () => void }) {
   const pathname = usePathname();
@@ -75,8 +75,7 @@ function Header() {
             {userRole === "handler" && (
               <>
                 <NavLink href="/trials" icon={<Search size={15} />} label="Find Trials" />
-                <NavLink href="/dogs" icon={<PawPrint size={15} />} label="My Dogs" />
-                <NavLink href="/preferences" icon={<Settings size={15} />} label="Preferences" />
+                <NavLink href="/handler-hub" icon={<LayoutDashboard size={15} />} label="Handler Hub" />
               </>
             )}
             {userRole === "club" && (
@@ -109,8 +108,7 @@ function Header() {
           {userRole === "handler" && (
             <>
               <NavLink href="/trials" icon={<Search size={15} />} label="Find Trials" onClick={() => setMenuOpen(false)} />
-              <NavLink href="/dogs" icon={<PawPrint size={15} />} label="My Dogs" onClick={() => setMenuOpen(false)} />
-              <NavLink href="/preferences" icon={<Settings size={15} />} label="Preferences" onClick={() => setMenuOpen(false)} />
+              <NavLink href="/handler-hub" icon={<LayoutDashboard size={15} />} label="Handler Hub" onClick={() => setMenuOpen(false)} />
             </>
           )}
           {userRole === "club" && (

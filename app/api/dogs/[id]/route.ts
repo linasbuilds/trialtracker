@@ -20,7 +20,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const { id } = await params
   const body = await request.json()
-  const { name, breed, birth_date, active, sport_orgs, sports } = body
+  const { name, breed, birth_date, active, sport_orgs, sports, photo_url } = body
 
   const { data: existing } = await supabaseAdmin
     .from('dog_profiles')
@@ -37,6 +37,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (birth_date !== undefined) updates.birth_date = birth_date || null
   if (active !== undefined) updates.active = active
   if (sports !== undefined) updates.sports = sports ?? []
+  if (photo_url !== undefined) updates.photo_url = photo_url || null
 
   if (Object.keys(updates).length > 0) {
     const { error: updateError } = await supabaseAdmin
