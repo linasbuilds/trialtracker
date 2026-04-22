@@ -131,7 +131,7 @@ function Footer() {
   return (
     <footer className="border-t border-slate-200 bg-white mt-auto">
       <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
-        <span className="text-xs text-slate-400">© 2026 TrialTracker · Built by a handler, for handlers</span>
+        <span className="text-xs text-slate-400">© 2026 TrialTracker · trialtracker.app · Built for handlers, by a handler. Aggregates publicly available trial information and respects all organization terms of service.</span>
         <div className="flex gap-4">
           <a href="/terms" className="text-xs text-slate-400 hover:text-slate-600 transition-colors">Terms</a>
           <a href="/privacy" className="text-xs text-slate-400 hover:text-slate-600 transition-colors">Privacy</a>
