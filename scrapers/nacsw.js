@@ -535,11 +535,40 @@ async function main() {
         if (t.entry_opening_date) payload.entry_opening_date = t.entry_opening_date;
         if (t.entry_closing_date) payload.entry_closing_date = t.entry_closing_date;
 
-        const { error } = await supabase.from('trials').upsert(
-          payload,
-          { onConflict: 'official_link' }
-        );
-        if (error) throw error;
+        // Check for existing trial using 4-field match key
+        const { data: existing } = await supabase
+          .from('trials')
+          .select('id, claimed')
+          .eq('trial_host', t.trial_host)
+          .eq('trial_start_date', t.trial_start_date)
+          .eq('organization', t.organization)
+          .eq('city', t.city)
+          .single();
+
+        if (existing?.claimed) {
+          console.log(`  Skipping claimed trial: ${t.trial_host} ${t.trial_start_date}`);
+          skipped++;
+          continue;
+        }
+
+        if (existing) {
+          const updates = {};
+          if (payload.trial_name)         updates.trial_name         = payload.trial_name;
+          if (payload.trial_end_date)     updates.trial_end_date     = payload.trial_end_date;
+          if (payload.location_name)      updates.location_name      = payload.location_name;
+          if (payload.street)             updates.street             = payload.street;
+          if (payload.premium_url)        updates.premium_url        = payload.premium_url;
+          if (payload.club_website)       updates.club_website       = payload.club_website;
+          if (payload.official_link)      updates.official_link      = payload.official_link;
+          if (payload.cancelled != null)  updates.cancelled          = payload.cancelled;
+          if (t.entry_opening_date)       updates.entry_opening_date = t.entry_opening_date;
+          if (t.entry_closing_date)       updates.entry_closing_date = t.entry_closing_date;
+          const { error } = await supabase.from('trials').update(updates).eq('id', existing.id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from('trials').insert(payload);
+          if (error) throw error;
+        }
         success++;
       } catch (err) {
         failed++;
