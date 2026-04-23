@@ -1370,7 +1370,6 @@ async def _scrape_trial(
                         return opening, closing
                 if not (opening or closing):
                     print("    ❌ No date labels found in .docx")
-                    print(f"    🔍 .docx first 1000 chars: {docx_text_fp[:1000]!r}")
             else:
                 print("    ❌ No text extracted from .docx")
             print("    Falling through to club website")
@@ -1395,7 +1394,6 @@ async def _scrape_trial(
                         return opening, closing
                 if not (opening or closing):
                     print("    ❌ No date labels found in premium PDF")
-                    print(f"    🔍 PDF first 1000 chars: {pdf_text_fp[:1000]!r}")
             else:
                 print("    ❌ No text extracted from premium PDF")
             print("    Falling through to club website")
@@ -1454,10 +1452,8 @@ async def _scrape_trial(
         print(f"{'='*60}\n")
 
     # Playwright first — captures JS-rendered content missed by crawl4ai
-    print("  🎭 Fetching Playwright version for JS-rendered content...")
     pw_text = await _fetch_with_playwright(club_url)
     playwright_text = pw_text  # persist for Step D¾
-    print(f"  🔍 Playwright text length: {len(pw_text)}")
     if pw_text:
         opening, closing = extract_dates_inline(pw_text, start_date)
         if opening or closing:
@@ -1525,8 +1521,6 @@ async def _scrape_trial(
                 detail_seen.add(dl)
                 detail_links.append(dl)
 
-        print(f"  📄 Nav page text preview (first 500 chars): {nav_text[:500]!r}")
-
         if TEST_MODE:
             print(f"\n{'='*60}")
             print(f"📄 FULL PAGE TEXT — {nav_url} ({len(nav_text)} chars):")
@@ -1592,7 +1586,6 @@ async def _scrape_trial(
                 return opening, closing
             else:
                 print(f"      ❌ No date labels found in PDF")
-                print(f"      🔍 PDF first 1000 chars: {pdf_text[:1000]!r}")
 
         # If year-range suffix in URL and no dates found, also try cleaned URL
         cleaned_url = _strip_year_suffix(nav_url)
@@ -1633,8 +1626,6 @@ async def _scrape_trial(
             d_text  = _get_text(d_result)
             d_html  = _get_html(d_result)
             d_links = _get_links(d_result)
-
-            print(f"  📄 Detail page text preview (first 500 chars): {d_text[:500]!r}")
 
             if TEST_MODE:
                 print(f"\n{'='*60}")
@@ -1684,7 +1675,6 @@ async def _scrape_trial(
                     return opening, closing
                 else:
                     print(f"      ❌ No date labels found in PDF")
-                    print(f"      🔍 PDF first 1000 chars: {pdf_text[:1000]!r}")
 
     # ── Step C: PDFs from homepage + all nav pages visited in Step B ───────────
     pdf_links = _find_pdf_links(home_html, home_links, club_url)
@@ -1724,7 +1714,6 @@ async def _scrape_trial(
             return opening, closing
         else:
             print(f"      ❌ No date labels found in PDF")
-            print(f"      🔍 PDF first 1000 chars: {pdf_text[:1000]!r}")
 
     # ── Step C2: .docx premiums from homepage + all nav pages visited in Step B ──
     docx_links = _find_docx_links(home_html, home_links, club_url)
