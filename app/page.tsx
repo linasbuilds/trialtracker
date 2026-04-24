@@ -9,12 +9,18 @@ type AuthState = "null" | "guest" | "handler" | "club";
 
 export default function Home() {
   const [authState, setAuthState] = useState<AuthState>("null");
+  const [spotsRemaining, setSpotsRemaining] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setAuthState("guest");
+        const res = await fetch("/api/beta-count");
+        if (res.ok) {
+          const { count } = await res.json();
+          setSpotsRemaining(Math.max(0, 100 - (count ?? 0)));
+        }
         return;
       }
       const { data: profile } = await supabase
@@ -70,12 +76,16 @@ export default function Home() {
           <p className="text-lg text-slate-600 max-w-xl mx-auto leading-relaxed">
             TrialTracker tracks entry openings across NACSW, CPE, UKC, UKI and more — and alerts you the moment they open.
           </p>
-          <p className="text-sm text-slate-400 mt-3">
-            47 of 100 founding spots remaining!
-          </p>
-          <p className="text-xs text-slate-400 mt-1">
-            Founding members will get a locked-in rate forever — before we open to the public.
-          </p>
+          {spotsRemaining !== null && (
+            <>
+              <p className="text-sm text-slate-400 mt-3">
+                {spotsRemaining} of 100 founding spots remaining!
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                Founding members will get a locked-in rate forever — before we open to the public.
+              </p>
+            </>
+          )}
         </div>
 
         {/* Two signup cards */}
