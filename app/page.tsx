@@ -70,6 +70,9 @@ export default function Home() {
           <p className="text-lg text-slate-600 max-w-xl mx-auto leading-relaxed">
             TrialTracker tracks entry openings across NACSW, CPE, UKC, UKI and more — and alerts you the moment they open.
           </p>
+          <p className="text-sm text-slate-400 mt-3">
+            47 of 100 founding spots remaining — lock in your price before we open to the public.
+          </p>
         </div>
 
         {/* Two signup cards */}
