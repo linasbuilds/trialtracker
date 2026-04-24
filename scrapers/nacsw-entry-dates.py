@@ -355,6 +355,8 @@ _INLINE_OPEN_PATTERNS = re.compile(
     r"|\bentries\s+accepted\s+beginning\b"
     r"|\bregistration\s+opens?\b"
     r"|\bopens\b"
+    r"|\bdraw\s+period\b"
+    r"|\bopen\s+on\b"
     # Day-of-week anchored variants (Sites 1–3: "Opens Thursday, March 26", etc.)
     r"|\bopens?\s+(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)"
     r"|\bentries?\s+open\s+(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)"
@@ -403,11 +405,6 @@ def extract_dates_inline(text: str, trial_start_date: str = "") -> tuple[str | N
             if m:
                 opening = _validate_date(m.group(), trial_start_date, "inline-open")
                 if opening:
-                    cutoff = (date.today() - timedelta(days=30)).isoformat()
-                    if opening < cutoff:
-                        _dbg(f"  ⏭️  Skipping stale inline date {opening} (>30 days past)")
-                        opening = None
-                        continue
                     _dbg(f"  🔎 inline match on: {line!r}  → {opening}")
             # Fallback: "Month Day" with no year (e.g. "Entries Open Wednesday, April 8")
             if not opening:
