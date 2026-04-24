@@ -64,6 +64,7 @@ except ImportError:
 
 TEST_MODE = False
 TEST_URL  = "https://www.aboutfacek9academy.com/april-olympia-wa-premium/"
+TEST_ID: int | None = None  # set to a trial id to target exactly one trial in TEST_MODE
 
 # Crawl4AI is only needed for production runs.
 # In TEST_MODE we skip the import entirely and provide lightweight stubs
@@ -1323,25 +1324,46 @@ async def _scrape_trial(
 
     cfg = CrawlerRunConfig(page_timeout=20000)
 
-    # ── Step 0: NACSW official event page ─────────────────────────────────────
+    # ── Step 0: NACSW official event page — anchor-isolated block ─────────────
+    # Fetches the NACSW calendar and isolates ONLY the specific event's detail
+    # block via its anchor ID (e.g. #event5125 → <tr class="event5125">).
+    # Never feeds the full 350K calendar page to date extractors.
     official_link = trial.get("official_link") or ""
     if official_link and "nacsw.net" in official_link:
-        print(f"  🏠 Step 0 — NACSW event page: {official_link}")
-        event_result = await _fetch(crawler, official_link)
-        if event_result is not None:
-            event_text = _get_text(event_result)
-            if event_text:
-                opening, closing = extract_dates_inline(event_text, start_date)
-                if not (opening or closing):
-                    opening, closing = _extract_contextual(event_text, start_date)
-                if not (opening or closing):
-                    opening, closing = extract_dates(event_text, start_date)
-            if opening or closing:
-                _log_found(opening, closing, "NACSW event page")
-                if _entry_dates_plausible(opening, start_date):
-                    return opening, closing
+        event_id_m = re.search(r'#event(\d+)', official_link)
+        if event_id_m:
+            eid = event_id_m.group(1)
+            base_cal_url = official_link.split('#')[0]
+            print(f"  🏠 Step 0 — NACSW event {eid}: fetching calendar for block isolation")
+            cal_result = await _fetch(crawler, base_cal_url)
+            if cal_result is not None:
+                cal_html = _get_html(cal_result)
+                if cal_html and f'event{eid}' in cal_html:
+                    block_m = re.search(
+                        rf'<tr[^>]*\bevent{re.escape(eid)}\b[^>]*>(.*?)</tr>',
+                        cal_html, re.IGNORECASE | re.DOTALL,
+                    )
+                    if block_m:
+                        block_html = block_m.group(1)
+                        block_text = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', ' ', block_html)).strip()
+                        print(f"  🔍 Isolated event block: {len(block_text)} chars")
+                        opening, closing = extract_dates_inline(block_text, start_date)
+                        if not (opening or closing):
+                            opening, closing = _extract_contextual(block_text, start_date)
+                        if not (opening or closing):
+                            opening, closing = extract_dates(block_text, start_date)
+                        if opening or closing:
+                            _log_found(opening, closing, "NACSW event block")
+                            if _entry_dates_plausible(opening, start_date):
+                                return opening, closing
+                            else:
+                                print(f"  ⚠️  Event block date {opening} failed plausibility — continuing")
+                    else:
+                        print(f"  ℹ️  event{eid} block not found in calendar HTML")
                 else:
-                    print(f"  ⚠️  NACSW event page date {opening} failed plausibility — continuing")
+                    print(f"  ℹ️  Jina returned markdown (no HTML classes) — skipping Step 0 extraction")
+        else:
+            print(f"  ℹ️  No event anchor in official_link — skipping Step 0")
         opening = None
         closing = None
 
@@ -1826,23 +1848,33 @@ async def main() -> None:
         return
 
     if TEST_MODE:
-        base = TEST_URL.rstrip("/")
-        matched = [t for t in trials if (t.get("club_website") or "").rstrip("/") == base]
-        if not matched:
-            # Fallback: partial match
-            matched = [t for t in trials if base in (t.get("club_website") or "")]
-        if not matched:
-            print(f"⚠️  TEST MODE: no trial found with club_website matching {TEST_URL!r}")
-            print("Available club_website values:")
-            for t in trials[:10]:
-                print(f"  {t.get('club_website')!r}")
-            return
-        trials = matched[:1]
-        print(f"🧪 TEST MODE — running only: {trials[0].get('club_website')!r}  ({trials[0].get('trial_start_date')})\n")
+        if TEST_ID:
+            matched = [t for t in trials if t.get("id") == TEST_ID]
+            if not matched:
+                print(f"⚠️  TEST MODE: no trial found with id={TEST_ID}")
+                print("Available ids:", [t.get("id") for t in trials[:10]])
+                return
+            trials = matched[:1]
+            print(f"🧪 TEST MODE — running only id={TEST_ID}: {trials[0].get('club_website')!r}  ({trials[0].get('trial_start_date')})\n")
+        else:
+            base = TEST_URL.rstrip("/")
+            matched = [t for t in trials if (t.get("club_website") or "").rstrip("/") == base]
+            if not matched:
+                # Fallback: partial match
+                matched = [t for t in trials if base in (t.get("club_website") or "")]
+            if not matched:
+                print(f"⚠️  TEST MODE: no trial found with club_website matching {TEST_URL!r}")
+                print("Available club_website values:")
+                for t in trials[:10]:
+                    print(f"  {t.get('club_website')!r}")
+                return
+            trials = matched[:1]
+            print(f"🧪 TEST MODE — running only: {trials[0].get('club_website')!r}  ({trials[0].get('trial_start_date')})\n")
 
     browser_cfg = BrowserConfig(headless=True, user_agent=BOT_UA)
 
     updated = skipped = errors = no_dates = 0
+    results: list[tuple[str, str, str, str | None]] = []  # (name, start, status, date)
 
     try:
         async with AsyncWebCrawler(config=browser_cfg) as crawler:
@@ -1902,16 +1934,20 @@ async def main() -> None:
 
                     if TEST_MODE:
                         print(f"  🧪 TEST MODE — would save to Supabase: {payload}")
+                        results.append((name, start, "✅", opening))
                     else:
                         try:
                             db.table("trials").update(payload).eq("id", trial["id"]).execute()
                             print(f"  ☁️  Saved to Supabase: {payload}")
                             updated += 1
+                            results.append((name, start, "✅", opening))
                         except Exception as exc:
                             print(f"  ❌ Supabase update failed: {exc}")
                             errors += 1
+                            results.append((name, start, "❌ (save failed)", opening))
                 else:
                     no_dates += 1
+                    results.append((name, start, "❌", None))
                     if start and start != "?":
                         try:
                             days_away = (date.fromisoformat(start) - date.today()).days
@@ -1936,6 +1972,11 @@ async def main() -> None:
         print(f"   ❌ No dates found:   {no_dates}", flush=True)
         print(f"   ⚠️  Errors:          {errors}", flush=True)
         print("══════════════════════════════════════", flush=True)
+        if results:
+            print("\n📋 Per-trial results:", flush=True)
+            for r_name, r_start, r_status, r_date in results:
+                suffix = f"  →  {r_date}" if r_date else ""
+                print(f"  {r_status} {r_name}  ({r_start}){suffix}", flush=True)
 
 
 if __name__ == "__main__":
