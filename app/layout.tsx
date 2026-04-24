@@ -147,6 +147,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="icon" href="/icon-192.png" />
         <meta name="theme-color" content="#1A1A2E" />
       </head>
       <body className="bg-[#F8F9FA] text-slate-900 flex flex-col min-h-screen" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
