@@ -492,6 +492,11 @@ export default function TrialsPage() {
             <ExternalLink size={14} className="text-slate-600 flex-shrink-0" />
             <span className="font-normal text-[#64748B]">Entries open — check premium</span>
           </div>
+        ) : noEntryDates && daysUntilTrial !== null && daysUntilTrial <= 0 ? (
+          <div className={statusBannerBase} style={statusBannerStyle}>
+            <Clock size={14} className="text-slate-400 flex-shrink-0" />
+            <span className="font-normal text-[#94A3B8]">Entries closed</span>
+          </div>
         ) : noEntryDates && isNACSW && daysUntilTrial !== null && daysUntilTrial >= 84 ? (
           <div className={statusBannerBase} style={statusBannerStyle}>
             <Clock size={14} className="text-slate-600 flex-shrink-0" />
