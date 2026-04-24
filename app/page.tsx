@@ -71,7 +71,10 @@ export default function Home() {
             TrialTracker tracks entry openings across NACSW, CPE, UKC, UKI and more — and alerts you the moment they open.
           </p>
           <p className="text-sm text-slate-400 mt-3">
-            47 of 100 founding spots remaining — lock in your price before we open to the public.
+            47 of 100 founding spots remaining!
+          </p>
+          <p className="text-xs text-slate-400 mt-1">
+            Founding members will get a locked-in rate forever — before we open to the public.
           </p>
         </div>
 
