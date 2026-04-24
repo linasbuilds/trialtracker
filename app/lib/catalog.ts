@@ -3,7 +3,7 @@
 
 export const CATALOG: Record<string, Record<string, string[]>> = {
   NACSW: {
-    Nosework: ['NW1', 'NW2', 'NW3', 'Elite', 'ELT-P', 'Summit'],
+    Nosework: ['NW1', 'NW2', 'NW3', 'ELT', 'ELT-S', 'ELT-P', 'Summit', 'L1C'],
   },
   AKC: {
     'Nosework/Scent Work': ['Novice', 'Advanced', 'Excellent', 'Master', 'Detective'],
