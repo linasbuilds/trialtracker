@@ -1255,7 +1255,7 @@ async def _fetch(crawler, url: str):
         print(f"    ⚠️  Fetch failed ({url}): {exc}")
         return None
 
-async def _fetch_with_playwright(url: str) -> str:
+async def _fetch_with_playwright(url: str) -> tuple[str, str]:
     """Playwright fallback for JS-rendered pages (Wix, Beaver Builder, Squarespace, GoDaddy).
     Waits for network idle + 3s buffer so page builders finish rendering before we read.
     Also scans raw innerHTML for button/widget entry dates that inner_text may miss."""
@@ -1284,10 +1284,10 @@ async def _fetch_with_playwright(url: str) -> str:
             if extra_lines:
                 text = text + "\n" + "\n".join(extra_lines)
             await browser.close()
-        return text
+        return text, html
     except Exception as exc:
         print(f"⚠️ Playwright timeout/error on {url}: {exc}", flush=True)
-        return ""
+        return "", ""
 
 # ── Per-trial scraping ────────────────────────────────────────────────────────
 
@@ -1449,7 +1449,7 @@ async def _scrape_trial(
         print(f"{'='*60}\n")
 
     # Playwright first — captures JS-rendered content missed by crawl4ai
-    pw_text = await _fetch_with_playwright(club_url)
+    pw_text, pw_html = await _fetch_with_playwright(club_url)
     playwright_text = pw_text  # persist for Step D¾
     if pw_text:
         opening, closing = extract_dates_inline(pw_text, start_date)
@@ -1478,6 +1478,12 @@ async def _scrape_trial(
 
     # ── Step B: Navigation links ───────────────────────────────────────────────
     nav_links = _find_nav_links(home_html, home_links, club_url)
+    # If Playwright rendered additional links (e.g. Wix JS pages), merge them in
+    if pw_html:
+        pw_nav = _find_nav_links(pw_html, [], club_url)
+        for _u in pw_nav:
+            if _u not in nav_links:
+                nav_links.append(_u)
     # Always try /trials directly — many NACSW clubs put all trial info there
     _trials_url = club_url.rstrip("/") + "/trials"
     if _trials_url not in nav_links and _trials_url != club_url:
