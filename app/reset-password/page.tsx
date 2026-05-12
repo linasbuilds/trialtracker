@@ -86,7 +86,12 @@ export default function ResetPasswordPage() {
       setMessage(error.message);
     } else {
       setMessage("updated");
-      setTimeout(() => router.push("/login"), 2000);
+      const { data: { user: u } } = await supabase.auth.getUser();
+      const { data: profile } = u
+        ? await supabase.from("user_profiles").select("role").eq("user_id", u.id).single()
+        : { data: null };
+      const destination = profile?.role === "club" ? "/club-trials" : "/trials";
+      setTimeout(() => router.push(destination), 2000);
     }
     setLoading(false);
   };
