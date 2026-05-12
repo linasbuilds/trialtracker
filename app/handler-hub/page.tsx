@@ -12,7 +12,7 @@ import {
 // ── Dogs constants ────────────────────────────────────────────────────────────
 
 const SPORT_ORG_MAP: Record<string, { org: string; levels: string[] }[]> = {
-  'Nosework': [{ org: 'NACSW', levels: ['NW1', 'NW2', 'NW3', 'ELT', 'ELT-S', 'ELT-P', 'Summit', 'L1C'] }],
+  'Nosework': [{ org: 'NACSW', levels: ['NW1', 'NW2', 'NW3', 'ELT', 'ELT-S', 'ELT-P', 'Summit', 'L1C', 'L2C', 'L3C', 'L1I', 'L2I', 'L3I', 'L1E', 'L2E', 'L3E', 'L1V', 'L2V', 'L3V'] }],
   'Agility': [
     { org: 'UKI', levels: ['Beginners', 'Starters', 'Advanced', 'Masters', 'Champion'] },
     { org: 'CPE', levels: ['Level 1', 'Level 2', 'Level 3', 'Level 4', 'Level 5'] },
